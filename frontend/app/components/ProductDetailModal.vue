@@ -14,6 +14,7 @@ import { useMenuStore } from '~/stores/menu'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
 import type { ProductModifier, ProductSize } from '~/types'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const menuStore = useMenuStore()
 const cartStore = useCartStore()
@@ -290,11 +291,13 @@ const handleBackdropClick = (e: MouseEvent) => {
           </button>
         </div>
 
-        <!-- Add to cart CTA -->
-        <button
-          type="button"
+        <!-- Add to cart Gooey CTA -->
+        <GooeyButton
+          variant="primary"
+          size="md"
+          class="flex-1 w-full sm:w-auto !justify-between"
+          aria-label="افزودن به سبد خرید"
           @click="handleAddToCart"
-          class="touch-target flex flex-1 w-full sm:w-auto items-center justify-between rounded-full bg-[var(--color-brand-forest)] px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-98"
         >
           <div class="flex items-center gap-2">
             <img
@@ -307,7 +310,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           <span class="text-sm font-extrabold text-[var(--color-accent-gold-soft)]">
             {{ formatToman(totalPrice) }}
           </span>
-        </button>
+        </GooeyButton>
       </div>
     </div>
   </dialog>

@@ -11,6 +11,7 @@ import {
 import { useCartStore } from '~/stores/cart'
 import { useUiStore } from '~/stores/ui'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
 const uiStore = useUiStore()
@@ -305,12 +306,13 @@ onUnmounted(() => {
           </span>
         </button>
 
-        <!-- Order Button using order.svg with text "سفارش" -->
-        <button
-          type="button"
-          @click="scrollTo('/#menu')"
-          class="touch-target inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] ps-3 pe-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95"
+        <!-- Order Button using order.svg with text "سفارش" and Gooey animation -->
+        <GooeyButton
+          variant="primary"
+          size="sm"
           aria-label="سفارش آنلاین"
+          class="ps-3.5 pe-4.5"
+          @click="scrollTo('/#menu')"
         >
           <img
             src="/svg/order.svg"
@@ -318,7 +320,7 @@ onUnmounted(() => {
             class="h-5 w-5 object-contain"
           />
           <span>سفارش</span>
-        </button>
+        </GooeyButton>
       </div>
     </div>
   </header>

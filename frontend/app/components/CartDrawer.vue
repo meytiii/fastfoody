@@ -11,6 +11,7 @@ import {
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
 const { toPersianDigits, formatToman, formatNumber } = usePersian()
@@ -145,14 +146,16 @@ const goToCheckout = () => {
           <p class="mt-1.5 max-w-[260px] text-xs text-[var(--color-text-secondary)]">
             طعم‌های اصیل و ارگانیک فست‌فودی را کشف کنید و اولین سفارش خود را ثبت نمایید.
           </p>
-          <button
-            type="button"
+          <GooeyButton
+            variant="primary"
+            size="sm"
+            aria-label="مشاهده منوی غذاها"
+            class="mt-6"
             @click="cartStore.closeCart"
-            class="touch-target mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)] active:scale-95 transition-all"
           >
             <UtensilsCrossed :size="16" />
             <span>مشاهده منوی غذاها</span>
-          </button>
+          </GooeyButton>
         </div>
 
         <!-- Populated Items -->
@@ -281,15 +284,17 @@ const goToCheckout = () => {
           </span>
         </div>
 
-        <!-- Action Button -->
-        <button
-          type="button"
+        <!-- Action Button with Gooey Liquid Effect -->
+        <GooeyButton
+          variant="primary"
+          size="lg"
+          aria-label="تکمیل و پرداخت نهایی"
+          class="mt-3 w-full"
           @click="goToCheckout"
-          class="touch-target mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-forest)] py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-98"
         >
           <span>تکمیل و پرداخت نهایی</span>
           <ArrowLeft :size="18" class="icon-directional" />
-        </button>
+        </GooeyButton>
       </div>
     </aside>
   </Transition>

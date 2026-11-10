@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X, Phone, MapPin, Clock } from 'lucide-vue-next'
 import { useUiStore } from '~/stores/ui'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const uiStore = useUiStore()
 const route = useRoute()
@@ -131,15 +132,17 @@ const goToTop = () => {
         </div>
       </nav>
 
-      <!-- Bottom Order CTA -->
+      <!-- Bottom Order CTA with Gooey Effect -->
       <div class="border-t border-[var(--color-border-subtle)] p-4">
-        <button
-          type="button"
+        <GooeyButton
+          variant="primary"
+          size="md"
+          class="w-full"
+          aria-label="مشاهده منو و سفارش"
           @click="navigateToSection('/#menu')"
-          class="touch-target flex w-full items-center justify-center rounded-full bg-[var(--color-brand-forest)] py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)]"
         >
-          مشاهده منو و سفارش
-        </button>
+          <span>مشاهده منو و سفارش</span>
+        </GooeyButton>
       </div>
     </div>
   </Transition>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Flame, ArrowLeft, Star, ShieldCheck, Heart } from 'lucide-vue-next'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const { toPersianDigits } = usePersian()
 
@@ -72,24 +73,28 @@ const scrollToReservation = () => {
             </p>
           </div>
 
-          <!-- CTA Actions -->
+          <!-- CTA Actions with Gooey Buttons -->
           <div class="flex flex-wrap items-center gap-3.5 pt-2 w-full sm:w-auto">
-            <button
-              type="button"
+            <GooeyButton
+              variant="primary"
+              size="lg"
+              class="w-full sm:w-auto"
+              aria-label="مشاهده منو و سفارش آنلاین"
               @click="scrollToMenu"
-              class="touch-target group flex items-center justify-center gap-2 rounded-full bg-[var(--color-brand-forest)] px-7 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95 w-full sm:w-auto"
             >
               <span>مشاهده منو و سفارش</span>
               <ArrowLeft :size="16" class="transition-transform group-hover:-translate-x-1 icon-directional" />
-            </button>
+            </GooeyButton>
 
-            <button
-              type="button"
+            <GooeyButton
+              variant="secondary"
+              size="lg"
+              class="w-full sm:w-auto"
+              aria-label="رزرو آنلاین میز رستوران"
               @click="scrollToReservation"
-              class="touch-target flex items-center justify-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-6 py-3.5 text-sm font-bold text-[var(--color-text-primary)] transition-all hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-ivory)] active:scale-95 w-full sm:w-auto"
             >
               <span>رزرو میز در رستوران</span>
-            </button>
+            </GooeyButton>
           </div>
 
           <!-- Trust Badges -->

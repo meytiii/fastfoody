@@ -11,6 +11,7 @@ import {
   ArrowLeft,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const emailInput = ref('')
 
@@ -125,13 +126,14 @@ const handleSubscribe = () => {
                 placeholder="ایمیل خود را وارد نمایید..."
                 class="w-full rounded-full border border-white/10 bg-white/5 py-2.5 ps-4 pe-10 text-xs text-white placeholder-white/40 focus:border-[var(--color-accent-gold)] focus:outline-none"
               />
-              <button
+              <GooeyButton
                 type="submit"
-                class="absolute inset-inline-end-1 top-1 bottom-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-accent-gold)] text-[var(--color-brand-forest-deep)] hover:bg-[var(--color-accent-gold-hover)]"
-                aria-label="عضویت"
+                variant="gold"
+                class="!absolute inset-inline-end-1 top-1 bottom-1 !h-7 !w-7 !min-h-0 !p-0 !rounded-full"
+                aria-label="عضویت در خبرنامه"
               >
                 <ArrowLeft :size="14" class="icon-directional" />
-              </button>
+              </GooeyButton>
             </div>
           </form>
         </div>

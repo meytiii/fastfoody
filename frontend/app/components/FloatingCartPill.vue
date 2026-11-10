@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { ArrowLeft } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
 const { toPersianDigits, formatToman } = usePersian()
@@ -24,11 +25,11 @@ const hasItems = computed(() => cartStore.totalCount > 0)
       v-if="hasItems"
       class="fixed bottom-4 inset-inline-start-4 z-40 md:bottom-6 md:inset-inline-start-6"
     >
-      <button
-        type="button"
-        @click="cartStore.openCart"
-        class="touch-target group flex h-13 items-center gap-3.5 rounded-full bg-[var(--color-brand-forest)] px-5 text-white shadow-[var(--shadow-pill)] transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95"
+      <GooeyButton
+        variant="primary"
+        class="!h-13 !px-5 text-white shadow-[var(--shadow-pill)]"
         aria-label="مشاهده سبد خرید و تسویه‌حساب"
+        @click="cartStore.openCart"
       >
         <!-- Cart Icon & Gold Badge -->
         <div class="relative flex items-center justify-center">
@@ -66,7 +67,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
         >
           <ArrowLeft :size="16" />
         </div>
-      </button>
+      </GooeyButton>
     </div>
   </Transition>
 </template>

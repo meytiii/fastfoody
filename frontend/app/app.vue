@@ -20,6 +20,22 @@ onMounted(() => {
 
 <template>
   <div class="relative min-h-screen flex flex-col bg-white text-[var(--color-text-primary)] selection:bg-[var(--color-accent-gold-soft)] selection:text-[var(--color-brand-forest)]">
+    <!-- Essential Global SVG Gooey Filter for GooeyButton components -->
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      version="1.1"
+      class="sr-only fixed pointer-events-none -top-full -left-full w-0 h-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id="gooey">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+      </defs>
+    </svg>
+
     <!-- Global Ambient Aurora Background (Applied on all pages) -->
     <AuroraBackground as-backdrop />
 

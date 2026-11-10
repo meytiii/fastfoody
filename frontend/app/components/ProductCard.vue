@@ -6,6 +6,7 @@ import type { Product } from '~/types'
 import { useMenuStore } from '~/stores/menu'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const props = defineProps<{
   product: Product
@@ -113,16 +114,17 @@ const handleQuickAdd = (e: MouseEvent) => {
         </span>
       </div>
 
-      <!-- Quick Add Button -->
-      <button
-        type="button"
-        @click="handleQuickAdd"
-        class="touch-target group/btn flex h-9 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-3 text-xs font-bold text-[var(--color-text-primary)] transition-all hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-brand-forest)] hover:text-white active:scale-90"
+      <!-- Quick Add Gooey Button -->
+      <GooeyButton
+        variant="secondary"
+        size="sm"
         aria-label="افزودن به سبد خرید"
+        class="h-9 px-3 text-xs"
+        @click="handleQuickAdd"
       >
-        <Plus :size="14" class="transition-transform group-hover/btn:rotate-90" />
+        <Plus :size="14" class="transition-transform group-hover:rotate-90" />
         <span class="hidden sm:inline">افزودن</span>
-      </button>
+      </GooeyButton>
     </div>
   </article>
 </template>

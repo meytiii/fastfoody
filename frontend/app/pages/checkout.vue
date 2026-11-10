@@ -14,6 +14,7 @@ import {
 import { toast } from 'vue-sonner'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
 const { toPersianDigits, formatToman } = usePersian()
@@ -340,16 +341,19 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Submit Button (Mobile visible or desktop submit) -->
-            <button
+            <!-- Submit Button with Gooey Liquid Effect -->
+            <GooeyButton
               type="submit"
+              variant="primary"
+              size="lg"
               :disabled="isSubmitting"
-              class="touch-target flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-forest)] py-4 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-98 disabled:opacity-50"
+              class="w-full !py-4"
+              aria-label="ثبت نهایی و پرداخت سفارش"
             >
               <ShieldCheck :size="18" />
               <span v-if="isSubmitting">در حال ثبت سفارش...</span>
               <span v-else>ثبت نهایی و پرداخت سفارش ({{ formatToman(cartStore.grandTotal) }})</span>
-            </button>
+            </GooeyButton>
           </form>
         </div>
 

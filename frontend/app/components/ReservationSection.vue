@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { usePersian } from '~/composables/usePersian'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const { toPersianDigits } = usePersian()
 
@@ -241,15 +242,18 @@ const handleReservation = async () => {
                 />
               </div>
 
-              <!-- Submit Button -->
-              <button
+              <!-- Submit Button with Gooey Liquid Effect -->
+              <GooeyButton
                 type="submit"
+                variant="primary"
+                size="lg"
                 :disabled="isSubmitting"
-                class="touch-target flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-forest)] py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-98 disabled:opacity-50"
+                class="w-full"
+                aria-label="ثبت درخواست رزرو میز رستوران"
               >
                 <span v-if="isSubmitting">در حال ارسال درخواست...</span>
                 <span v-else>ثبت درخواست رزرو میز</span>
-              </button>
+              </GooeyButton>
             </form>
           </div>
         </div>
