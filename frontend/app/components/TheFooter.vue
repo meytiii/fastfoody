@@ -9,7 +9,6 @@ import {
   Instagram,
   Send,
   ArrowLeft,
-  Sparkles,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 

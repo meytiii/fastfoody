@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Sparkles, ArrowLeft, Star, ShieldCheck, Heart } from 'lucide-vue-next'
+import { Flame, ArrowLeft, Star, ShieldCheck, Heart } from 'lucide-vue-next'
 import { usePersian } from '~/composables/usePersian'
 
 const { toPersianDigits } = usePersian()
@@ -137,7 +137,7 @@ const scrollToReservation = () => {
               <div
                 class="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)]"
               >
-                <Sparkles :size="20" />
+                <Flame :size="20" />
               </div>
               <div>
                 <p class="text-xs font-bold text-[var(--color-text-primary)]">

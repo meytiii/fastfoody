@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   ArrowRight,
   CheckCircle2,
-  ShoppingBag,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useCartStore } from '~/stores/cart'
@@ -112,8 +111,8 @@ const handlePlaceOrder = async () => {
         v-else-if="cartStore.isEmpty"
         class="mx-auto max-w-md rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 text-center shadow-[var(--shadow-sm)] space-y-4"
       >
-        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-text-muted)]">
-          <ShoppingBag :size="32" />
+        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-surface-cream)] p-4 border border-[var(--color-border-subtle)]">
+          <img src="/svg/cart.svg" alt="سبد خرید خالی" class="h-12 w-12 object-contain" />
         </div>
         <h2 class="text-lg font-bold text-[var(--color-text-primary)]">
           سبد خرید شما خالی است

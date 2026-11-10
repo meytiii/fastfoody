@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
   Search,
   Menu as MenuIcon,
-  X,
-  PhoneCall,
+  UtensilsCrossed,
+  ChefHat,
+  CalendarCheck,
+  MessageSquareQuote,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { useUiStore } from '~/stores/ui'
@@ -15,33 +17,149 @@ const uiStore = useUiStore()
 const { toPersianDigits, formatToman } = usePersian()
 const route = useRoute()
 
-// Removed 'صفحه اصلی' button from navbar links; clicking brand logo handles top of homepage
 const navLinks = [
-  { label: 'منوی غذا', href: '/#menu' },
-  { label: 'پیشنهاد سرآشپز', href: '/#specials' },
-  { label: 'رزرو میز', href: '/#reservation' },
-  { label: 'نظرات میهمانان', href: '/#testimonials' },
+  { label: 'منوی غذا', href: '/#menu', id: 'menu', icon: UtensilsCrossed },
+  { label: 'پیشنهاد سرآشپز', href: '/#specials', id: 'specials', icon: ChefHat },
+  { label: 'رزرو میز', href: '/#reservation', id: 'reservation', icon: CalendarCheck },
+  { label: 'نظرات میهمانان', href: '/#testimonials', id: 'testimonials', icon: MessageSquareQuote },
 ]
+
+const activeHref = ref('/#menu')
+const navRef = ref<HTMLElement | null>(null)
+const linkRefs = new Map<string, HTMLElement>()
+let isClickScrolling = false
+let scrollTimeout: ReturnType<typeof setTimeout> | null = null
+
+const setLinkRef = (el: any, href: string) => {
+  if (el) {
+    linkRefs.set(href, el as HTMLElement)
+  } else {
+    linkRefs.delete(href)
+  }
+}
+
+const lampStyle = reactive({
+  left: 0,
+  top: 0,
+  width: 0,
+  height: 0,
+  opacity: 0,
+})
+const lampReady = ref(false)
+
+const updateLampPosition = () => {
+  if (!activeHref.value || !navRef.value) {
+    lampStyle.opacity = 0
+    return
+  }
+  const el = linkRefs.get(activeHref.value)
+  if (!el) {
+    lampStyle.opacity = 0
+    return
+  }
+
+  const navRect = navRef.value.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+
+  lampStyle.left = elRect.left - navRect.left
+  lampStyle.top = elRect.top - navRect.top
+  lampStyle.width = elRect.width
+  lampStyle.height = elRect.height
+  lampStyle.opacity = 1
+  lampReady.value = true
+}
 
 const scrollTo = (href: string) => {
   uiStore.closeMobileMenu()
+  activeHref.value = href
+  nextTick(() => updateLampPosition())
+
   if (href.startsWith('/#')) {
     const id = href.replace('/#', '')
     const el = document.getElementById(id)
     if (el) {
+      isClickScrolling = true
+      if (scrollTimeout) clearTimeout(scrollTimeout)
       el.scrollIntoView({ behavior: 'smooth' })
+      scrollTimeout = setTimeout(() => {
+        isClickScrolling = false
+        updateLampPosition()
+      }, 750)
     }
   }
 }
 
 const goToTop = () => {
   uiStore.closeMobileMenu()
+  activeHref.value = '/#menu'
+  nextTick(() => updateLampPosition())
   if (route.path === '/') {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } else {
     navigateTo('/')
   }
 }
+
+const onScroll = () => {
+  if (isClickScrolling || route.path !== '/') return
+
+  const scrollY = window.scrollY
+  const offset = 220
+
+  if (scrollY < 260) {
+    if (activeHref.value !== '/#menu') {
+      activeHref.value = '/#menu'
+      updateLampPosition()
+    }
+    return
+  }
+
+  const sections = ['testimonials', 'reservation', 'specials', 'menu']
+  for (const id of sections) {
+    const el = document.getElementById(id)
+    if (el) {
+      const top = el.offsetTop - offset
+      if (scrollY >= top) {
+        const targetHref = `/#${id}`
+        if (activeHref.value !== targetHref) {
+          activeHref.value = targetHref
+          updateLampPosition()
+        }
+        return
+      }
+    }
+  }
+}
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath !== '/') {
+      lampStyle.opacity = 0
+    } else {
+      nextTick(() => {
+        updateLampPosition()
+      })
+    }
+  }
+)
+
+onMounted(() => {
+  nextTick(() => {
+    updateLampPosition()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', updateLampPosition, { passive: true })
+    if (document.fonts) {
+      document.fonts.ready.then(() => updateLampPosition())
+    }
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+  window.removeEventListener('resize', updateLampPosition)
+  if (scrollTimeout) clearTimeout(scrollTimeout)
+})
 </script>
 
 <template>
@@ -83,16 +201,66 @@ const goToTop = () => {
         </div>
       </a>
 
-      <!-- Center Navigation Links -->
-      <nav class="flex items-center gap-1 lg:gap-2" aria-label="ناوبری اصلی">
+      <!-- Center Navigation Links with Tubelight Effect & Spring Animation -->
+      <nav
+        ref="navRef"
+        class="relative flex items-center gap-1 lg:gap-1.5"
+        role="tablist"
+        aria-label="ناوبری اصلی"
+      >
+        <!-- Sliding Tubelight Indicator -->
+        <div
+          v-if="lampReady && route.path === '/'"
+          class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+          :style="{
+            left: `${lampStyle.left}px`,
+            top: `${lampStyle.top}px`,
+            width: `${lampStyle.width}px`,
+            height: `${lampStyle.height}px`,
+            opacity: lampStyle.opacity,
+          }"
+          aria-hidden="true"
+        >
+          <!-- Active Pill Background Tint -->
+          <div class="h-full w-full rounded-full bg-[var(--color-brand-forest)]/[0.08]" />
+
+          <!-- Tubelight Fixture & Glowing Multi-layer Ambient Beams -->
+          <div
+            class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-full bg-[var(--color-brand-forest)] shadow-[0_0_8px_rgba(24,58,45,0.45)]"
+          >
+            <!-- Wide Soft Glow -->
+            <div class="absolute -top-2 -left-2 w-12 h-6 rounded-full bg-[var(--color-brand-forest)]/25 blur-md pointer-events-none" />
+            <!-- Muted Gold Ambient Light -->
+            <div class="absolute -top-1 left-0 w-8 h-6 rounded-full bg-[var(--color-accent-gold)]/30 blur-md pointer-events-none" />
+            <!-- Intense Lamp Core Spark -->
+            <div class="absolute top-0 left-2 w-4 h-4 rounded-full bg-[var(--color-brand-forest)]/40 blur-xs pointer-events-none" />
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
         <a
           v-for="link in navLinks"
           :key="link.href"
+          :ref="(el) => setLinkRef(el, link.href)"
           :href="link.href"
+          role="tab"
+          :aria-selected="activeHref === link.href"
           @click.prevent="scrollTo(link.href)"
-          class="relative px-3.5 py-1.5 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-brand-forest)] rounded-full hover:bg-[var(--color-surface-cream)]"
+          class="relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 rounded-full cursor-pointer select-none"
+          :class="
+            activeHref === link.href
+              ? 'text-[var(--color-brand-forest)]'
+              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)]/70'
+          "
         >
-          {{ link.label }}
+          <component
+            :is="link.icon"
+            :size="15"
+            :stroke-width="2.2"
+            class="shrink-0 transition-transform duration-200"
+            :class="activeHref === link.href ? 'scale-105 text-[var(--color-brand-forest)]' : 'opacity-70'"
+          />
+          <span>{{ link.label }}</span>
         </a>
       </nav>
 

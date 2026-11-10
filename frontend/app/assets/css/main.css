@@ -34,6 +34,18 @@
   --shadow-lg: 0 12px 32px rgba(24, 58, 45, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-dropdown: 0 8px 24px rgba(24, 58, 45, 0.10);
   --shadow-pill: 0 8px 24px rgba(24, 58, 45, 0.20);
+
+  /* Aurora Animation in Tailwind 4 */
+  --animate-aurora: aurora 60s linear infinite;
+
+  @keyframes aurora {
+    from {
+      background-position: 50% 50%, 50% 50%;
+    }
+    to {
+      background-position: 350% 50%, 350% 50%;
+    }
+  }
 }
 
 :root {
@@ -51,6 +63,23 @@
   --color-text-muted: #9EA199;
   --color-border-subtle: #E8E5DC;
   --color-border-focus: #183A2D;
+
+  /* Global variables for Aurora Background */
+  --white: #ffffff;
+  --black: #000000;
+  --transparent: transparent;
+  --blue-500: #3b82f6;
+  --blue-400: #60a5fa;
+  --blue-300: #93c5fd;
+  --indigo-300: #a5b4fc;
+  --violet-200: #ddd6fe;
+
+  /* Brand Aurora Gradients */
+  --aurora-brand-1: #183A2D;
+  --aurora-brand-2: #D6A84B;
+  --aurora-brand-3: #224E3D;
+  --aurora-brand-4: #F4EFE3;
+  --aurora-brand-5: #FAF7F2;
 }
 
 html {
@@ -122,4 +151,3 @@ dialog::backdrop {
 ::-webkit-scrollbar-thumb:hover {
   background: #B0ACA0;
 }
-

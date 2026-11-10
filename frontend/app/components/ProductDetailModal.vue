@@ -8,7 +8,6 @@ import {
   Flame,
   Star,
   Check,
-  ShoppingBag,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useMenuStore } from '~/stores/menu'
@@ -298,7 +297,11 @@ const handleBackdropClick = (e: MouseEvent) => {
           class="touch-target flex flex-1 w-full sm:w-auto items-center justify-between rounded-full bg-[var(--color-brand-forest)] px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-98"
         >
           <div class="flex items-center gap-2">
-            <ShoppingBag :size="18" />
+            <img
+              src="/svg/cart.svg"
+              alt="سبد خرید"
+              class="h-5 w-5 object-contain filter brightness-0 invert"
+            />
             <span>افزودن به سبد خرید</span>
           </div>
           <span class="text-sm font-extrabold text-[var(--color-accent-gold-soft)]">

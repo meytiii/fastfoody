@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Sparkles, ArrowLeft, Star, Clock } from 'lucide-vue-next'
+import { ChefHat, ArrowLeft, Star, Clock } from 'lucide-vue-next'
 import { useMenuStore } from '~/stores/menu'
 import { usePersian } from '~/composables/usePersian'
 import ProductCard from '~/components/ProductCard.vue'
@@ -22,7 +22,7 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
       <div class="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
           <div class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] mb-3">
-            <Sparkles :size="14" />
+            <ChefHat :size="14" />
             <span>منتخب سرآشپز</span>
           </div>
           <h2 class="text-2xl sm:text-3xl font-extrabold text-[var(--color-brand-forest)]">

@@ -7,6 +7,7 @@ import {
   Trash2,
   ArrowLeft,
   Truck,
+  UtensilsCrossed,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
@@ -124,7 +125,7 @@ const goToCheckout = () => {
 
       <!-- Item List Container -->
       <div class="flex-1 overflow-y-auto px-6 py-4">
-        <!-- Empty State with color_pizza.svg -->
+        <!-- Empty State with cart.svg -->
         <div
           v-if="cartStore.isEmpty"
           class="flex h-full flex-col items-center justify-center py-12 text-center"
@@ -133,9 +134,9 @@ const goToCheckout = () => {
             class="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-surface-cream)] p-4 shadow-2xs border border-[var(--color-border-subtle)]"
           >
             <img
-              src="/svg/color_pizza.svg"
-              alt="پیتزا ناپلی"
-              class="h-16 w-16 object-contain"
+              src="/svg/cart.svg"
+              alt="سبد خرید خالی"
+              class="h-14 w-14 object-contain"
             />
           </div>
           <h3 class="text-base font-bold text-[var(--color-text-primary)]">
@@ -147,13 +148,9 @@ const goToCheckout = () => {
           <button
             type="button"
             @click="cartStore.closeCart"
-            class="touch-target mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] ps-4 pe-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)] active:scale-95 transition-all"
+            class="touch-target mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)] active:scale-95 transition-all"
           >
-            <img
-              src="/svg/color_pizza.svg"
-              alt="پیتزا"
-              class="h-5 w-5 object-contain"
-            />
+            <UtensilsCrossed :size="16" />
             <span>مشاهده منوی غذاها</span>
           </button>
         </div>

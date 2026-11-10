@@ -9,7 +9,7 @@ import {
   User,
   CheckCircle2,
   MapPin,
-  Sparkles,
+  CalendarCheck,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { usePersian } from '~/composables/usePersian'
@@ -60,7 +60,7 @@ const handleReservation = async () => {
         <!-- Info Column (5 cols) -->
         <div class="space-y-6 lg:col-span-5">
           <div class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] shadow-2xs">
-            <Sparkles :size="14" />
+            <CalendarCheck :size="14" />
             <span>تجربه حضور در رستوران</span>
           </div>
 

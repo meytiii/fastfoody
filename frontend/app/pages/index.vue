@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Sparkles, Utensils, Search } from 'lucide-vue-next'
+import { Utensils, Search } from 'lucide-vue-next'
 import { useMenuStore } from '~/stores/menu'
 import { usePersian } from '~/composables/usePersian'
 import HeroSection from '~/components/HeroSection.vue'

@@ -9,6 +9,7 @@ import CartDrawer from '~/components/CartDrawer.vue'
 import MobileDrawer from '~/components/MobileDrawer.vue'
 import SearchModal from '~/components/SearchModal.vue'
 import ProductDetailModal from '~/components/ProductDetailModal.vue'
+import AuroraBackground from '~/components/ui/AuroraBackground.vue'
 
 const cartStore = useCartStore()
 
@@ -18,17 +19,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-white text-[var(--color-text-primary)] selection:bg-[var(--color-accent-gold-soft)] selection:text-[var(--color-brand-forest)]">
+  <div class="relative min-h-screen flex flex-col bg-white text-[var(--color-text-primary)] selection:bg-[var(--color-accent-gold-soft)] selection:text-[var(--color-brand-forest)]">
+    <!-- Global Ambient Aurora Background (Applied on all pages) -->
+    <AuroraBackground as-backdrop />
+
     <!-- Navigation Header -->
-    <TheHeader />
+    <TheHeader class="relative z-10" />
 
     <!-- Main View Content -->
-    <div class="flex-1">
+    <div class="flex-1 relative z-10">
       <NuxtPage />
     </div>
 
     <!-- Site Footer -->
-    <TheFooter />
+    <TheFooter class="relative z-10" />
 
     <!-- Global Floating Cart Pill -->
     <FloatingCartPill />
@@ -56,4 +60,3 @@ onMounted(() => {
     />
   </div>
 </template>
-

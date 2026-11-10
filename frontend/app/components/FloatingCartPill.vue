@@ -32,13 +32,15 @@ const hasItems = computed(() => cartStore.totalCount > 0)
       >
         <!-- Cart Icon & Gold Badge -->
         <div class="relative flex items-center justify-center">
-          <img
-            src="/svg/cart-light.svg"
-            alt="سبد خرید"
-            class="h-6 w-6 object-contain"
-          />
+          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white p-1.5 shadow-xs">
+            <img
+              src="/svg/cart.svg"
+              alt="سبد خرید"
+              class="h-5 w-5 object-contain"
+            />
+          </div>
           <span
-            class="absolute -top-2.5 -right-2.5 flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-xs font-bold text-white shadow-xs"
+            class="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
             aria-live="polite"
           >
             {{ toPersianDigits(cartStore.totalCount) }}
