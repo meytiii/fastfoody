@@ -11,8 +11,8 @@ Fastfoody is a modern restaurant and food ordering web application combining Sca
 
 ### 1.2. Architecture & Separation of Concerns
 - **Frontend (`frontend/`):**
-  - **Framework:** Nuxt 3 (Vue 3, Composition API, TypeScript).
-  - **Styling:** Tailwind CSS integrated with design system CSS custom properties.
+  - **Framework:** Nuxt 4 (Vue 3, Composition API, `<script setup lang="ts">`, modern `app/` structure).
+  - **Styling:** Tailwind CSS 4 (CSS-first engine utilizing `@theme` directives).
   - **State Management:** Pinia stores for client-side state (cart, authentication, checkout).
   - **Localization:** Native Persian (RTL) with localized Persian numerals (`۰-۹`) and English/Latin support.
 - **Backend (`backend/`):**

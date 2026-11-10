@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-forest: #183A2D;
+  --color-brand-forest-deep: #12251D;
+  --color-brand-forest-light: #224E3D;
+
+  --color-accent-gold: #D6A84B;
+  --color-accent-gold-hover: #C4963A;
+  --color-accent-gold-soft: #F8F3E8;
+
+  --color-surface-white: #FFFFFF;
+  --color-surface-ivory: #F4EFE3;
+  --color-surface-cream: #FAF7F2;
+
+  --color-text-primary: #292B27;
+  --color-text-secondary: #777A73;
+  --color-text-muted: #9EA199;
+  --color-text-inverse: #FFFFFF;
+
+  --color-border-subtle: #E8E5DC;
+  --color-border-focus: #183A2D;
+
+  --color-success: #2E7D32;
+  --color-warning: #ED6C02;
+  --color-danger: #D32F2F;
+  --color-info: #0288D1;
+
+  --font-persian: 'IranSansX', 'IRANSans', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-latin: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --shadow-sm: 0 1px 3px rgba(24, 58, 45, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 16px rgba(24, 58, 45, 0.06), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 12px 32px rgba(24, 58, 45, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-dropdown: 0 8px 24px rgba(24, 58, 45, 0.10);
+  --shadow-pill: 0 8px 24px rgba(24, 58, 45, 0.20);
+}
+
+:root {
+  --color-brand-forest: #183A2D;
+  --color-brand-forest-deep: #12251D;
+  --color-brand-forest-light: #224E3D;
+  --color-accent-gold: #D6A84B;
+  --color-accent-gold-hover: #C4963A;
+  --color-accent-gold-soft: #F8F3E8;
+  --color-surface-white: #FFFFFF;
+  --color-surface-ivory: #F4EFE3;
+  --color-surface-cream: #FAF7F2;
+  --color-text-primary: #292B27;
+  --color-text-secondary: #777A73;
+  --color-text-muted: #9EA199;
+  --color-border-subtle: #E8E5DC;
+  --color-border-focus: #183A2D;
+}
+
+html {
+  font-family: var(--font-persian);
+  direction: rtl;
+  color: #292B27;
+  background-color: #FFFFFF;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: #FFFFFF;
+}
+
+/* Keyboard focus rings */
+:focus-visible {
+  outline: 2px solid #183A2D;
+  outline-offset: 2px;
+}
+
+/* Logical properties & RTL directional icon mirroring */
+[dir="rtl"] .icon-directional {
+  transform: scaleX(-1);
+}
+
+/* Modal and dialog overscroll isolation */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: rgba(18, 37, 29, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+/* Touch targets */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Smooth spring transition helper */
+.transition-spring {
+  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Subtle clean scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D8D4C8;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B0ACA0;
+}

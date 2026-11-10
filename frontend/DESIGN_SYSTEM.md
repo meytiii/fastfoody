@@ -2,7 +2,7 @@
 
 > **Version:** 1.0.0  
 > **Status:** Authoritative / Implementation-Ready  
-> **Framework:** Nuxt 3 + Vue 3 + TypeScript  
+> **Frontend Stack:** Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS 4 + Pinia  
 > **Backend Integration:** Django REST Framework  
 > **Target Platforms:** Mobile Web (Primary / Mobile-First), Tablet, Desktop  
 > **Localization:** Native Persian (RTL) with localized Persian numerals (`۰-۹`) and English/Latin compatibility  
@@ -528,6 +528,51 @@ Never use hardcoded directional CSS properties. Always use CSS logical propertie
   --z-modal-backdrop: 100;
   --z-modal-content: 110;
   --z-toast: 150;
+}
+```
+
+### 11.2. Frontend Stack & Tailwind CSS 4 Integration
+
+The complete frontend implementation stack is:
+- **Nuxt 4:** Utilizing the latest Nuxt 4 directory structure (`app/` directory convention), auto-imports, high-performance SSR/SSG rendering, and server API routes.
+- **Vue 3:** Single File Components (`.vue`) utilizing `<script setup lang="ts">`, Composition API, and typed props/emits.
+- **TypeScript:** Strict type contracts for models (`MenuItem`, `Category`, `CartItem`, `OrderPayload`).
+- **Tailwind CSS 4:** CSS-first configuration using `@theme` in `app/assets/css/main.css`. Zero JS configuration file needed.
+- **Pinia:** Centralized reactive state stores for the shopping cart (`useCartStore`), product filters (`useMenuStore`), and checkout flow (`useCheckoutStore`).
+
+#### Tailwind CSS 4 `@theme` Configuration Blueprint:
+```css
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors */
+  --color-brand-forest: #183A2D;
+  --color-brand-forest-deep: #12251D;
+  --color-brand-forest-light: #224E3D;
+  --color-accent-gold: #D6A84B;
+  --color-accent-gold-hover: #C4963A;
+  --color-accent-gold-soft: #F8F3E8;
+
+  /* Surface Colors */
+  --color-surface-white: #FFFFFF;
+  --color-surface-ivory: #F4EFE3;
+  --color-surface-cream: #FAF7F2;
+
+  /* Neutrals & Text */
+  --color-text-primary: #292B27;
+  --color-text-secondary: #777A73;
+  --color-text-muted: #9EA199;
+  --color-text-inverse: #FFFFFF;
+  --color-border-subtle: #E8E5DC;
+
+  /* Typography */
+  --font-persian: 'IranSansX', 'IRANSans', 'Vazirmatn', system-ui, sans-serif;
+  --font-latin: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Custom Elevation Shadows */
+  --shadow-ambient-sm: 0 1px 3px rgba(24, 58, 45, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-ambient-md: 0 4px 16px rgba(24, 58, 45, 0.06), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-ambient-lg: 0 12px 32px rgba(24, 58, 45, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 ```
 

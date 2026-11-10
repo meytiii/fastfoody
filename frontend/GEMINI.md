@@ -10,7 +10,7 @@ This document establishes project-specific instructions and operating rules for 
 Fastfoody is a premium Scandinavian-inspired restaurant and online ordering platform featuring a customer-facing web application and an administrative management dashboard. The user experience is calm, warm, and appetizing, emphasizing high-quality food photography, clean typography, and responsive, fluid interactions.
 
 ### 1.2. Technology Stack
-- **Frontend (`frontend/`):** Nuxt 3 + Vue 3 + TypeScript, Tailwind CSS, Pinia state management.
+- **Frontend (`frontend/`):** Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS 4 + Pinia state management.
 - **Backend (`backend/`):** Django + Django REST Framework (Python), PostgreSQL / SQLite.
 - **Localization:** Native Persian (RTL) interface with localized Persian numerals (`۰-۹`) and English/Latin capability.
 
@@ -49,11 +49,13 @@ If a user prompt or task requires a pattern not explicitly covered or seemingly 
 ## 3. Frontend Development Directives
 
 ### 3.1. Code Quality & Architecture
-- **Layered Nuxt 3 Structure:**
+- **Layered Nuxt 4 Structure:**
+  - Modern Nuxt 4 directory structure (`app/` convention for components, pages, composables).
   - `components/`: Pure, reusable, accessible UI elements adhering strictly to design tokens.
   - `pages/`: Route-level views orchestrating page layouts and data fetching.
   - `composables/`: Reusable reactive business logic and headless API hooks.
   - `stores/`: Pinia state management for cart state, user session, and checkout progress.
+  - Styling: Tailwind CSS 4 CSS-first `@theme` configuration without legacy JavaScript configs.
 - **Read Before Writing:** Always inspect existing components and composables before creating new ones. Never reinvent an existing button, modal, or input component.
 - **No Unnecessary Dependencies:** Rely on the established stack. Do not introduce extraneous animation, styling, or icon libraries when existing packages fulfill the requirement.
 

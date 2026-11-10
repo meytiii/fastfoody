@@ -6,7 +6,7 @@ This document configures the project-level agent skills and mandatory developmen
 
 ## 1. Project Tech Stack & Aesthetics
 
-- **Frontend:** Nuxt 3 + Vue 3 + TypeScript + Tailwind CSS
+- **Frontend:** Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS 4 + Pinia
 - **Backend:** Django + Django REST Framework (Python)
 - **Design Philosophy:** Scandinavian minimalism, warm, inviting, premium, and approachable.
 - **Color Palette:**
