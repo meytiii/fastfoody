@@ -9,6 +9,7 @@ import ProductCard from '~/components/ProductCard.vue'
 import SpecialOffers from '~/components/SpecialOffers.vue'
 import ReservationSection from '~/components/ReservationSection.vue'
 import TestimonialsSection from '~/components/TestimonialsSection.vue'
+import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const menuStore = useMenuStore()
 const { toPersianDigits } = usePersian()
@@ -90,13 +91,15 @@ useHead({
           <p class="mt-1 text-xs text-[var(--color-text-secondary)] max-w-sm">
             می‌توانید سایر دسته‌بندی‌ها را انتخاب کنید یا عبارت دیگری را جستجو فرمایید.
           </p>
-          <button
-            type="button"
+          <GooeyButton
+            variant="primary"
+            size="sm"
+            class="mt-5"
+            aria-label="مشاهده همه غذاها"
             @click="menuStore.setCategory('all')"
-            class="touch-target mt-5 inline-flex items-center rounded-full bg-[var(--color-brand-forest)] px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[var(--color-brand-forest-light)]"
           >
-            مشاهده همه غذاها
-          </button>
+            <span>مشاهده همه غذاها</span>
+          </GooeyButton>
         </div>
       </div>
     </section>

@@ -27,7 +27,7 @@ const emit = defineEmits<{
   (e: 'select', item: TubelightNavItem): void
 }>()
 
-const activeTab = ref(props.modelValue || (props.items.length > 0 ? props.items[0].name : ''))
+const activeTab = ref(props.modelValue || (props.items.length > 0 ? (props.items[0]?.name ?? '') : ''))
 const navContainerRef = ref<HTMLElement | null>(null)
 const itemRefs = new Map<string, HTMLElement>()
 
