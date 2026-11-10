@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "skills": {
+    "animate": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animate/SKILL.md",
+      "computedHash": "18c66551f62a1b1d0d3c5116a2fe6af66d8fbc643db84c99c11f8abd584fcf1e"
+    },
+    "animate-expo": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animate-expo/SKILL.md",
+      "computedHash": "3e914b8abdff154a289dcabc63817b6b5d649272a0d054e7e799f37e4bb1c471"
+    },
+    "animation-performance": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-performance/SKILL.md",
+      "computedHash": "9a5cf80000695ae2e340126d44a38305f1f4625ec220c262a7ff59433d9f34c0"
+    },
+    "animation-vocabulary": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-vocabulary/SKILL.md",
+      "computedHash": "9aaad861dd54dab7c9bb3fb5bd4c539078d8d06c14530d92d49cdb1509bfa937"
+    },
+    "antislop": {
+      "source": "../../../../.gemini/config/skills/antislop",
+      "sourceType": "local",
+      "computedHash": "55d19232a97dd098a106cac4a6c68d53133ab2d1becf23dbdc9ddfc024dd69ae",
+      "installMode": "copy"
+    },
+    "antislop-code": {
+      "source": "../../../../.gemini/config/skills/antislop-code",
+      "sourceType": "local",
+      "computedHash": "bac9828572f512de20122f1b0185a70315448d8fb4ae1718c2f259fff13fad6b",
+      "installMode": "copy"
+    },
+    "antislop-copywriting": {
+      "source": "../../../../.gemini/config/skills/antislop-copywriting",
+      "sourceType": "local",
+      "computedHash": "709209c602d6331f5b136f43a0e660dff472bc04c56381f43fcfe9e019934d0b",
+      "installMode": "copy"
+    },
+    "antislop-human": {
+      "source": "../../../../.gemini/config/skills/antislop-human",
+      "sourceType": "local",
+      "computedHash": "b7983d6a9cc0c8ae6706e40bf4d14a8ed585904c9618cc12d42dbea6f858c49c",
+      "installMode": "copy"
+    },
+    "antislop-layoutmobile": {
+      "source": "../../../../.gemini/config/skills/antislop-layoutmobile",
+      "sourceType": "local",
+      "computedHash": "26e4ab8ebf33e7c3098aa08a327d0f0f4cd4d88ad238a768cd5735d7e0979704",
+      "installMode": "copy"
+    },
+    "antislop-ui": {
+      "source": "../../../../.gemini/config/skills/antislop-ui",
+      "sourceType": "local",
+      "computedHash": "68c34a4477e00837328c7779853d5e9da128a6ea1c550df2d11b6e6c7fed4c5c",
+      "installMode": "copy"
+    },
+    "apple-design": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/apple-design/SKILL.md",
+      "computedHash": "f3f1d2cbc8f3e79ccddff05f4e42d34d995f057fb30ff670e4edf8c87d568b69"
+    },
+    "ask-sonner": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ask-sonner/SKILL.md",
+      "computedHash": "0168a6a129ba0a3561ccbda3a3d8d0dc0af1d556f373e315e9479e3364420dd3"
+    },
+    "break-ui": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/break-ui/SKILL.md",
+      "computedHash": "79e9e01e3f2fe2ced55448b55de1835c6e641826ee0a81991289e79d3f50cdc7"
+    },
+    "caveman": {
+      "source": "../../../../.gemini/config/skills/caveman",
+      "sourceType": "local",
+      "computedHash": "48646eeec87b27067502d8bd450484faf08af588df783706b1571ee72f2d918c"
+    },
+    "choreograph": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/choreograph/SKILL.md",
+      "computedHash": "b61be86c966b0cd6f504d1234ae2d361ba5cbd5b883fd96c069a2580371f686e"
+    },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "974e1bb8cf7c78d3a63f1456d54a97119c03e7ab8bf374e04ade800892326ec7"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "74e0ede3a72c476a4c293e1e34d75fa1713f83bdc5c6c1cd76f1002fc564ecc6"
+    },
+    "find-animation-opportunities": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-animation-opportunities/SKILL.md",
+      "computedHash": "c6673fadf179233cc0a52c978ea9acc9b82a210665c749307a571a86ed4c092e"
+    },
+    "gestures": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/gestures/SKILL.md",
+      "computedHash": "be44990b89574d76849dd1a5b6223bd9ec61ecf044f47dc4cbf890304dd688a2"
+    },
+    "graphify": {
+      "source": "../../../../.gemini/config/skills/graphify",
+      "sourceType": "local",
+      "computedHash": "e9b463e6f0782001ed8eedd808c9c4b0898245c456480328a4969267b56f50d4",
+      "installMode": "copy"
+    },
+    "hallmark": {
+      "source": "../../../../.gemini/config/skills/hallmark",
+      "sourceType": "local",
+      "computedHash": "6d53b2b609e05849c1dd0fc53e37daa7515089d5880c15e7e885c86e8b814e9c",
+      "installMode": "copy"
+    },
+    "high-end-visual-design": {
+      "source": "../../../../.gemini/config/skills/high-end-visual-design",
+      "sourceType": "local",
+      "computedHash": "f730e4132775f13eea19e3dc39afc6bb453cfc0498872b127ad8f0d47cfd802d",
+      "installMode": "copy"
+    },
+    "humanizer": {
+      "source": "../../../../.gemini/config/skills/humanizer",
+      "sourceType": "local",
+      "computedHash": "f9fd3f3bdeecd5f3fe0ce0710d16f774e9e477d510fad0524f03e411443da7d3",
+      "installMode": "copy"
+    },
+    "impeccable": {
+      "source": "../../../../.gemini/config/skills/impeccable",
+      "sourceType": "local",
+      "computedHash": "4c0d68f447eef6931005e2567f973c339110096a581a8626d30d4bf094a9b2e6",
+      "installMode": "copy"
+    },
+    "improve-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/improve-animations/SKILL.md",
+      "computedHash": "d8c10dad70287ad3a8f85f98dc7e763a490c8d669d883e250c28322a71a79a90"
+    },
+    "mobile-native": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-native/SKILL.md",
+      "computedHash": "8d77850a34ec20f745aed3215aa0d587e90438599bb09dc72d9d09ce896a5765"
+    },
+    "pick-ui-library": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pick-ui-library/SKILL.md",
+      "computedHash": "95f37cddc1c5f7cf5c60c8f8f07c938f2ddd1a70dd45f50c37e7e522fcde5bb9"
+    },
+    "prototype": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/prototype/SKILL.md",
+      "computedHash": "165c803775adbe0df600b961167747b6ba6577e6e1dc9ae1b87fcf5dee800645"
+    },
+    "remove-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remove-animations/SKILL.md",
+      "computedHash": "103811fdd3d8b040617a750a6cc825c20fb7e31f08098388289d36d9c751fd72"
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/review-animations/SKILL.md",
+      "computedHash": "bb706e42e29a74fe8acf1e3c6ef10f066d2ccc58eb8cff5ab89dd21876231ea3"
+    },
+    "ui-ux-pro-max": {
+      "source": "../../../../.gemini/config/skills/ui-ux-pro-max",
+      "sourceType": "local",
+      "computedHash": "a7246146cb37bc6a3485c82df14024df30987c40ca18d96545a988c47fdd5eb1",
+      "installMode": "copy"
+    },
+    "ux-ui-agent-skills": {
+      "source": "../../../../.gemini/config/skills/ux-ui-agent-skills",
+      "sourceType": "local",
+      "computedHash": "469af72116e422aa501cd7d3bf3054e63382c0b9912303b1f0ef30791c1f3d1a",
+      "installMode": "copy"
+    },
+    "write-swift": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/write-swift/SKILL.md",
+      "computedHash": "3c4854221f2c654172c3532e71dcb4ece25ef62057d97bec1c26c3ab17eca191"
+    }
+  }
+}
