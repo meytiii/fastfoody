@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  ShoppingBag,
   Search,
   Menu as MenuIcon,
   X,
   PhoneCall,
-  Sparkles,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { useUiStore } from '~/stores/ui'
@@ -15,9 +13,10 @@ import { usePersian } from '~/composables/usePersian'
 const cartStore = useCartStore()
 const uiStore = useUiStore()
 const { toPersianDigits, formatToman } = usePersian()
+const route = useRoute()
 
+// Removed 'صفحه اصلی' button from navbar links; clicking brand logo handles top of homepage
 const navLinks = [
-  { label: 'صفحه اصلی', href: '/#hero' },
   { label: 'منوی غذا', href: '/#menu' },
   { label: 'پیشنهاد سرآشپز', href: '/#specials' },
   { label: 'رزرو میز', href: '/#reservation' },
@@ -34,6 +33,15 @@ const scrollTo = (href: string) => {
     }
   }
 }
+
+const goToTop = () => {
+  uiStore.closeMobileMenu()
+  if (route.path === '/') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } else {
+    navigateTo('/')
+  }
+}
 </script>
 
 <template>
@@ -45,11 +53,12 @@ const scrollTo = (href: string) => {
     <div
       class="mx-auto flex h-16 max-w-5xl items-center justify-between rounded-full border border-[var(--color-border-subtle)] bg-white/92 px-6 shadow-[var(--shadow-md)] backdrop-blur-md"
     >
-      <!-- Brand Logo (Right side in RTL) -->
-      <NuxtLink
-        to="/"
-        class="group flex items-center gap-3 transition-transform active:scale-95"
-        aria-label="صفحه اصلی فست‌فودی"
+      <!-- Brand Logo & Name (Clicking scrolls to top of homepage) -->
+      <a
+        href="/"
+        @click.prevent="goToTop"
+        class="group flex items-center gap-3 transition-transform active:scale-95 cursor-pointer"
+        aria-label="رفتن به بالای صفحه اصلی فست‌فودی"
       >
         <div
           class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-forest)] text-white shadow-sm transition-colors group-hover:bg-[var(--color-brand-forest-light)]"
@@ -72,7 +81,7 @@ const scrollTo = (href: string) => {
             طعم اصیل و ارگانیک
           </span>
         </div>
-      </NuxtLink>
+      </a>
 
       <!-- Center Navigation Links -->
       <nav class="flex items-center gap-1 lg:gap-2" aria-label="ناوبری اصلی">
@@ -87,7 +96,7 @@ const scrollTo = (href: string) => {
         </a>
       </nav>
 
-      <!-- Left Actions (Search, Cart, CTA) -->
+      <!-- Left Actions (Search, Cart, Order CTA) -->
       <div class="flex items-center gap-2.5">
         <!-- Search Trigger -->
         <button
@@ -99,22 +108,22 @@ const scrollTo = (href: string) => {
           <Search :size="18" :stroke-width="1.75" />
         </button>
 
-        <!-- Cart Trigger Button -->
+        <!-- Cart Trigger Button using cart.svg with project color palette -->
         <button
           type="button"
           @click="cartStore.toggleCart"
           class="touch-target relative flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 text-sm font-medium text-[var(--color-text-primary)] shadow-sm transition-all hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-95"
           aria-label="مشاهده سبد خرید"
         >
-          <div class="relative">
-            <ShoppingBag
-              :size="18"
-              :stroke-width="1.75"
-              class="text-[var(--color-brand-forest)]"
+          <div class="relative flex items-center justify-center">
+            <img
+              src="/svg/cart.svg"
+              alt="سبد خرید"
+              class="h-5 w-5 object-contain"
             />
             <span
               v-if="cartStore.totalCount > 0"
-              class="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
+              class="absolute -top-2.5 -right-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
               aria-live="polite"
             >
               {{ toPersianDigits(cartStore.totalCount) }}
@@ -128,14 +137,19 @@ const scrollTo = (href: string) => {
           </span>
         </button>
 
-        <!-- Online Order Pill CTA -->
+        <!-- Order Button using order.svg with text "سفارش" -->
         <button
           type="button"
           @click="scrollTo('/#menu')"
-          class="touch-target inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-forest)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95"
+          class="touch-target inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] ps-3 pe-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95"
+          aria-label="سفارش آنلاین"
         >
-          <Sparkles :size="15" />
-          <span>سفارش سریع</span>
+          <img
+            src="/svg/order.svg"
+            alt="سفارش"
+            class="h-5 w-5 object-contain"
+          />
+          <span>سفارش</span>
         </button>
       </div>
     </div>
@@ -156,8 +170,13 @@ const scrollTo = (href: string) => {
       <MenuIcon :size="22" :stroke-width="1.75" />
     </button>
 
-    <!-- Centered Brand Logo -->
-    <NuxtLink to="/" class="flex items-center gap-2" aria-label="فست‌فودی">
+    <!-- Centered Brand Logo (Clicking scrolls to top) -->
+    <a
+      href="/"
+      @click.prevent="goToTop"
+      class="flex items-center gap-2 cursor-pointer"
+      aria-label="فست‌فودی"
+    >
       <div
         class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-brand-forest)] text-white"
       >
@@ -170,7 +189,7 @@ const scrollTo = (href: string) => {
       <span class="text-base font-bold text-[var(--color-brand-forest)]">
         فست‌فودی
       </span>
-    </NuxtLink>
+    </a>
 
     <!-- Search Button on Mobile -->
     <button
@@ -183,4 +202,3 @@ const scrollTo = (href: string) => {
     </button>
   </header>
 </template>
-

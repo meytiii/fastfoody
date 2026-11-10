@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ShoppingBag, ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
 
@@ -30,9 +30,13 @@ const hasItems = computed(() => cartStore.totalCount > 0)
         class="touch-target group flex h-13 items-center gap-3.5 rounded-full bg-[var(--color-brand-forest)] px-5 text-white shadow-[var(--shadow-pill)] transition-all hover:bg-[var(--color-brand-forest-light)] active:scale-95"
         aria-label="مشاهده سبد خرید و تسویه‌حساب"
       >
-        <!-- Icon & Gold Badge -->
+        <!-- Cart Icon & Gold Badge -->
         <div class="relative flex items-center justify-center">
-          <ShoppingBag :size="20" :stroke-width="2" />
+          <img
+            src="/svg/cart-light.svg"
+            alt="سبد خرید"
+            class="h-6 w-6 object-contain"
+          />
           <span
             class="absolute -top-2.5 -right-2.5 flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-xs font-bold text-white shadow-xs"
             aria-live="polite"
@@ -64,4 +68,3 @@ const hasItems = computed(() => cartStore.totalCount > 0)
     </div>
   </Transition>
 </template>
-

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { X, Phone, MapPin, Clock, ChefHat } from 'lucide-vue-next'
+import { X, Phone, MapPin, Clock } from 'lucide-vue-next'
 import { useUiStore } from '~/stores/ui'
 
 const uiStore = useUiStore()
+const route = useRoute()
 
+// Removed 'صفحه اصلی' link; brand logo handles navigation to top of homepage
 const links = [
-  { label: 'صفحه اصلی', href: '/#hero' },
   { label: 'منوی کامل غذاها', href: '/#menu' },
   { label: 'پیشنهادهای ویژه سرآشپز', href: '/#specials' },
   { label: 'رزرو آنلاین میز', href: '/#reservation' },
@@ -20,6 +21,15 @@ const navigateToSection = (href: string) => {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' })
     }
+  }
+}
+
+const goToTop = () => {
+  uiStore.closeMobileMenu()
+  if (route.path === '/') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } else {
+    navigateTo('/')
   }
 }
 </script>
@@ -54,20 +64,29 @@ const navigateToSection = (href: string) => {
       role="dialog"
       aria-label="منوی دسترسی موبایل"
     >
-      <!-- Header -->
+      <!-- Header with Brand Logo Clickable to Top -->
       <div
         class="flex h-16 items-center justify-between border-b border-[var(--color-border-subtle)] px-5"
       >
-        <div class="flex items-center gap-2.5">
+        <a
+          href="/"
+          @click.prevent="goToTop"
+          class="flex items-center gap-2.5 cursor-pointer"
+          aria-label="رفتن به بالای صفحه اصلی"
+        >
           <div
             class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-brand-forest)] text-white"
           >
-            <ChefHat :size="20" />
+            <img
+              src="/svg/chef.svg"
+              alt="Fastfoody"
+              class="h-5 w-5 filter invert brightness-0"
+            />
           </div>
           <span class="text-base font-bold text-[var(--color-brand-forest)]">
             فست‌فودی
           </span>
-        </div>
+        </a>
 
         <button
           type="button"
@@ -125,4 +144,3 @@ const navigateToSection = (href: string) => {
     </div>
   </Transition>
 </template>
-

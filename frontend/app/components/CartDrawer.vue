@@ -5,10 +5,8 @@ import {
   Plus,
   Minus,
   Trash2,
-  ShoppingBag,
   ArrowLeft,
   Truck,
-  Sparkles,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
@@ -69,9 +67,13 @@ const goToCheckout = () => {
       >
         <div class="flex items-center gap-3">
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)]"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-cream)] p-2"
           >
-            <ShoppingBag :size="20" />
+            <img
+              src="/svg/cart.svg"
+              alt="سبد خرید"
+              class="h-6 w-6 object-contain"
+            />
           </div>
           <div>
             <h2 class="text-base font-bold text-[var(--color-text-primary)]">
@@ -122,15 +124,19 @@ const goToCheckout = () => {
 
       <!-- Item List Container -->
       <div class="flex-1 overflow-y-auto px-6 py-4">
-        <!-- Empty State -->
+        <!-- Empty State with color_pizza.svg -->
         <div
           v-if="cartStore.isEmpty"
           class="flex h-full flex-col items-center justify-center py-12 text-center"
         >
           <div
-            class="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-text-muted)]"
+            class="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-surface-cream)] p-4 shadow-2xs border border-[var(--color-border-subtle)]"
           >
-            <ShoppingBag :size="44" :stroke-width="1.25" />
+            <img
+              src="/svg/color_pizza.svg"
+              alt="پیتزا ناپلی"
+              class="h-16 w-16 object-contain"
+            />
           </div>
           <h3 class="text-base font-bold text-[var(--color-text-primary)]">
             سبد خرید شما هنوز خالی است
@@ -141,9 +147,13 @@ const goToCheckout = () => {
           <button
             type="button"
             @click="cartStore.closeCart"
-            class="touch-target mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)]"
+            class="touch-target mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--color-brand-forest)] ps-4 pe-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)] active:scale-95 transition-all"
           >
-            <Sparkles :size="15" />
+            <img
+              src="/svg/color_pizza.svg"
+              alt="پیتزا"
+              class="h-5 w-5 object-contain"
+            />
             <span>مشاهده منوی غذاها</span>
           </button>
         </div>
@@ -287,4 +297,3 @@ const goToCheckout = () => {
     </aside>
   </Transition>
 </template>
-
