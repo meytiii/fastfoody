@@ -12,9 +12,7 @@ import {
   Sparkles,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { usePersian } from '~/composables/usePersian'
 
-const { toPersianDigits } = usePersian()
 const emailInput = ref('')
 
 const handleSubscribe = () => {
@@ -141,12 +139,9 @@ const handleSubscribe = () => {
       </div>
 
       <!-- Bottom Bar -->
-      <div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/50">
+      <div class="pt-8 flex items-center justify-center text-xs text-white/50">
         <p>
-          تمامی حقوق این وب‌سایت متعلق به مجموعه‌ی <strong>فست‌فودی</strong> می‌باشد © {{ toPersianDigits('۱۴۰۴') }}
-        </p>
-        <p class="flex items-center gap-1">
-          <span>طراحی شده بر اساس هویت اسکاندیناوی و مهمان‌نوازی اصیل</span>
+          طراحی شده توسط تیم Besporman
         </p>
       </div>
     </div>
