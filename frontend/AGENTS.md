@@ -66,3 +66,18 @@ The following skills are installed in `.agents/skills/` and active for Antigravi
 4. **Copywriting & Communication:**
    - Strip AI jargon with `humanizer` and `antislop-copywriting` to keep menu descriptions and interface copy warm, appetizing, and human.
    - Maintain concise, high-signal technical communication adhering to `caveman` efficiency.
+
+---
+
+## 5. Automated Git Commit & Push Protocol
+
+Upon completing any task, feature, fix, or documentation update, all agents MUST automatically commit and push the changes:
+
+1. **Commit Message Standards:**
+   - **Summary:** Conventional Commits header (`feat:`, `docs:`, `fix:`, `refactor:`, etc.).
+   - **Detailed Body:** Comprehensive explanation of what was changed, why, files affected, and design-system compliance verification.
+2. **Execution:**
+   - Stage appropriate files via `git add`.
+   - Commit via `git commit -m "<Summary>" -m "<Description>"`.
+   - Push directly to `main` branch: `git push origin main` (`https://github.com/meytiii/fastfoody`).
+

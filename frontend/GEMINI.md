@@ -83,3 +83,23 @@ If a user prompt or task requires a pattern not explicitly covered or seemingly 
 
 ### 4.3. Communication Efficiency (`caveman`)
 - Provide dense, high-signal technical explanations. Eliminate conversational filler, redundant apologies, and unrequested boilerplate overviews.
+
+---
+
+## 5. Automated Git Commit & Push Workflow
+
+Whenever completing a task, feature, bugfix, or documentation milestone, you MUST automatically commit and push your changes to the repository:
+
+1. **Write Comprehensive Commit Message:**
+   - **Summary (first line):** Clear imperative title using Conventional Commits format (`feat`, `fix`, `docs`, `refactor`, `style`, `chore`).
+   - **Detailed Description (body):** Explain why changes were made, detail all modified files/components, and confirm design-system and architectural compliance.
+2. **Stage & Commit:**
+   - Ensure clean staging without accidental files (`.env`, secrets, caches).
+   - Execute `git commit -m "<Summary>" -m "<Description>"`.
+3. **Push to Main:**
+   - Push immediately to the `main` branch of the remote repository (`https://github.com/meytiii/fastfoody`):
+     ```bash
+     git push origin main
+     ```
+   - Verify push success and report the commit hash to the user.
+

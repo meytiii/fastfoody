@@ -107,3 +107,24 @@ To ensure alignment across all developers and AI agents, project documentation i
 - **No Unrelated Modifications:** Modify only the files directly required to fulfill the user's explicit request. Do not format, reorder, or refactor unrelated files.
 - **Preserve Functionality:** Ensure existing routes, state stores, and backend endpoints remain unbroken when introducing new features.
 
+---
+
+## 8. Automated Git Commit & Push Protocol
+
+Upon completing any discrete task, feature implementation, bug fix, or documentation change, agents MUST automatically commit and push their changes:
+
+### 8.1. Workflow Process
+1. **Compose a Comprehensive Commit Message:**
+   - **Summary Line:** Conventional Commits header (`<type>: <short imperative summary>`).
+   - **Detailed Description Body:** Document what was changed, why the change occurred, files impacted, and verification of compliance with `frontend/DESIGN_SYSTEM.md`.
+2. **Stage & Commit:**
+   - Review `git status` to avoid committing unwanted artifacts or environment files.
+   - Stage appropriate files and commit with the detailed message.
+3. **Push to Main:**
+   - Push directly to the `main` branch of `https://github.com/meytiii/fastfoody`:
+     ```bash
+     git push origin main
+     ```
+   - Verify that the push succeeds without errors.
+
+
