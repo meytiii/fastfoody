@@ -64,3 +64,4 @@ const hasItems = computed(() => cartStore.totalCount > 0)
     </div>
   </Transition>
 </template>
+

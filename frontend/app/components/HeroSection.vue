@@ -164,3 +164,4 @@ const scrollToReservation = () => {
     </div>
   </section>
 </template>
+

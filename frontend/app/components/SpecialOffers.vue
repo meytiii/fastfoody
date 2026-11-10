@@ -53,3 +53,4 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
     </div>
   </section>
 </template>
+

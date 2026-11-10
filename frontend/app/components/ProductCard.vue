@@ -126,3 +126,4 @@ const handleQuickAdd = (e: MouseEvent) => {
     </div>
   </article>
 </template>
+

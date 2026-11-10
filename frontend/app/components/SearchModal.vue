@@ -108,3 +108,4 @@ const handleSelect = (product: Product) => {
     </div>
   </Transition>
 </template>
+

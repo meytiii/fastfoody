@@ -74,3 +74,4 @@ const { toPersianDigits } = usePersian()
   scrollbar-width: none;
 }
 </style>
+

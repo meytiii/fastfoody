@@ -125,3 +125,4 @@ const navigateToSection = (href: string) => {
     </div>
   </Transition>
 </template>
+

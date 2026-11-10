@@ -287,3 +287,4 @@ const goToCheckout = () => {
     </aside>
   </Transition>
 </template>
+
