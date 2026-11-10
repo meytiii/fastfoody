@@ -1,13 +1,13 @@
 # Fastfoody Agent Directives & Active Skills
 
-This document configures and activates the project-level agent skills for Google Antigravity and Antigravity IDE across the `fastfoody` repository.
+This document configures the project-level agent skills and mandatory development directives for Google Antigravity and Antigravity IDE across the `fastfoody` repository.
 
 ---
 
 ## 1. Project Tech Stack & Aesthetics
 
-- **Frontend:** Nuxt 3 + Vue 3 + TypeScript
-- **Backend:** Django (Python)
+- **Frontend:** Nuxt 3 + Vue 3 + TypeScript + Tailwind CSS
+- **Backend:** Django + Django REST Framework (Python)
 - **Design Philosophy:** Scandinavian minimalism, warm, inviting, premium, and approachable.
 - **Color Palette:**
   - White dominant (65–75%): `#FFFFFF`
@@ -15,12 +15,21 @@ This document configures and activates the project-level agent skills for Google
   - Forest Green (primary brand, 15–25%): `#183A2D`
   - Muted Gold (accents, 5–10%): `#D6A84B`
   - Main Text: `#292B27` | Supporting Text: `#777A73` | Borders: `#E8E5DC`
-- **Typography & Localization:** Native RTL support, clean modern Persian typography (IranSans), Persian digits for customer-facing numbers.
+- **Typography & Localization:** Native RTL support, clean modern Persian typography (IranSansX), Persian digits for customer-facing numbers.
 - **Strict Anti-Patterns:** No glassmorphism, no neon glows, no excessive gradients, no heavy drop shadows, no generic 3-card AI templates.
 
 ---
 
-## 2. Active Skills Suite
+## 2. Mandatory Design-System Compliance Rule
+
+> [!IMPORTANT]
+> **Before implementing, modifying, refactoring, or removing ANY frontend UI/UX element, you MUST consult [`frontend/DESIGN_SYSTEM.md`](file:///c:/Users/Mahdi/Desktop/Stuf/Github/fastfoody/frontend/DESIGN_SYSTEM.md) and ensure that your proposed change strictly complies with its rules.**
+
+This rule applies to all new pages, existing pages, components, layouts, typography, colors, spacing, responsive behaviors, animations, and accessibility.
+
+---
+
+## 3. Active Skills Suite
 
 The following skills are installed in `.agents/skills/` and active for Antigravity & Antigravity IDE:
 
@@ -40,20 +49,20 @@ The following skills are installed in `.agents/skills/` and active for Antigravi
 
 ---
 
-## 3. Skill Invocation & Execution Rules
+## 4. Skill Invocation & Execution Rules
 
 1. **Architecture & Discovery:**
    - Use `graphify` (`/graphify`) to trace relationships between Django backend endpoints and Nuxt frontend components.
 
 2. **UI & Component Design:**
-   - Always run frontend implementations through `antislop` and `hallmark` to prevent repetitive, templated layouts.
+   - Always verify implementations against `frontend/DESIGN_SYSTEM.md`.
+   - Run frontend implementations through `antislop` and `hallmark` to prevent repetitive, templated layouts.
    - Employ `impeccable`, `ui-ux-pro-max`, and `high-end-visual-design` to enforce the Scandinavian minimalist aesthetic and strict spacing tokens (4px base scale).
    - Ensure native RTL handling and accessibility (WCAG AA).
 
 3. **Motion & Interactivity:**
-   - Apply Emil Kowalski motion principles (`animate`, `choreograph`, `gestures`): physics-based springs, interruptible drawer sheets, and subtle micro-interactions. Never use abrupt transitions or linear animations.
+   - Apply Emil Kowalski motion principles (`animate`, `choreograph`, `gestures`): physics-based springs (stiffness 300, damping 30), interruptible drawer sheets, and subtle micro-interactions. Never use abrupt transitions or linear animations.
 
 4. **Copywriting & Communication:**
    - Strip AI jargon with `humanizer` and `antislop-copywriting` to keep menu descriptions and interface copy warm, appetizing, and human.
    - Maintain concise, high-signal technical communication adhering to `caveman` efficiency.
-
