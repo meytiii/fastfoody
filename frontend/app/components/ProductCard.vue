@@ -114,7 +114,7 @@ const handleQuickAdd = (e: MouseEvent) => {
         </span>
       </div>
 
-      <!-- Quick Add Gooey Button -->
+      <!-- Quick Add Button -->
       <GooeyButton
         variant="secondary"
         size="sm"

@@ -306,7 +306,7 @@ onUnmounted(() => {
           </span>
         </button>
 
-        <!-- Order Button using order.svg with text "سفارش" and Gooey animation -->
+        <!-- Order Button using order.svg with text "سفارش" -->
         <GooeyButton
           variant="primary"
           size="sm"

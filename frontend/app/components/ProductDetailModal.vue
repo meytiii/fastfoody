@@ -291,7 +291,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           </button>
         </div>
 
-        <!-- Add to cart Gooey CTA -->
+        <!-- Add to Cart CTA -->
         <GooeyButton
           variant="primary"
           size="md"

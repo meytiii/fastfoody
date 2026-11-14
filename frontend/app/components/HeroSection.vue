@@ -73,7 +73,7 @@ const scrollToReservation = () => {
             </p>
           </div>
 
-          <!-- CTA Actions with Gooey Buttons -->
+          <!-- CTA Actions -->
           <div class="flex flex-wrap items-center gap-3.5 pt-2 w-full sm:w-auto">
             <GooeyButton
               variant="primary"

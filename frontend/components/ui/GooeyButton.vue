@@ -56,9 +56,6 @@ const variantClass = computed(() => {
     <span class="relative z-10 flex items-center justify-center gap-2 font-bold leading-none pointer-events-none">
       <slot />
     </span>
-    <div class="bubbles" aria-hidden="true">
-      <span v-for="i in 5" :key="i"></span>
-    </div>
   </button>
 </template>
 

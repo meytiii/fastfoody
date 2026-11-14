@@ -341,7 +341,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Submit Button with Gooey Liquid Effect -->
+            <!-- Submit Button -->
             <GooeyButton
               type="submit"
               variant="primary"

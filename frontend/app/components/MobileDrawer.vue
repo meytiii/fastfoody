@@ -132,7 +132,7 @@ const goToTop = () => {
         </div>
       </nav>
 
-      <!-- Bottom Order CTA with Gooey Effect -->
+      <!-- Bottom Order CTA -->
       <div class="border-t border-[var(--color-border-subtle)] p-4">
         <GooeyButton
           variant="primary"

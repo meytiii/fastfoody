@@ -242,7 +242,7 @@ const handleReservation = async () => {
                 />
               </div>
 
-              <!-- Submit Button with Gooey Liquid Effect -->
+              <!-- Submit Button -->
               <GooeyButton
                 type="submit"
                 variant="primary"

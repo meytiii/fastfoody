@@ -149,7 +149,7 @@ dialog::backdrop {
 }
 
 /* ==========================================================================
-   Gooey Button & Liquid Bubble Animation
+   Button Component Styles
    ========================================================================== */
 
 .gooey-button {
@@ -166,19 +166,28 @@ dialog::backdrop {
   text-decoration: none;
   user-select: none;
   border-radius: 9999px;
-  filter: url('#gooey');
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
   z-index: 1;
 }
 
+.gooey-button:hover {
+  transform: translateY(-1px);
+}
+
 .gooey-button:active {
-  transform: scale(0.96);
+  transform: translateY(0) scale(0.97);
 }
 
 .gooey-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+  transform: none;
+}
+
+.gooey-button:focus-visible {
+  outline: 2px solid var(--color-brand-forest, #183A2D);
+  outline-offset: 2px;
 }
 
 /* Base Variants Matching Brand Palette */
@@ -229,148 +238,11 @@ dialog::backdrop {
   color: #FFFFFF;
 }
 
-/* Bubbles Container */
-.gooey-button .bubbles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  border-radius: inherit;
-}
-
-/* The 5 Bubbles */
-.gooey-button .bubbles span {
-  position: absolute;
-  top: 50%;
-  border-radius: 50%;
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(0);
-  opacity: 0;
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-
-/* Match Bubble colors to Variant */
-.gooey-button--primary .bubbles span,
-.gooey-button:not([class*="gooey-button--"]) .bubbles span {
-  background-color: var(--color-brand-forest, #183A2D);
-}
-
-.gooey-button--gold .bubbles span {
-  background-color: var(--color-accent-gold, #D6A84B);
-}
-
-.gooey-button--secondary .bubbles span {
-  background-color: var(--color-surface-cream, #FAF7F2);
-}
-
-.gooey-button--outline .bubbles span {
-  background-color: var(--color-brand-forest, #183A2D);
-}
-
-/* Individual Bubble Sizing & Base Horizontal Placement */
-.gooey-button .bubbles span:nth-child(1) {
-  left: 18%;
-  width: 22px;
-  height: 22px;
-}
-
-.gooey-button .bubbles span:nth-child(2) {
-  left: 42%;
-  width: 28px;
-  height: 28px;
-}
-
-.gooey-button .bubbles span:nth-child(3) {
-  left: 72%;
-  width: 20px;
-  height: 20px;
-}
-
-.gooey-button .bubbles span:nth-child(4) {
-  left: 30%;
-  width: 24px;
-  height: 24px;
-}
-
-.gooey-button .bubbles span:nth-child(5) {
-  left: 64%;
-  width: 22px;
-  height: 22px;
-}
-
-/* Hover and Focus Emergence */
-.gooey-button:hover .bubbles span,
-.gooey-button:focus-visible .bubbles span {
-  opacity: 1;
-}
-
-.gooey-button:hover .bubbles span:nth-child(1),
-.gooey-button:focus-visible .bubbles span:nth-child(1) {
-  transform: translate(-50%, -130%) scale(1.1);
-  transition-delay: 0s;
-  animation: gooey-bubble-1 2.2s ease-in-out infinite alternate 0.45s;
-}
-
-.gooey-button:hover .bubbles span:nth-child(2),
-.gooey-button:focus-visible .bubbles span:nth-child(2) {
-  transform: translate(-50%, -150%) scale(1.2);
-  transition-delay: 0.04s;
-  animation: gooey-bubble-2 2.6s ease-in-out infinite alternate 0.49s;
-}
-
-.gooey-button:hover .bubbles span:nth-child(3),
-.gooey-button:focus-visible .bubbles span:nth-child(3) {
-  transform: translate(-50%, -140%) scale(1.05);
-  transition-delay: 0.08s;
-  animation: gooey-bubble-3 2.0s ease-in-out infinite alternate 0.53s;
-}
-
-.gooey-button:hover .bubbles span:nth-child(4),
-.gooey-button:focus-visible .bubbles span:nth-child(4) {
-  transform: translate(-50%, 65%) scale(1.15);
-  transition-delay: 0.05s;
-  animation: gooey-bubble-4 2.4s ease-in-out infinite alternate 0.50s;
-}
-
-.gooey-button:hover .bubbles span:nth-child(5),
-.gooey-button:focus-visible .bubbles span:nth-child(5) {
-  transform: translate(-50%, 70%) scale(1.1);
-  transition-delay: 0.1s;
-  animation: gooey-bubble-5 2.1s ease-in-out infinite alternate 0.55s;
-}
-
-/* Gentle Liquid Oscillation Keyframes */
-@keyframes gooey-bubble-1 {
-  0% { transform: translate(-50%, -130%) scale(1.1); }
-  100% { transform: translate(-44%, -145%) scale(1.0); }
-}
-
-@keyframes gooey-bubble-2 {
-  0% { transform: translate(-50%, -150%) scale(1.2); }
-  100% { transform: translate(-56%, -135%) scale(1.25); }
-}
-
-@keyframes gooey-bubble-3 {
-  0% { transform: translate(-50%, -140%) scale(1.05); }
-  100% { transform: translate(-42%, -155%) scale(1.1); }
-}
-
-@keyframes gooey-bubble-4 {
-  0% { transform: translate(-50%, 65%) scale(1.15); }
-  100% { transform: translate(-55%, 80%) scale(1.08); }
-}
-
-@keyframes gooey-bubble-5 {
-  0% { transform: translate(-50%, 70%) scale(1.1); }
-  100% { transform: translate(-45%, 55%) scale(1.18); }
-}
-
 /* Reduced Motion Respect */
 @media (prefers-reduced-motion: reduce) {
-  .gooey-button,
-  .gooey-button .bubbles span {
+  .gooey-button {
     transition: none !important;
-    animation: none !important;
+    transform: none !important;
   }
 }
 

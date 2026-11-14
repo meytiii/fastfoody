@@ -284,7 +284,7 @@ const goToCheckout = () => {
           </span>
         </div>
 
-        <!-- Action Button with Gooey Liquid Effect -->
+        <!-- Action Button -->
         <GooeyButton
           variant="primary"
           size="lg"
