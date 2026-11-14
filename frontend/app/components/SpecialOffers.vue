@@ -18,7 +18,7 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
     aria-label="پیشنهادهای ویژه سرآشپز"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <!-- Section Title & Intro -->
+      
       <div class="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
           <div class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] mb-3">
@@ -42,7 +42,7 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
         </a>
       </div>
 
-      <!-- 4-Column Grid on Desktop / 2-Column on Mobile -->
+      
       <div class="grid grid-cols-2 gap-3.5 sm:gap-5 lg:grid-cols-4">
         <ProductCard
           v-for="dish in specials"

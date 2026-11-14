@@ -27,13 +27,13 @@ const scrollToReservation = () => {
     aria-label="بخش معرفی فست‌فودی"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <!-- Split Container -->
+      
       <div
         class="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12"
       >
-        <!-- Content Column (Right side in RTL, cols 7) -->
+        
         <div class="flex flex-col items-start lg:col-span-7 space-y-6">
-          <!-- Social Proof Tag -->
+          
           <div
             class="inline-flex items-center gap-2.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-4 py-1.5 shadow-2xs"
           >
@@ -56,7 +56,7 @@ const scrollToReservation = () => {
             </div>
           </div>
 
-          <!-- Main Headline -->
+          
           <div class="space-y-3">
             <h1
               class="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-[1.25] text-[var(--color-brand-forest)] tracking-tight"
@@ -73,7 +73,7 @@ const scrollToReservation = () => {
             </p>
           </div>
 
-          <!-- CTA Actions -->
+          
           <div class="flex flex-wrap items-center gap-3.5 pt-2 w-full sm:w-auto">
             <GooeyButton
               variant="primary"
@@ -97,7 +97,7 @@ const scrollToReservation = () => {
             </GooeyButton>
           </div>
 
-          <!-- Trust Badges -->
+          
           <div
             class="grid grid-cols-3 gap-4 pt-4 border-t border-[var(--color-border-subtle)] w-full max-w-lg"
           >
@@ -122,20 +122,20 @@ const scrollToReservation = () => {
           </div>
         </div>
 
-        <!-- Visual Column (Left side in RTL, cols 5) -->
+        
         <div class="relative flex items-center justify-center lg:col-span-5">
-          <!-- Soft Organic Ivory Mound -->
+          
           <div
             class="relative flex h-[340px] w-[340px] sm:h-[420px] sm:w-[420px] items-center justify-center rounded-full bg-[var(--color-surface-ivory)] p-6 shadow-[var(--shadow-lg)]"
           >
-            <!-- Circular Food Platter -->
+            
             <img
               src="/img/placeholder.webp"
               alt="Fastfoody Signature Platter"
               class="h-[280px] w-[280px] sm:h-[350px] sm:w-[350px] rounded-full object-cover shadow-md transition-transform duration-700 hover:rotate-6"
             />
 
-            <!-- Floating Special Dish Pill -->
+            
             <div
               class="absolute -bottom-2 sm:bottom-2 inset-inline-start-2 sm:inset-inline-start-4 flex items-center gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-white/95 p-3 shadow-[var(--shadow-md)] backdrop-blur-md"
             >
@@ -154,7 +154,7 @@ const scrollToReservation = () => {
               </div>
             </div>
 
-            <!-- Floating Top Rating Pill -->
+            
             <div
               class="absolute -top-2 sm:top-4 inset-inline-end-2 sm:inset-inline-end-4 flex items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white/95 px-3.5 py-1.5 shadow-[var(--shadow-sm)] backdrop-blur-md"
             >

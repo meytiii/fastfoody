@@ -43,7 +43,7 @@ const reviews = [
     aria-label="نظرات میهمانان و مشتریان"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <!-- Section Title -->
+      
       <div class="mb-12 text-center max-w-2xl mx-auto space-y-3">
         <div class="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3.5 py-1 text-xs font-bold text-[var(--color-brand-forest)] shadow-2xs">
           <Star :size="13" class="fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]" />
@@ -57,7 +57,7 @@ const reviews = [
         </p>
       </div>
 
-      <!-- Reviews Grid (1 Highlight Dark Card + 2 White Cards) -->
+      
       <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div
           v-for="review in reviews"
@@ -69,7 +69,7 @@ const reviews = [
               : 'border border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
           "
         >
-          <!-- Quote Icon -->
+          
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-1">
               <Star
@@ -85,7 +85,7 @@ const reviews = [
             />
           </div>
 
-          <!-- Body Text -->
+          
           <p
             class="text-xs sm:text-sm leading-relaxed mb-6"
             :class="review.highlight ? 'text-white/90' : 'text-[var(--color-text-secondary)]'"
@@ -93,7 +93,7 @@ const reviews = [
             «{{ review.text }}»
           </p>
 
-          <!-- Author Info -->
+          
           <div
             class="pt-4 border-t flex items-center justify-between"
             :class="review.highlight ? 'border-white/10' : 'border-[var(--color-border-subtle)]'"

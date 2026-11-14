@@ -32,7 +32,7 @@ const goToCheckout = () => {
 </script>
 
 <template>
-  <!-- Backdrop -->
+  
   <Transition
     enter-active-class="transition-opacity duration-300"
     enter-from-class="opacity-0"
@@ -48,7 +48,7 @@ const goToCheckout = () => {
     />
   </Transition>
 
-  <!-- Slide-out Drawer Panel (left side in RTL / inset-inline-start) -->
+  
   <Transition
     enter-active-class="transition-transform duration-300 ease-out"
     enter-from-class="-translate-x-full"
@@ -63,7 +63,7 @@ const goToCheckout = () => {
       role="dialog"
       aria-label="سبد خرید شما"
     >
-      <!-- Drawer Header -->
+      
       <div
         class="flex h-18 items-center justify-between border-b border-[var(--color-border-subtle)] px-6"
       >
@@ -97,7 +97,7 @@ const goToCheckout = () => {
         </button>
       </div>
 
-      <!-- Free Delivery Progress Bar -->
+      
       <div
         v-if="!cartStore.isEmpty"
         class="border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-6 py-3"
@@ -124,9 +124,9 @@ const goToCheckout = () => {
         </div>
       </div>
 
-      <!-- Item List Container -->
+      
       <div class="flex-1 overflow-y-auto px-6 py-4">
-        <!-- Empty State with cart.svg -->
+        
         <div
           v-if="cartStore.isEmpty"
           class="flex h-full flex-col items-center justify-center py-12 text-center"
@@ -158,21 +158,21 @@ const goToCheckout = () => {
           </GooeyButton>
         </div>
 
-        <!-- Populated Items -->
+        
         <div v-else class="space-y-4">
           <div
             v-for="item in cartStore.items"
             :key="item.id"
             class="flex items-start gap-3.5 rounded-2xl border border-[var(--color-border-subtle)] bg-white p-3.5 transition-all hover:border-[var(--color-brand-forest)]"
           >
-            <!-- Dish Thumbnail -->
+            
             <img
               :src="item.product.image"
               :alt="item.product.title"
               class="h-16 w-16 rounded-xl object-cover bg-[var(--color-surface-cream)] shrink-0"
             />
 
-            <!-- Content Details -->
+            
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2">
                 <h4 class="text-sm font-bold text-[var(--color-text-primary)] truncate">
@@ -188,7 +188,7 @@ const goToCheckout = () => {
                 </button>
               </div>
 
-              <!-- Modifiers Display -->
+              
               <div class="mt-1 space-y-0.5 text-[11px] text-[var(--color-text-secondary)]">
                 <p v-if="item.selectedSize">
                   اندازه: {{ item.selectedSize.name }}
@@ -201,13 +201,13 @@ const goToCheckout = () => {
                 </p>
               </div>
 
-              <!-- Price & Quantity Row -->
+              
               <div class="mt-3 flex items-center justify-between">
                 <span class="text-xs font-bold text-[var(--color-brand-forest)]">
                   {{ formatToman(item.totalPrice) }}
                 </span>
 
-                <!-- Stepper -->
+                
                 <div
                   class="flex items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-2 py-1"
                 >
@@ -237,12 +237,12 @@ const goToCheckout = () => {
         </div>
       </div>
 
-      <!-- Sticky Drawer Footer -->
+      
       <div
         v-if="!cartStore.isEmpty"
         class="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/80 p-6 space-y-3"
       >
-        <!-- Subtotal -->
+        
         <div class="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
           <span>مجموع اقلام</span>
           <span class="font-semibold text-[var(--color-text-primary)]">
@@ -250,7 +250,7 @@ const goToCheckout = () => {
           </span>
         </div>
 
-        <!-- Packaging Fee -->
+        
         <div class="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
           <span>هزینه بسته‌بندی بهداشتی</span>
           <span class="font-semibold text-[var(--color-text-primary)]">
@@ -258,7 +258,7 @@ const goToCheckout = () => {
           </span>
         </div>
 
-        <!-- Delivery Fee -->
+        
         <div class="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
           <span>هزینه ارسال پیک اختصاصی</span>
           <span
@@ -274,7 +274,7 @@ const goToCheckout = () => {
 
         <div class="h-px w-full bg-[var(--color-border-subtle)] my-2"></div>
 
-        <!-- Grand Total -->
+        
         <div class="flex items-center justify-between">
           <span class="text-sm font-bold text-[var(--color-text-primary)]">
             مبلغ نهایی قابل پرداخت
@@ -284,7 +284,7 @@ const goToCheckout = () => {
           </span>
         </div>
 
-        <!-- Action Button -->
+        
         <GooeyButton
           variant="primary"
           size="lg"

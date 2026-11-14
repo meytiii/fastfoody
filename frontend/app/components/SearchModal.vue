@@ -47,7 +47,7 @@ const handleSelect = (product: Product) => {
         role="dialog"
         aria-label="جستجوی منوی غذا"
       >
-        <!-- Search Input Bar -->
+        
         <div class="relative flex items-center">
           <Search :size="20" class="absolute inset-inline-start-3.5 text-[var(--color-text-muted)]" />
           <input
@@ -67,7 +67,7 @@ const handleSelect = (product: Product) => {
           </button>
         </div>
 
-        <!-- Search Results List -->
+        
         <div class="mt-4 max-h-[350px] overflow-y-auto space-y-2">
           <div v-if="searchInput.trim() && searchResults.length === 0" class="py-8 text-center text-xs text-[var(--color-text-secondary)]">
             موردی مطابق با جستجوی شما یافت نشد.

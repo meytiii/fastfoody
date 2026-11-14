@@ -130,7 +130,7 @@ defineExpose({
       role="tablist"
       aria-label="ناوبری تیوپ‌لایت"
     >
-      <!-- Sliding Lamp Highlight Indicator with Spring Timing -->
+      
       <div
         v-if="lampReady"
         class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
@@ -143,23 +143,23 @@ defineExpose({
         }"
         aria-hidden="true"
       >
-        <!-- Pill background tint -->
+        
         <div class="h-full w-full rounded-full bg-[var(--color-brand-forest)]/[0.08]" />
 
-        <!-- Tubelight filament & ambient glow -->
+        
         <div
           class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-full bg-[var(--color-brand-forest)] shadow-[0_0_8px_rgba(24,58,45,0.45)]"
         >
-          <!-- Wide diffuse glow -->
+          
           <div class="absolute -top-2 -left-2 w-12 h-6 rounded-full bg-[var(--color-brand-forest)]/25 blur-md pointer-events-none" />
-          <!-- Accent warm highlight -->
+          
           <div class="absolute -top-1 left-0 w-8 h-6 rounded-full bg-[var(--color-accent-gold)]/30 blur-md pointer-events-none" />
-          <!-- Core spark -->
+          
           <div class="absolute top-0 left-2 w-4 h-4 rounded-full bg-[var(--color-brand-forest)]/40 blur-xs pointer-events-none" />
         </div>
       </div>
 
-      <!-- Nav Items -->
+      
       <button
         v-for="item in items"
         :key="item.name"

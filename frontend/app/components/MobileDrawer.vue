@@ -6,7 +6,6 @@ import GooeyButton from '~/components/ui/GooeyButton.vue'
 const uiStore = useUiStore()
 const route = useRoute()
 
-// Removed 'صفحه اصلی' link; brand logo handles navigation to top of homepage
 const links = [
   { label: 'منوی کامل غذاها', href: '/#menu' },
   { label: 'پیشنهادهای ویژه سرآشپز', href: '/#specials' },
@@ -65,7 +64,7 @@ const goToTop = () => {
       role="dialog"
       aria-label="منوی دسترسی موبایل"
     >
-      <!-- Header with Brand Logo Clickable to Top -->
+      
       <div
         class="flex h-16 items-center justify-between border-b border-[var(--color-border-subtle)] px-5"
       >
@@ -99,7 +98,7 @@ const goToTop = () => {
         </button>
       </div>
 
-      <!-- Links List -->
+      
       <nav class="flex-1 overflow-y-auto px-4 py-6" aria-label="منوی موبایل">
         <ul class="space-y-2">
           <li v-for="item in links" :key="item.href">
@@ -113,7 +112,7 @@ const goToTop = () => {
           </li>
         </ul>
 
-        <!-- Fast Contact Info -->
+        
         <div
           class="mt-8 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] p-4 text-xs text-[var(--color-text-secondary)] space-y-3"
         >
@@ -132,7 +131,7 @@ const goToTop = () => {
         </div>
       </nav>
 
-      <!-- Bottom Order CTA -->
+      
       <div class="border-t border-[var(--color-border-subtle)] p-4">
         <GooeyButton
           variant="primary"

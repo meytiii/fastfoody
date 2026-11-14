@@ -28,9 +28,9 @@ const handleSubscribe = () => {
     role="contentinfo"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <!-- 4 Columns Grid -->
+      
       <div class="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 pb-12 border-b border-white/10">
-        <!-- Col 1: Brand Info (4 cols) -->
+        
         <div class="space-y-4 lg:col-span-4">
           <div class="flex items-center gap-3">
             <div
@@ -68,7 +68,7 @@ const handleSubscribe = () => {
           </div>
         </div>
 
-        <!-- Col 2: Quick Links (2 cols) -->
+        
         <div class="space-y-3 lg:col-span-2">
           <h4 class="text-sm font-bold text-white">دسترسی سریع</h4>
           <ul class="space-y-2 text-xs">
@@ -90,7 +90,7 @@ const handleSubscribe = () => {
           </ul>
         </div>
 
-        <!-- Col 3: Operating Hours (3 cols) -->
+        
         <div class="space-y-3 lg:col-span-3">
           <h4 class="text-sm font-bold text-white">ساعات کاری و تحویل</h4>
           <div class="space-y-2.5 text-xs text-white/70">
@@ -112,7 +112,7 @@ const handleSubscribe = () => {
           </div>
         </div>
 
-        <!-- Col 4: Newsletter & Club (3 cols) -->
+        
         <div class="space-y-3 lg:col-span-3">
           <h4 class="text-sm font-bold text-white">باشگاه مشتریان فست‌فودی</h4>
           <p class="text-xs text-white/70">
@@ -139,7 +139,7 @@ const handleSubscribe = () => {
         </div>
       </div>
 
-      <!-- Bottom Bar -->
+      
       <div class="pt-8 flex items-center justify-center text-xs text-white/50">
         <p>
           طراحی شده توسط تیم Besporman

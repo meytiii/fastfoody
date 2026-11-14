@@ -28,7 +28,6 @@ const specialInstructions = ref('')
 
 const product = computed(() => menuStore.selectedProductForModal)
 
-// Watch open/close state of modal
 watch(
   () => menuStore.selectedProductForModal,
   (newVal) => {
@@ -57,7 +56,6 @@ const isAddonSelected = (addonId: string) => {
   return selectedAddons.value.some(a => a.id === addonId)
 }
 
-// Live calculation of item unit and total price
 const unitPrice = computed(() => {
   if (!product.value) return 0
   const base = product.value.price
@@ -106,7 +104,7 @@ const handleBackdropClick = (e: MouseEvent) => {
     class="fixed inset-0 m-auto z-50 w-[95%] max-w-2xl rounded-3xl border border-[var(--color-border-subtle)] bg-white p-0 shadow-[var(--shadow-lg)] backdrop:bg-[rgba(18,37,29,0.55)] backdrop:backdrop-blur-xs overscroll-contain transition-all"
   >
     <div v-if="product" class="flex max-h-[90vh] flex-col overflow-hidden">
-      <!-- Modal Header Bar -->
+      
       <div
         class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[var(--color-border-subtle)] bg-white/95 px-6 backdrop-blur-xs"
       >
@@ -130,9 +128,9 @@ const handleBackdropClick = (e: MouseEvent) => {
         </button>
       </div>
 
-      <!-- Modal Body (Scrollable) -->
+      
       <div class="flex-1 overflow-y-auto p-6 space-y-6">
-        <!-- Visual & Info Split -->
+        
         <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div
             class="relative flex h-52 w-full sm:w-52 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-surface-cream)] p-4 overflow-hidden border border-[var(--color-border-subtle)]"
@@ -152,7 +150,7 @@ const handleBackdropClick = (e: MouseEvent) => {
               {{ product.title }}
             </h2>
 
-            <!-- Rating & Stats -->
+            
             <div class="flex items-center gap-3 text-xs text-[var(--color-text-secondary)]">
               <div class="flex items-center gap-1 font-semibold text-[var(--color-text-primary)]">
                 <Star :size="14" class="fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]" />
@@ -179,7 +177,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           </div>
         </div>
 
-        <!-- Portion / Size Option -->
+        
         <div v-if="product.sizes && product.sizes.length > 0" class="space-y-3">
           <label class="block text-xs font-bold text-[var(--color-text-primary)]">
             انتخاب اندازه / حجم سرو
@@ -208,7 +206,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           </div>
         </div>
 
-        <!-- Add-ons Selection -->
+        
         <div v-if="product.addons && product.addons.length > 0" class="space-y-3">
           <label class="block text-xs font-bold text-[var(--color-text-primary)]">
             مخلفات و افزودنی‌های دلخواه
@@ -246,7 +244,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           </div>
         </div>
 
-        <!-- Special Instructions Textarea -->
+        
         <div class="space-y-2">
           <label for="instructions" class="block text-xs font-bold text-[var(--color-text-primary)]">
             توضیحات یا یادداشت ویژه برای سرآشپز (اختیاری)
@@ -262,11 +260,11 @@ const handleBackdropClick = (e: MouseEvent) => {
         </div>
       </div>
 
-      <!-- Sticky Footer Action -->
+      
       <div
         class="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] p-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4"
       >
-        <!-- Stepper -->
+        
         <div
           class="flex items-center gap-3 rounded-full border border-[var(--color-border-subtle)] bg-white px-3 py-1.5 shadow-xs"
         >
@@ -291,7 +289,7 @@ const handleBackdropClick = (e: MouseEvent) => {
           </button>
         </div>
 
-        <!-- Add to Cart CTA -->
+        
         <GooeyButton
           variant="primary"
           size="md"

@@ -74,9 +74,9 @@ If a user prompt or task requires a pattern not explicitly covered or seemingly 
 
 ## 4. Anti-Slop & Professional Craft Standards
 
-### 4.1. Zero-Slop Hygiene (`antislop`, `hallmark`)
+### 4.1. Absolute "NO COMMENT" Rule & Zero-Slop Hygiene
+- **Absolute "NO COMMENT" Rule:** Absolutely NO comments in any code files under any conditions (no `//`, `/* */`, `/** */`, `<!-- -->`, `#`). All code must be 100% self-explanatory with clean naming, modular logic, and strict types. Never write or leave comments in code.
 - **No Cliché Layouts:** Ban generic 3-card Bootstrap grids, saturated neon gradients, and nested glassmorphism cards.
-- **No Obvious Code Comments:** Strip noisy AI commentary (e.g. `// render component`, `// return template`). Document only critical invariants, complex domain calculations, or upstream workarounds.
 - **No Synthetic Placeholders:** Write production-ready code with complete implementations. Do not leave placeholder functions, stubbed empty templates, or synthetic mock data masking real logic.
 
 ### 4.2. Natural Copywriting (`humanizer`)

@@ -5,9 +5,9 @@ description: Quality hygiene, anti-slop filters, human copywriting, and token ef
 
 # Quality, Anti-Slop & Communication Directives
 
-## 1. Anti-Slop Hygiene (`antislop`, `antislop-code`, `antislop-ui`, `antislop-human`)
-- **Code Comments:** Ban noisy, obvious commentary (e.g. `// render component`, `// increment i`). Keep only comments documenting non-obvious domain logic, invariants, or upstream workarounds.
-- **Defensive Engineering:** Avoid synthetic fallback data that masks bugs. Write production-ready code with complete implementations (no placeholders, no `// TODO: implement here`).
+## 1. Absolute "NO COMMENT" Rule & Code Hygiene
+- **NO COMMENTS IN CODE:** Absolutely zero comments allowed in any codebase files (no `//`, `/* */`, `/** */`, `<!-- -->`, or `#` in code). Never write or keep single-line, multi-line, JSDoc, HTML, or CSS comments in any code. All code must be strictly self-documenting through clean naming, modular structure, and TypeScript types.
+- **Defensive Engineering:** Avoid synthetic fallback data that masks bugs. Write production-ready code with complete implementations (no placeholders, no TODOs, no stub comments).
 
 ## 2. Natural Human Tone (`humanizer`, `antislop-copywriting`)
 - **Tone:** Strip corporate buzzwords and formulaic AI writing patterns (*additionally, testament, pivotal, delve, landscape, tapestry, vibrant, nestled within*).

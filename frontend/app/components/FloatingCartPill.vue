@@ -12,7 +12,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
 </script>
 
 <template>
-  <!-- Floating Cart Pill (Fixed at bottom-start / bottom-left in RTL) -->
+  
   <Transition
     enter-active-class="transition duration-300 ease-out"
     enter-from-class="transform translate-y-12 opacity-0"
@@ -31,7 +31,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
         aria-label="مشاهده سبد خرید و تسویه‌حساب"
         @click="cartStore.openCart"
       >
-        <!-- Cart Icon & Gold Badge -->
+        
         <div class="relative flex items-center justify-center">
           <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white p-1.5 shadow-xs">
             <img
@@ -48,10 +48,10 @@ const hasItems = computed(() => cartStore.totalCount > 0)
           </span>
         </div>
 
-        <!-- Vertical Divider -->
+        
         <div class="h-5 w-px bg-white/20"></div>
 
-        <!-- Cart Total -->
+        
         <div class="flex flex-col text-start">
           <span class="text-[11px] font-medium text-white/80">
             سبد خرید شما
@@ -61,7 +61,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
           </span>
         </div>
 
-        <!-- Arrow indicator (Mirrored in RTL) -->
+        
         <div
           class="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 transition-transform group-hover:-translate-x-1 icon-directional"
         >

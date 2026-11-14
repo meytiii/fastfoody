@@ -67,6 +67,10 @@ The following skills are installed in `.agents/skills/` and active for Antigravi
    - Strip AI jargon with `humanizer` and `antislop-copywriting` to keep menu descriptions and interface copy warm, appetizing, and human.
    - Maintain concise, high-signal technical communication adhering to `caveman` efficiency.
 
+5. **Absolute "NO COMMENT" Rule:**
+   - Under no circumstances may any agent write or leave comments in any code (no single-line `//`, multi-line `/* */`, JSDoc `/** */`, template `<!-- -->`, or CSS comments).
+   - All code must be completely clean, self-documenting, and free of commentary from now on.
+
 ---
 
 ## 5. Automated Git Commit & Push Protocol

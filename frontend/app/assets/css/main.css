@@ -35,7 +35,6 @@
   --shadow-dropdown: 0 8px 24px rgba(24, 58, 45, 0.10);
   --shadow-pill: 0 8px 24px rgba(24, 58, 45, 0.20);
 
-  /* Aurora Animation in Tailwind 4 */
   --animate-aurora: aurora 60s linear infinite;
 
   @keyframes aurora {
@@ -64,7 +63,6 @@
   --color-border-subtle: #E8E5DC;
   --color-border-focus: #183A2D;
 
-  /* Global variables for Aurora Background */
   --white: #ffffff;
   --black: #000000;
   --transparent: transparent;
@@ -74,7 +72,6 @@
   --indigo-300: #a5b4fc;
   --violet-200: #ddd6fe;
 
-  /* Brand Aurora Gradients */
   --aurora-brand-1: #183A2D;
   --aurora-brand-2: #D6A84B;
   --aurora-brand-3: #224E3D;
@@ -99,18 +96,15 @@ body {
   background-color: #FFFFFF;
 }
 
-/* Keyboard focus rings */
 :focus-visible {
   outline: 2px solid #183A2D;
   outline-offset: 2px;
 }
 
-/* Logical properties & RTL directional icon mirroring */
 [dir="rtl"] .icon-directional {
   transform: scaleX(-1);
 }
 
-/* Modal and dialog overscroll isolation */
 dialog:modal {
   overscroll-behavior: contain;
 }
@@ -122,18 +116,15 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
-/* Touch targets */
 .touch-target {
   min-width: 44px;
   min-height: 44px;
 }
 
-/* Smooth spring transition helper */
 .transition-spring {
   transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Subtle clean scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -147,10 +138,6 @@ dialog::backdrop {
   background: #D8D4C8;
   border-radius: 9999px;
 }
-
-/* ==========================================================================
-   Button Component Styles
-   ========================================================================== */
 
 .gooey-button {
   position: relative;
@@ -190,7 +177,6 @@ dialog::backdrop {
   outline-offset: 2px;
 }
 
-/* Base Variants Matching Brand Palette */
 .gooey-button--primary {
   background-color: var(--color-brand-forest, #183A2D);
   color: #FFFFFF;
@@ -232,13 +218,11 @@ dialog::backdrop {
   box-shadow: 0 6px 20px rgba(24, 58, 45, 0.20);
 }
 
-/* Default / Unspecified Variant */
 .gooey-button:not([class*="gooey-button--"]) {
   background-color: var(--color-brand-forest, #183A2D);
   color: #FFFFFF;
 }
 
-/* Reduced Motion Respect */
 @media (prefers-reduced-motion: reduce) {
   .gooey-button {
     transition: none !important;

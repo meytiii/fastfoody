@@ -19,7 +19,6 @@ export const useCartStore = defineStore('cart', {
 
     deliveryFee(): number {
       if (this.subtotal === 0) return 0
-      // Free delivery on orders over 450,000 Tomans
       return this.subtotal >= 450000 ? 0 : 35000
     },
 
@@ -86,12 +85,10 @@ export const useCartStore = defineStore('cart', {
       const selectedAddons = options?.addons || []
       const instructions = options?.specialInstructions || ''
 
-      // Calculate unit price based on base price, size offset and addons
       const sizeOffset = selectedSize?.priceOffset || 0
       const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0)
       const unitPrice = product.price + sizeOffset + addonsTotal
 
-      // Create a deterministic item ID based on product ID, size and addons
       const addonIds = selectedAddons.map(a => a.id).sort().join('-')
       const itemId = `${product.id}_${selectedSize?.id || 'standard'}_${addonIds}`
 

@@ -164,7 +164,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Desktop Floating Island Header -->
+  
   <header
     class="sticky top-4 z-50 hidden w-full px-4 md:block transition-all duration-300"
     role="banner"
@@ -172,7 +172,7 @@ onUnmounted(() => {
     <div
       class="mx-auto flex h-16 max-w-5xl items-center justify-between rounded-full border border-[var(--color-border-subtle)] bg-white/92 px-6 shadow-[var(--shadow-md)] backdrop-blur-md"
     >
-      <!-- Brand Logo & Name (Clicking scrolls to top of homepage) -->
+      
       <a
         href="/"
         @click.prevent="goToTop"
@@ -202,14 +202,14 @@ onUnmounted(() => {
         </div>
       </a>
 
-      <!-- Center Navigation Links with Tubelight Effect & Spring Animation -->
+      
       <nav
         ref="navRef"
         class="relative flex items-center gap-1 lg:gap-1.5"
         role="tablist"
         aria-label="ناوبری اصلی"
       >
-        <!-- Sliding Tubelight Indicator -->
+        
         <div
           v-if="lampReady && route.path === '/'"
           class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
@@ -222,23 +222,23 @@ onUnmounted(() => {
           }"
           aria-hidden="true"
         >
-          <!-- Active Pill Background Tint -->
+          
           <div class="h-full w-full rounded-full bg-[var(--color-brand-forest)]/[0.08]" />
 
-          <!-- Tubelight Fixture & Glowing Multi-layer Ambient Beams -->
+          
           <div
             class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-full bg-[var(--color-brand-forest)] shadow-[0_0_8px_rgba(24,58,45,0.45)]"
           >
-            <!-- Wide Soft Glow -->
+            
             <div class="absolute -top-2 -left-2 w-12 h-6 rounded-full bg-[var(--color-brand-forest)]/25 blur-md pointer-events-none" />
-            <!-- Muted Gold Ambient Light -->
+            
             <div class="absolute -top-1 left-0 w-8 h-6 rounded-full bg-[var(--color-accent-gold)]/30 blur-md pointer-events-none" />
-            <!-- Intense Lamp Core Spark -->
+            
             <div class="absolute top-0 left-2 w-4 h-4 rounded-full bg-[var(--color-brand-forest)]/40 blur-xs pointer-events-none" />
           </div>
         </div>
 
-        <!-- Navigation Buttons -->
+        
         <a
           v-for="link in navLinks"
           :key="link.href"
@@ -265,9 +265,9 @@ onUnmounted(() => {
         </a>
       </nav>
 
-      <!-- Left Actions (Search, Cart, Order CTA) -->
+      
       <div class="flex items-center gap-2.5">
-        <!-- Search Trigger -->
+        
         <button
           type="button"
           @click="uiStore.toggleSearch"
@@ -277,7 +277,7 @@ onUnmounted(() => {
           <Search :size="18" :stroke-width="1.75" />
         </button>
 
-        <!-- Cart Trigger Button using cart.svg with project color palette -->
+        
         <button
           type="button"
           @click="cartStore.toggleCart"
@@ -306,7 +306,7 @@ onUnmounted(() => {
           </span>
         </button>
 
-        <!-- Order Button using order.svg with text "سفارش" -->
+        
         <GooeyButton
           variant="primary"
           size="sm"
@@ -325,12 +325,12 @@ onUnmounted(() => {
     </div>
   </header>
 
-  <!-- Mobile Top Bar -->
+  
   <header
     class="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-[var(--color-border-subtle)] bg-white/95 px-4 backdrop-blur-md md:hidden"
     role="banner"
   >
-    <!-- Hamburger Button -->
+    
     <button
       type="button"
       @click="uiStore.toggleMobileMenu"
@@ -340,7 +340,7 @@ onUnmounted(() => {
       <MenuIcon :size="22" :stroke-width="1.75" />
     </button>
 
-    <!-- Centered Brand Logo (Clicking scrolls to top) -->
+    
     <a
       href="/"
       @click.prevent="goToTop"
@@ -361,7 +361,7 @@ onUnmounted(() => {
       </span>
     </a>
 
-    <!-- Search Button on Mobile -->
+    
     <button
       type="button"
       @click="uiStore.toggleSearch"

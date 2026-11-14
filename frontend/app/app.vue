@@ -20,30 +20,23 @@ onMounted(() => {
 
 <template>
   <div class="relative min-h-screen flex flex-col bg-white text-[var(--color-text-primary)] selection:bg-[var(--color-accent-gold-soft)] selection:text-[var(--color-brand-forest)]">
-    <!-- Global Ambient Aurora Background (Applied on all pages) -->
     <AuroraBackground as-backdrop />
 
-    <!-- Navigation Header -->
     <TheHeader class="relative z-10" />
 
-    <!-- Main View Content -->
     <div class="flex-1 relative z-10">
       <NuxtPage />
     </div>
 
-    <!-- Site Footer -->
     <TheFooter class="relative z-10" />
 
-    <!-- Global Floating Cart Pill -->
     <FloatingCartPill />
 
-    <!-- Global Modals & Drawers -->
     <CartDrawer />
     <MobileDrawer />
     <SearchModal />
     <ProductDetailModal />
 
-    <!-- Notifications Sonner Toaster -->
     <Toaster
       position="bottom-left"
       dir="rtl"

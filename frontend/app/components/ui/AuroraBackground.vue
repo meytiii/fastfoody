@@ -18,13 +18,12 @@ const auroraGradient = computed(() => {
   if (props.variant === 'classic') {
     return '[--aurora:repeating-linear-gradient(100deg,var(--blue-500)_10%,var(--indigo-300)_15%,var(--blue-300)_20%,var(--violet-200)_25%,var(--blue-400)_30%)]'
   }
-  // Brand Scandinavian Aurora (Forest Green #183A2D, Muted Gold #D6A84B, Warm Ivory #F4EFE3)
   return '[--aurora:repeating-linear-gradient(100deg,rgba(24,58,45,0.32)_8%,rgba(214,168,75,0.28)_16%,rgba(34,78,61,0.25)_24%,rgba(244,239,227,0.45)_30%,rgba(24,58,45,0.32)_38%)]'
 })
 </script>
 
 <template>
-  <!-- As Fixed Backdrop Underlay for All Pages -->
+  
   <div
     v-if="asBackdrop"
     class="fixed inset-0 pointer-events-none z-0 overflow-hidden"
@@ -52,7 +51,7 @@ const auroraGradient = computed(() => {
     />
   </div>
 
-  <!-- As Container Component -->
+  
   <div
     v-else
     class="relative flex flex-col min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 text-slate-950 transition-colors"

@@ -26,7 +26,6 @@ const handleCardClick = () => {
 
 const handleQuickAdd = (e: MouseEvent) => {
   e.stopPropagation()
-  // If product has multiple sizes or addons, opening the modal is better for choice
   if ((props.product.sizes && props.product.sizes.length > 1) || (props.product.addons && props.product.addons.length > 0)) {
     menuStore.openProductModal(props.product)
     return
@@ -47,7 +46,7 @@ const handleQuickAdd = (e: MouseEvent) => {
     @click="handleCardClick"
     class="group relative flex h-full cursor-pointer flex-col justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-white p-3.5 sm:p-4 shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-1 hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]"
   >
-    <!-- Top Tags & Badges -->
+    
     <div>
       <div class="relative mb-3 flex items-center justify-between">
         <span
@@ -60,7 +59,7 @@ const handleQuickAdd = (e: MouseEvent) => {
           غذای تازه
         </span>
 
-        <!-- Rating Pill -->
+        
         <div
           class="flex items-center gap-1 rounded-full bg-[var(--color-surface-cream)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-primary)]"
         >
@@ -69,7 +68,7 @@ const handleQuickAdd = (e: MouseEvent) => {
         </div>
       </div>
 
-      <!-- Dish Image with Hover Zoom -->
+      
       <div
         class="relative mb-3.5 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-[var(--color-surface-cream)] p-2"
       >
@@ -80,7 +79,7 @@ const handleQuickAdd = (e: MouseEvent) => {
           class="h-full w-full object-cover rounded-full shadow-xs transition-transform duration-300 group-hover:scale-105"
         />
 
-        <!-- Preparation Time Pill -->
+        
         <div
           class="absolute bottom-2 inset-inline-end-2 flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)] backdrop-blur-xs shadow-xs"
         >
@@ -89,7 +88,7 @@ const handleQuickAdd = (e: MouseEvent) => {
         </div>
       </div>
 
-      <!-- Title & Excerpt -->
+      
       <h3
         class="text-sm sm:text-base font-bold text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-brand-forest)] line-clamp-1"
       >
@@ -100,7 +99,7 @@ const handleQuickAdd = (e: MouseEvent) => {
       </p>
     </div>
 
-    <!-- Bottom Pricing and CTA -->
+    
     <div class="mt-4 pt-3 border-t border-[var(--color-border-subtle)] flex items-center justify-between">
       <div class="flex flex-col">
         <span
@@ -114,7 +113,7 @@ const handleQuickAdd = (e: MouseEvent) => {
         </span>
       </div>
 
-      <!-- Quick Add Button -->
+      
       <GooeyButton
         variant="secondary"
         size="sm"

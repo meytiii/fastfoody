@@ -39,7 +39,6 @@ const handleReservation = async () => {
   }
 
   isSubmitting.value = true
-  // Simulate API reservation request
   await new Promise(resolve => setTimeout(resolve, 800))
   isSubmitting.value = false
   isSubmitted.value = true
@@ -58,7 +57,7 @@ const handleReservation = async () => {
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
-        <!-- Info Column (5 cols) -->
+        
         <div class="space-y-6 lg:col-span-5">
           <div class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] shadow-2xs">
             <CalendarCheck :size="14" />
@@ -73,7 +72,7 @@ const handleReservation = async () => {
             برای دورهمی‌های خانوادگی، قرارهای کاری یا جشن‌های دوستانه، میز دلخواهتان را از پیش آماده می‌کنیم تا بدون انتظار، از تازه‌ترین دست‌پخت‌های سرآشپز لذت ببرید.
           </p>
 
-          <!-- Contact details cards -->
+          
           <div class="space-y-3 pt-2">
             <div class="flex items-center gap-3.5 rounded-2xl bg-white p-4 border border-[var(--color-border-subtle)] shadow-xs">
               <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)]">
@@ -107,12 +106,12 @@ const handleReservation = async () => {
           </div>
         </div>
 
-        <!-- Reservation Form Card (7 cols) -->
+        
         <div class="lg:col-span-7">
           <div
             class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 sm:p-10 shadow-[var(--shadow-lg)]"
           >
-            <!-- Success Notification State -->
+            
             <div
               v-if="isSubmitted"
               class="flex flex-col items-center justify-center py-10 text-center space-y-4"
@@ -135,7 +134,7 @@ const handleReservation = async () => {
               </button>
             </div>
 
-            <!-- Form Body -->
+            
             <form v-else @submit.prevent="handleReservation" class="space-y-5">
               <div class="border-b border-[var(--color-border-subtle)] pb-4">
                 <h3 class="text-lg font-bold text-[var(--color-text-primary)]">
@@ -147,7 +146,7 @@ const handleReservation = async () => {
               </div>
 
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <!-- Name -->
+                
                 <div class="space-y-1.5">
                   <label class="block text-xs font-bold text-[var(--color-text-primary)]">
                     نام و نام خانوادگی *
@@ -164,7 +163,7 @@ const handleReservation = async () => {
                   </div>
                 </div>
 
-                <!-- Phone -->
+                
                 <div class="space-y-1.5">
                   <label class="block text-xs font-bold text-[var(--color-text-primary)]">
                     شماره همراه *
@@ -183,7 +182,7 @@ const handleReservation = async () => {
                 </div>
               </div>
 
-              <!-- Guests Selection -->
+              
               <div class="space-y-2">
                 <label class="block text-xs font-bold text-[var(--color-text-primary)]">
                   تعداد نفرات
@@ -206,7 +205,7 @@ const handleReservation = async () => {
                 </div>
               </div>
 
-              <!-- Time Slot -->
+              
               <div class="space-y-2">
                 <label class="block text-xs font-bold text-[var(--color-text-primary)]">
                   ساعت حضور
@@ -229,7 +228,7 @@ const handleReservation = async () => {
                 </div>
               </div>
 
-              <!-- Notes -->
+              
               <div class="space-y-1.5">
                 <label class="block text-xs font-bold text-[var(--color-text-primary)]">
                   توضیحات تکمیلی (مناسبت خاص، صندلی کودک و...)
@@ -242,7 +241,7 @@ const handleReservation = async () => {
                 />
               </div>
 
-              <!-- Submit Button -->
+              
               <GooeyButton
                 type="submit"
                 variant="primary"

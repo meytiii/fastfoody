@@ -8,7 +8,7 @@ const { toPersianDigits } = usePersian()
 
 <template>
   <div class="w-full">
-    <!-- Horizontal Scroll Carousel without scrollbars -->
+    
     <div
       class="flex items-center gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth"
       role="tablist"
@@ -28,7 +28,7 @@ const { toPersianDigits } = usePersian()
             : 'border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] text-[var(--color-text-primary)] hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-ivory)]'
         "
       >
-        <!-- Icon Container (40x40) -->
+        
         <div
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors"
           :class="
@@ -44,7 +44,7 @@ const { toPersianDigits } = usePersian()
           />
         </div>
 
-        <!-- Title & Count -->
+        
         <div class="flex flex-col text-start">
           <span class="text-xs font-bold leading-tight">
             {{ cat.title }}

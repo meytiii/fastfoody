@@ -29,9 +29,9 @@ const form = ref({
   address: '',
   unit: '',
   deliveryNotes: '',
-  deliveryTime: 'asap', // 'asap' | 'scheduled'
+  deliveryTime: 'asap',
   scheduledTime: '19:30 - 20:30',
-  paymentMethod: 'online', // 'online' | 'cash'
+  paymentMethod: 'online',
 })
 
 const isSubmitting = ref(false)
@@ -64,7 +64,7 @@ const handlePlaceOrder = async () => {
 <template>
   <main class="min-h-screen bg-[var(--color-surface-cream)]/50 py-8 sm:py-14">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <!-- Breadcrumb / Back Link -->
+      
       <div class="mb-6">
         <NuxtLink
           to="/"
@@ -75,7 +75,7 @@ const handlePlaceOrder = async () => {
         </NuxtLink>
       </div>
 
-      <!-- Order Completed View -->
+      
       <div
         v-if="orderCompleted"
         class="mx-auto max-w-xl rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 sm:p-12 text-center shadow-[var(--shadow-md)] space-y-5"
@@ -107,7 +107,7 @@ const handlePlaceOrder = async () => {
         </div>
       </div>
 
-      <!-- Empty Cart View -->
+      
       <div
         v-else-if="cartStore.isEmpty"
         class="mx-auto max-w-md rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 text-center shadow-[var(--shadow-sm)] space-y-4"
@@ -129,12 +129,12 @@ const handlePlaceOrder = async () => {
         </NuxtLink>
       </div>
 
-      <!-- Main Checkout Layout (2-Column Desktop: 2/3 Form, 1/3 Summary) -->
+      
       <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
-        <!-- Form Details (8 cols) -->
+        
         <div class="lg:col-span-8 space-y-6">
           <form @submit.prevent="handlePlaceOrder" class="space-y-6">
-            <!-- Section 1: Customer Information -->
+            
             <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
               <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
@@ -181,7 +181,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Section 2: Delivery Address -->
+            
             <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
               <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
@@ -237,7 +237,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Section 3: Delivery Timing -->
+            
             <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
               <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
@@ -289,7 +289,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Section 4: Payment Method -->
+            
             <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
               <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
@@ -341,7 +341,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Submit Button -->
+            
             <GooeyButton
               type="submit"
               variant="primary"
@@ -357,7 +357,7 @@ const handlePlaceOrder = async () => {
           </form>
         </div>
 
-        <!-- Sticky Order Summary (4 cols) -->
+        
         <aside class="sticky top-24 lg:col-span-4 space-y-4">
           <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
             <div class="border-b border-[var(--color-border-subtle)] pb-3">
@@ -366,7 +366,7 @@ const handlePlaceOrder = async () => {
               </h3>
             </div>
 
-            <!-- Items Mini List -->
+            
             <div class="max-h-[260px] overflow-y-auto space-y-3 pe-1">
               <div
                 v-for="item in cartStore.items"
@@ -394,7 +394,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Price Breakdown -->
+            
             <div class="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5 text-xs text-[var(--color-text-secondary)]">
               <div class="flex items-center justify-between">
                 <span>مجموع اقلام</span>
@@ -422,7 +422,7 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            <!-- Grand Total -->
+            
             <div class="border-t border-[var(--color-border-subtle)] pt-3 flex items-center justify-between">
               <span class="text-sm font-bold text-[var(--color-text-primary)]">
                 مبلغ نهایی
@@ -433,7 +433,7 @@ const handlePlaceOrder = async () => {
             </div>
           </div>
 
-          <!-- Guarantee Badge -->
+          
           <div class="flex items-center gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] p-4 text-xs text-[var(--color-text-secondary)]">
             <ShieldCheck :size="24" class="text-[var(--color-brand-forest)] shrink-0" />
             <span>ضمانت سلامت، گرمی و بهداشت غذا با بسته‌بندی حرارتی اختصاصی</span>

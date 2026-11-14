@@ -61,9 +61,9 @@ To ensure alignment across all developers and AI agents, project documentation i
 - Do not duplicate component markup inline across multiple page templates.
 - Maintain a single source of truth for UI components adhering to the design tokens.
 
-### 4.3. Anti-Slop Code Hygiene
-- **No Noisy Comments:** Banned obvious commentary (e.g., `// render template`, `// computed property`, `// import vue`). Keep comments strictly focused on non-obvious business logic, domain invariants, or edge-case handling.
-- **No Placeholder Code:** Deliver complete, functional, production-ready code. Never leave `// TODO: implement later` placeholders or empty stub functions.
+### 4.3. Absolute "NO COMMENT" Rule & Code Hygiene
+- **Zero Comments in Code:** Under no circumstances should any comments be written or left in any code file (no `//`, `/* */`, `/** */`, `<!-- -->`, or `#`). All code must be 100% self-documenting through clean architectural patterns, descriptive identifiers, and robust TypeScript types.
+- **No Placeholder Code:** Deliver complete, functional, production-ready code. Never leave TODOs, stubs, or placeholder comments.
 - **No Synthetic Bug-Masking Data:** Avoid hardcoded fallback mock data in production services that masks API failures.
 
 ### 4.4. Natural Copywriting Standards

@@ -32,16 +32,16 @@ useHead({
 
 <template>
   <main class="min-h-screen">
-    <!-- Hero Section -->
+    
     <HeroSection />
 
-    <!-- Special Offers Section -->
+    
     <SpecialOffers />
 
-    <!-- Main Menu & Catalog Section -->
+    
     <section id="menu" class="py-14 sm:py-20 bg-white" aria-label="منوی غذاها">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
-        <!-- Section Title & Category Filter Tabs -->
+        
         <div class="space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
@@ -54,18 +54,18 @@ useHead({
               </h2>
             </div>
 
-            <!-- Counter -->
+            
             <div class="text-xs sm:text-sm font-medium text-[var(--color-text-secondary)]">
               نمایش <strong>{{ toPersianDigits(menuStore.filteredProducts.length) }}</strong> آیتم در
               <span class="text-[var(--color-brand-forest)] font-bold">«{{ activeCategoryTitle }}»</span>
             </div>
           </div>
 
-          <!-- Category Navigation Pills Carousel -->
+          
           <CategoryNav />
         </div>
 
-        <!-- Product Grid (4 cols desktop, 3 cols tablet, 2 cols mobile with 12px gap) -->
+        
         <div
           v-if="menuStore.filteredProducts.length > 0"
           class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4"
@@ -77,7 +77,7 @@ useHead({
           />
         </div>
 
-        <!-- Empty Filter State -->
+        
         <div
           v-else
           class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 py-16 text-center"
@@ -104,10 +104,10 @@ useHead({
       </div>
     </section>
 
-    <!-- Table Reservation Section -->
+    
     <ReservationSection />
 
-    <!-- Customer Reviews & Testimonials Section -->
+    
     <TestimonialsSection />
   </main>
 </template>
