@@ -1,42 +1,58 @@
-from rest_framework.views import exception_handler
-from rest_framework.response import Response
-from rest_framework import status
+from __future__ import annotations
+
+from typing import Any
 
 
 class BusinessException(Exception):
-    def __init__(self, message: str, code: str = "BUSINESS_ERROR", status_code: int = status.HTTP_400_BAD_REQUEST, details=None):
-        self.message = message
-        self.code = code
-        self.status_code = status_code
+    default_code = "BUSINESS_ERROR"
+    default_message = "خطای عملیاتی رخ داده است."
+    status_code = 400
+
+    def __init__(
+        self,
+        message: str | None = None,
+        code: str | None = None,
+        details: Any = None,
+        status_code: int | None = None,
+    ) -> None:
+        self.code = code or self.default_code
+        self.message = message or self.default_message
         self.details = details
-        super().__init__(message)
+        self.status_code = status_code or self.status_code
+        super().__init__(self.message)
 
 
-def custom_exception_handler(exc, context):
-    if isinstance(exc, BusinessException):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "code": exc.code,
-                    "message": exc.message,
-                    "details": exc.details,
-                },
-            },
-            status=exc.status_code,
-        )
+class NotFoundError(BusinessException):
+    default_code = "NOT_FOUND"
+    default_message = "مورد درخواستی یافت نشد."
+    status_code = 404
 
-    response = exception_handler(exc, context)
-    if response is not None:
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "code": "VALIDATION_OR_HTTP_ERROR",
-                    "message": "خطا در پردازش درخواست.",
-                    "details": response.data,
-                },
-            },
-            status=response.status_code,
-        )
-    return None
+
+class PermissionDeniedError(BusinessException):
+    default_code = "PERMISSION_DENIED"
+    default_message = "شما مجاز به انجام این عملیات نیستید."
+    status_code = 403
+
+
+class ValidationError(BusinessException):
+    default_code = "VALIDATION_ERROR"
+    default_message = "داده‌های ورودی نامعتبر است."
+    status_code = 422
+
+
+class RestaurantClosedError(BusinessException):
+    default_code = "RESTAURANT_CLOSED"
+    default_message = "رستوران در حال حاضر سفارش نمی‌پذیرد."
+    status_code = 409
+
+
+class OrderStateError(BusinessException):
+    default_code = "INVALID_ORDER_STATE"
+    default_message = "وضعیت سفارش برای این عملیات معتبر نیست."
+    status_code = 409
+
+
+class PaymentError(BusinessException):
+    default_code = "PAYMENT_ERROR"
+    default_message = "خطا در فرآیند پرداخت رخ داده است."
+    status_code = 402

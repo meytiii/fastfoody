@@ -1,27 +1,33 @@
-import uuid
+from __future__ import annotations
+
+from typing import Any
+
 from django.db import models
 from django.utils import timezone
 
 
 class SoftDeleteQuerySet(models.QuerySet):
-    def delete(self):
-        return super().update(deleted_at=timezone.now())
-
-    def hard_delete(self):
-        return super().delete()
-
-    def active(self):
+    def alive(self) -> "SoftDeleteQuerySet":
         return self.filter(deleted_at__isnull=True)
 
+    def dead(self) -> "SoftDeleteQuerySet":
+        return self.filter(deleted_at__isnull=False)
 
-class SoftDeleteManager(models.Manager):
-    def get_queryset(self):
-        return SoftDeleteQuerySet(self.model, using=self._db).active()
+    def delete(self) -> tuple[int, dict[str, int]]:
+        updated = self.update(deleted_at=timezone.now())
+        return updated, {}
+
+    def hard_delete(self) -> tuple[int, dict[str, int]]:
+        return super().delete()
+
+
+class SoftDeleteManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
+    def get_queryset(self) -> SoftDeleteQuerySet:
+        return super().get_queryset().alive()
 
 
 class BaseModel(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
@@ -30,10 +36,18 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ("-created_at",)
 
-    def delete(self, using=None, keep_parents=False):
+    def soft_delete(self) -> None:
         self.deleted_at = timezone.now()
         self.save(update_fields=["deleted_at", "updated_at"])
 
-    def hard_delete(self, using=None, keep_parents=False):
-        super().delete(using=using, keep_parents=keep_parents)
+    def restore(self) -> None:
+        self.deleted_at = None
+        self.save(update_fields=["deleted_at", "updated_at"])
+
+    def hard_delete(self) -> tuple[int, dict[str, int]]:
+        return super().delete()
+
+    def delete(self, *args: Any, **kwargs: Any) -> None:
+        self.soft_delete()
