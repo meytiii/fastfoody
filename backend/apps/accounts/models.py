@@ -4,7 +4,10 @@ from typing import Any
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from common.models import BaseModel
 
 
 class CustomerManager(BaseUserManager):
@@ -70,3 +73,56 @@ class Customer(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return self.phone
+
+
+class CustomerAddress(BaseModel):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="addresses",
+    )
+    title = models.CharField(max_length=64, blank=True)
+    address_text = models.TextField()
+    recipient_name = models.CharField(max_length=128, blank=True)
+    recipient_phone = models.CharField(max_length=15, blank=True)
+    is_out_of_zone = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
+
+    class Meta(BaseModel.Meta):
+        ordering = ("-is_default", "-created_at")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer"],
+                condition=models.Q(is_default=True, deleted_at__isnull=True),
+                name="unique_default_address_per_customer",
+            ),
+        ]
+        verbose_name = "Customer Address"
+        verbose_name_plural = "Customer Addresses"
+
+    def __str__(self) -> str:
+        return f"{self.customer.phone}: {self.address_text[:40]}"
+
+
+class CustomerNote(BaseModel):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="notes",
+    )
+    author = models.ForeignKey(
+        Customer,
+        on_delete=models.SET_NULL,
+        related_name="authored_notes",
+        null=True,
+        blank=True,
+    )
+    text = models.TextField()
+
+    class Meta(BaseModel.Meta):
+        ordering = ("-created_at",)
+        verbose_name = "Customer Note"
+        verbose_name_plural = "Customer Notes"
+
+    def __str__(self) -> str:
+        return f"Note for {self.customer.phone} ({self.created_at:%Y-%m-%d})"

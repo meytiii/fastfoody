@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "common",
     "apps.accounts",
+    "apps.cms",
 ]
 
 MIDDLEWARE = [
