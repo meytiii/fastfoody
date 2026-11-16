@@ -1,0 +1,7 @@
+from __future__ import annotations
+
+from common.cache import make_cache_key
+
+CACHE_KEY_MENU = make_cache_key("catalog", "storefront_menu")
+CACHE_KEY_LUCKY_WHEEL = make_cache_key("catalog", "lucky_wheel")
+CACHE_TIMEOUT_SECONDS = 60 * 60

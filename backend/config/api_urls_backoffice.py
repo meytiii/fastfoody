@@ -14,4 +14,5 @@ urlpatterns = [
     path("", backoffice_root, name="backoffice-root"),
     path("cms/", include("apps.cms.apis.backoffice.urls")),
     path("crm/", include("apps.accounts.apis.backoffice.urls")),
+    path("catalog/", include("apps.catalog.apis.backoffice.urls")),
 ]

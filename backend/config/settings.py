@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "common",
     "apps.accounts",
     "apps.cms",
+    "apps.catalog",
 ]
 
 MIDDLEWARE = [
