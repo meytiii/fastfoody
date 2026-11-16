@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.cms",
     "apps.catalog",
+    "apps.orders",
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,19 @@ CELERY_TASK_ROUTES = {
     "apps.orders.tasks.send_order_ready_sms": {"queue": "high_priority"},
     "apps.orders.tasks.send_prep_time_changed_sms": {"queue": "high_priority"},
 }
+
+CELERY_BEAT_SCHEDULE = {
+    "cancel-expired-unpaid-orders": {
+        "task": "apps.orders.tasks.cancel_expired_unpaid_orders",
+        "schedule": 60.0,
+    },
+}
+
+
+
+MANAGER_PHONE = config("MANAGER_PHONE", default="")
+
+
 
 ZARINPAL_MERCHANT_ID = config("ZARINPAL_MERCHANT_ID", default="")
 ZARINPAL_CALLBACK_URL = config("ZARINPAL_CALLBACK_URL", default="")

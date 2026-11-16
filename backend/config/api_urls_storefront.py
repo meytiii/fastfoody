@@ -15,5 +15,6 @@ urlpatterns = [
     path("auth/", include("apps.accounts.apis.storefront.urls")),
     path("cms/", include("apps.cms.apis.storefront.urls")),
     path("catalog/", include("apps.catalog.apis.storefront.urls")),
+    path("orders/", include("apps.orders.apis.storefront.urls")),
 
 ]
