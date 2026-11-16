@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.cms",
     "apps.catalog",
     "apps.orders",
+    "apps.payments",
 ]
 
 MIDDLEWARE = [
@@ -153,6 +154,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.orders.tasks.cancel_expired_unpaid_orders",
         "schedule": 60.0,
     },
+    "reverify-pending-payments": {
+        "task": "apps.payments.tasks.reverify_pending_payments",
+        "schedule": 300.0,  # every 5 minutes
+    },
+
 }
 
 
@@ -161,9 +167,23 @@ MANAGER_PHONE = config("MANAGER_PHONE", default="")
 
 
 
+# Zarinpal
 ZARINPAL_MERCHANT_ID = config("ZARINPAL_MERCHANT_ID", default="")
-ZARINPAL_CALLBACK_URL = config("ZARINPAL_CALLBACK_URL", default="")
+
+ZARINPAL_CALLBACK_URL = config(
+    "ZARINPAL_CALLBACK_URL",
+    default="http://127.0.0.1:8000/api/v1/storefront/payments/callback/",
+)
+
 ZARINPAL_SANDBOX = config("ZARINPAL_SANDBOX", default=True, cast=bool)
+
+
+# Where the browser lands after callback (frontend URL)
+PAYMENT_FRONTEND_RESULT_URL = config(
+    "PAYMENT_FRONTEND_RESULT_URL",
+    default="http://127.0.0.1:3000/payment/result",
+)
+
 
 SMS_IR_API_KEY = config("SMS_IR_API_KEY", default="")
 SMS_IR_SENDER = config("SMS_IR_SENDER", default="")
