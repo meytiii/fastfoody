@@ -23,7 +23,7 @@
 - 7.6 Payments
 - احراز هویت و مجوزها
 - مرجع کامل API
-- Troubleshooting
+- عیب‌یابی
 - چک‌لیست نهایی (تست کامل بک‌اند)
 
 ## 1. نمای کلی پروژه
@@ -305,7 +305,7 @@ Views و Serializers فقط validation و serialization. هیچ منطق کسب�
 
 transaction.on_commit() برای side-effectهای بیرونی (Celery task، cache invalidation).
 
-### Error Envelope (D16)
+### پوشش خطا (D16)
 
 هر پاسخ غیر 2xx:
 
@@ -326,7 +326,7 @@ details می‌تواند null، یک dict از field→message، یا هر سا
 
 ## 7. ماژول‌ها به تفصیل
 
-### 7.1 Common
+### 7.1 هستهٔ مشترک
 
 #### BaseModel + Soft Delete (D17)
 
@@ -354,7 +354,7 @@ SoftDeleteQuerySet:
 - .delete() — به‌جای حذف، UPDATE deleted_at=now()
 - .hard_delete() — حذف واقعی
 
-#### Exceptions (D18)
+#### استثناها (D18)
 
 ```text
 BusinessException (status 400)
@@ -435,7 +435,7 @@ def generate_webp_for_field(instance, source_field="image", target_field="webp_i
 
 ### 7.2 Accounts
 
-#### Customer model
+#### مدل Customer
 
 ```python
 class Customer(AbstractBaseUser, PermissionsMixin):
@@ -452,7 +452,7 @@ class Customer(AbstractBaseUser, PermissionsMixin):
 
 چرا از BaseModel ارث نمی‌برد: soft delete برای user مشکل‌ساز است (auth با is_active مدیریت می‌شود).
 
-CustomerManager:
+مدیر Customer:
 
 - create_user(phone, password=None) — اگر password ندهید، set_unusable_password() می‌کند (مشتری عادی نمی‌تواند با password login کند).
 - create_superuser(phone, password) — is_staff=True و is_superuser=True.
@@ -481,7 +481,7 @@ compare_digest جلوگیری از timing attack.
 
 مصرف کد: پس از verify موفق، کد حذف می‌شود تا دوباره استفاده نشود. اگر verify شکست خورد، کد باقی می‌ماند (تا TTL).
 
-#### Throttling (D9)
+#### محدودسازی نرخ (D9)
 
 ```python
 class OTPRequestThrottle(SimpleRateThrottle):
@@ -520,7 +520,7 @@ def verify_otp(*, phone, code) -> Customer:
     return customer
 ```
 
-#### Addresses
+#### آدرس‌ها
 
 `CustomerAddress:`
 
@@ -540,7 +540,7 @@ if data.get("is_default"):
     ).update(is_default=False)
 ```
 
-#### CustomerNote (CRM)
+#### یادداشت مشتری (CRM)
 
 ```python
 class CustomerNote(BaseModel):
@@ -551,7 +551,7 @@ class CustomerNote(BaseModel):
 
 یادداشت‌ها در پنل مدیر قابل مشاهده و قابل چاپ در رسید سفارش جدید هستند (در فاز بعدی؛ فعلاً فقط داده ذخیره می‌شود).
 
-#### Customer 360
+#### پروفایل ۳۶۰ درجه مشتری
 
 `selectors.get_customer_360(customer_id):`
 
@@ -602,7 +602,7 @@ refresh قدیمی blacklist می‌شود
 
 refresh را blacklist می‌کند + session را هم پاک می‌کند
 
-#### Staff Login
+#### ورود کارکنان
 
 ```python
 def staff_login(phone, password):
@@ -627,7 +627,7 @@ POST /api/v1/backoffice/auth/login/ با SessionAuthentication جواب می‌�
 
 ### 7.3 CMS
 
-#### RestaurantSettings (singleton — D24)
+#### RestaurantSettings (تک‌مقدار — D24)
 
 ```python
 class RestaurantSettings(models.Model):
@@ -698,7 +698,7 @@ def get_image_url(obj):
     return obj.webp_file.url if obj.webp_file else (obj.file.url if obj.file else None)
 ```
 
-#### Caching
+#### کشینگ
 
 `get_restaurant_settings():`
 
@@ -716,7 +716,7 @@ def get_image_url(obj):
 
 ### 7.4 Catalog
 
-#### Category
+#### دسته‌بندی
 
 ```python
 class Category(BaseModel):
@@ -739,7 +739,7 @@ class AddOn(BaseModel):
 
 سناریو: آشپزخانه پنیر تمام می‌کند → مدیر is_available=False می‌کند → همه‌ی محصولات این افزودنی را از دست می‌دهند (در menu، در سفارش جدید).
 
-#### Product (D21)
+#### محصول (D21)
 
 ```python
 class Product(BaseModel):
@@ -787,7 +787,7 @@ UniqueConstraint: روی (product, addon) با deleted_at IS NULL — یک مح�
 
 مشتری می‌تواند تا ۳ عدد پنیر برای پیتزا انتخاب کند، تا ۲ برای برگر.
 
-#### Menu caching
+#### کش منو
 
 `get_storefront_menu():`
 
@@ -815,7 +815,7 @@ OUT_OF_STOCK شامل است (طبق spec)، HIDDEN نه.
 
 Cache-safe: به‌جای pickle کردن model instance، selector مستقیماً dict می‌سازد. چرا؟ چون تغییرات schema بین دو deploy باعث می‌شوند pickle قدیمی با کد جدید ناسازگار شود.
 
-#### Lucky Wheel
+#### گردونه شانس
 
 `get_lucky_wheel_products(category_slug=None):`
 
@@ -827,7 +827,7 @@ Cache-safe: به‌جای pickle کردن model instance، selector مستقیم
 
 منطق چرخش روی فرانت است. backend فقط لیست را می‌دهد. spec صریحاً گفت که load اضافی ایجاد نکنیم.
 
-#### Product detail (uncached)
+#### جزئیات محصول (بدون کش)
 
 `get_storefront_product(slug):`
 
@@ -849,7 +849,7 @@ Cache-safe: به‌جای pickle کردن model instance، selector مستقیم
 
 ### 7.5 Orders
 
-#### State Machine (قلب پروژه)
+#### ماشین حالت (قلب پروژه)
 
 ```text
                           ┌──────────────────────┐
@@ -884,7 +884,7 @@ Cache-safe: به‌جای pickle کردن model instance، selector مستقیم
 
 - → payment=REFUNDED (با ثبت card_number و tracking_code)
 
-#### Order model
+#### مدل Order
 
 ```python
 class Order(BaseModel):
@@ -926,7 +926,7 @@ class OrderItemAddOn(BaseModel):
 
 چرا snapshot؟ اگر مدیر قیمت پیتزا را فردا از 150k به 200k تغییر دهد، فاکتورهای دیروز نباید تغییر کنند. snapshot این را تضمین می‌کند.
 
-#### Order creation (services.create_order)
+#### ایجاد سفارش (services.create_order)
 
 ```python
 def create_order(*, customer, delivery_type, address_id, items, notes_to_kitchen=""):
@@ -959,7 +959,7 @@ def create_order(*, customer, delivery_type, address_id, items, notes_to_kitchen
 - 0 <= addon.quantity <= link.max_quantity
 - اگر هر کدام شکست خورد → ValidationError با details مشخص.
 
-#### Prep time (D12)
+#### زمان آماده‌سازی (D12)
 
 ```python
 def _compute_prep_time(items, product_by_id) -> int:
@@ -970,7 +970,7 @@ def _compute_prep_time(items, product_by_id) -> int:
 
 مثال: پیتزا ۱۵ دقیقه، نوشابه ۰ دقیقه → max = 15، + buffer 5 = 20.
 
-#### Daily number (D7)
+#### شماره روزانه (D7)
 
 `mark_order_paid` (که از payments.verify_payment صدا زده می‌شود):
 
@@ -1029,7 +1029,7 @@ Order.objects.filter(status__in=[PROCESSING, READY]).order_by("expected_ready_at
 
 فرانت هر ۱۰–۱۵ ثانیه این را poll می‌کند. سفارش‌های is_printed=False → آلارم + چاپ. بعد از چاپ، فرانت POST /orders/<id>/mark-printed/ صدا می‌زند.
 
-#### Auto-cancel (D — 15 min)
+#### لغو خودکار (D — ۱۵ دقیقه)
 
 ```python
 cancel_expired_unpaid_orders هر ۶۰ ثانیه توسط Celery Beat اجرا می‌شود:
@@ -1049,7 +1049,7 @@ for order in expired:
 
 چرا Beat و نه apply_async(countdown=900)؟ اگر worker crash کند، countdown از دست می‌رود و سفارش هیچ‌وقت لغو نمی‌شود. Beat idempotent است و دوباره تلاش می‌کند.
 
-#### Prep time override
+#### تغییر زمان آماده‌سازی
 
 `update_prep_time(order_id, new_prep_time_minutes):`
 
@@ -1088,7 +1088,7 @@ class ZarinpalClient:
 
 urllib به‌جای requests: بدون dependency اضافی. کنترل کامل روی timeout و exception.
 
-#### Payment model
+#### مدل Payment
 
 ```python
 class Payment(BaseModel):
@@ -1165,7 +1165,7 @@ def verify_payment(*, authority, status):
 
 `code == 101`: زرین‌پال این را "قبلاً تأیید شده" برمی‌گرداند. ما با verify_data که ref_id دارد، آن را موفق می‌گیریم.
 
-#### Re-verify task (پشتیبان)
+#### وظیفه باز-تأیید (پشتیبان)
 
 ```python
 reverify_pending_payments هر ۵ دقیقه:
@@ -1181,7 +1181,7 @@ for payment in Payment.objects.filter(status=PENDING, created_at__lt=now-3min):
 
 سناریو: کاربر پرداخت کرد، ولی callback به هر دلیل (شبکه، restart) نرسید. این task پرداخت‌های PENDING قدیمی‌تر از ۳ دقیقه را دوباره verify می‌کند. زرین‌پال verify idempotent است، پس هیچ خطری ندارد.
 
-#### Refund workflow (D11)
+#### جریان بازپرداخت (D11)
 
 مدیر POST /orders/<id>/cancel/ → cancel_order_by_manager
 
@@ -1253,7 +1253,7 @@ class BackofficeAPIView(APIView):
 
 ### 9.1 Storefront
 
-#### Auth
+#### احراز هویت
 
 | Method | Path | Auth | Body / Params |
 | --- | --- | --- | --- |
@@ -1267,7 +1267,7 @@ class BackofficeAPIView(APIView):
 | GET/POST | /auth/addresses/ | ✓ | {address_text, recipient_name?, is_out_of_zone?, is_default?} |
 | GET/PATCH/DELETE | /auth/addresses/<id>/ | ✓ | — |
 
-#### Catalog
+#### کاتالوگ
 
 | Method | Path | Auth | Params |
 | --- | --- | --- | --- |
@@ -1275,7 +1275,7 @@ class BackofficeAPIView(APIView):
 | GET | /catalog/lucky-wheel/ | — | ?category=slug |
 | GET | /catalog/products/<slug>/ | — | — |
 
-#### Orders
+#### سفارش‌ها
 
 | Method | Path | Auth | Body |
 | --- | --- | --- | --- |
@@ -1283,7 +1283,7 @@ class BackofficeAPIView(APIView):
 | POST | /orders/ | ✓ | {delivery_type, address_id?, notes_to_kitchen?, items: [{product_id, quantity, addons?: [{addon_id, quantity}]}]} |
 | GET | /orders/<id>/ | ✓ | — |
 
-#### Payments
+#### پرداخت‌ها
 
 | Method | Path | Auth | Body |
 | --- | --- | --- | --- |
@@ -1303,7 +1303,7 @@ class BackofficeAPIView(APIView):
 
 ### 9.2 Backoffice
 
-#### Auth
+#### احراز هویت
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1322,7 +1322,7 @@ class BackofficeAPIView(APIView):
 | GET/POST | /crm/customers/<id>/notes/ | {text} |
 | DELETE | /crm/customers/<id>/notes/<note_id>/ | — |
 
-#### Catalog
+#### کاتالوگ
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1336,7 +1336,7 @@ class BackofficeAPIView(APIView):
 | POST | /catalog/products/<id>/image/ | multipart image |
 | GET/PUT | /catalog/products/<id>/addons/ | {addons: [{addon_id, min_quantity, max_quantity}]} |
 
-#### Orders
+#### سفارش‌ها
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1350,7 +1350,7 @@ class BackofficeAPIView(APIView):
 | PATCH | /orders/<id>/prep-time/ | {prep_time_minutes} |
 | POST | /orders/<id>/refund/ | {card_number, tracking_code} |
 
-#### Payments
+#### پرداخت‌ها
 
 | Method | Path |
 | --- | --- |
@@ -1374,7 +1374,7 @@ class BackofficeAPIView(APIView):
 | GET | /api/v1/storefront/schema/ و /docs/ |
 | GET | /api/v1/backoffice/schema/ و /docs/ (staff only) |
 
-## 10. Troubleshooting
+## 10. عیب‌یابی
 
 | علامت | علت | راه‌حل |
 | --- | --- | --- |
