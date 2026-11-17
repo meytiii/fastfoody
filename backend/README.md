@@ -1,63 +1,63 @@
-## مستند جامع پروژه — FastFood Backend
+# Comprehensive Project Documentation — FastFood Backend
 
-این سند یک راهنمای کامل از صفر تا صد است: چرا هر ماژول وجود دارد، چطور کار می‌کند، و در انتها یک چک‌لیست کامل برای تأیید عملکرد بک‌اند.
+This document is a complete guide from zero to one hundred: why each module exists, how it works, and at the end a complete checklist to verify backend functionality.
 
-نحوه استفاده: اگر تازه با پروژه آشنا می‌شوید، از بخش ۱ به ترتیب بخوانید. اگر می‌خواهید سریع تست کنید، به بخش ۱۰ (چک‌لیست نهایی) بروید. اگر باگ دیدید، بخش ۹ (Troubleshooting) پاسخ اکثر مشکلات را دارد.
+How to use it: if you are new to the project, read section 1 in order. If you want to test quickly, go to section 10 (final checklist). If you find a bug, section 9 (Troubleshooting) answers most problems.
 
-نسخه‌بندی: این سند وضعیت پس از Phase 9 (JWT + Backoffice Session) را توصیف می‌کند.
+Versioning: this document describes the state after Phase 9 (JWT + Backoffice Session).
 
-## فهرست مطالب
+## Table of Contents
 
-- نمای کلی پروژه
-- ساختار پوشه‌ها
-- پشته فناوری و تصمیمات کلیدی
-- راه‌اندازی سریع (Local)
-- پیکربندی و متغیرهای محیطی
-- معماری جریان درخواست
-- ماژول‌ها به تفصیل
+- Project overview
+- Folder structure
+- Technology stack and key decisions
+- Quick setup (Local)
+- Configuration and environment variables
+- Request flow architecture
+- Modules in detail
 - 7.1 Common
 - 7.2 Accounts
 - 7.3 CMS
 - 7.4 Catalog
 - 7.5 Orders
 - 7.6 Payments
-- احراز هویت و مجوزها
-- مرجع کامل API
-- عیب‌یابی
-- چک‌لیست نهایی (تست کامل بک‌اند)
+- Authentication and authorization
+- Complete API reference
+- Troubleshooting
+- Final checklist (full backend test)
 
-## 1. نمای کلی پروژه
+## 1. Project Overview
 
-بک‌اند یک رستوران فست‌فود تک‌شعبه است که دو ناحیه API کاملاً جدا دارد:
+The backend is a single-branch fast-food restaurant with two completely separate API areas:
 
-| ناحیه | مسیر | کاربر | احراز هویت |
+| Area | Path | User | Authentication |
 | --- | --- | --- | --- |
-| Storefront | /api/v1/storefront/ | مشتری | OTP + JWT (و session به‌عنوان fallback) |
-| Backoffice | /api/v1/backoffice/ | کارمند/مدیر | Password + Session |
+| Storefront | /api/v1/storefront/ | customer | OTP + JWT (with session as fallback) |
+| Backoffice | /api/v1/backoffice/ | employee/manager | Password + Session |
 
-Django admin غیرفعال است. همه‌ی عملیات مدیریتی از طریق Backoffice API انجام می‌شود (تصمیم D5).
+Django admin is disabled. All administrative operations are performed through the Backoffice API (decision D5).
 
-### قابلیت‌ها
+### Features
 
-- منوی آنلاین با دسته‌بندی، محصول، افزودنی دو لایه
-- گردونه شانس (Lucky Wheel) روی محصولات main dish
-- OTP با محدودیت نرخ برای ورود مشتری
-- سبد خرید سمت فرانت (localStorage)، ثبت سفارش در سرور
-- پرداخت آنلاین از طریق زرین‌پال v4 با idempotency کامل
-- ردیابی زنده سفارش (polling هر ۱۰–۱۵ ثانیه)
-- Live POS برای آشپزخانه با چاپ رسید و آلارم
-- CRM (پروفایل ۳۶۰ درجه + یادداشت داخلی + LTV)
-- CMS (تنظیمات رستوران + محتوای بخش‌ها + رسانه با WebP)
-- روند بازپرداخت دستی توسط مدیر (paid → awaiting_refund → refunded)
+- Online menu with category, product, and two-layer add-on structure
+- Lucky Wheel on main dish products
+- OTP with rate limits for customer login
+- Frontend shopping cart (localStorage), order registration on the server
+- Online payment via Zarinpal v4 with full idempotency
+- Live order tracking (polling every 10–15 seconds)
+- Live POS for the kitchen with receipt printing and alarm
+- CRM (360° profile + internal notes + LTV)
+- CMS (restaurant settings + section content + media with WebP)
+- Manual refund flow by manager (paid → awaiting_refund → refunded)
 
-## 2. ساختار پوشه‌ها
+## 2. Folder Structure
 
 ```text
 fastfood-backend/
 ├── config/
-│   ├── __init__.py            # celery_app را export می‌کند
-│   ├── settings.py            # تنها فایل settings (D1 — بدون split)
-│   ├── settings_sqlite.py     # فقط برای dev local
+│   ├── __init__.py            # exports celery_app
+│   ├── settings.py            # the only settings file (D1 — no split)
+│   ├── settings_sqlite.py     # local dev only
 │   ├── celery.py              # app + autodiscover
 │   ├── urls.py                # health + schema + docs + mounts
 │   ├── api_urls_storefront.py
@@ -65,14 +65,14 @@ fastfood-backend/
 │   ├── wsgi.py / asgi.py
 │   └── gunicorn.conf.py       # production config
 │
-├── common/                    # هسته مشترک
+├── common/                    # shared core
 │   ├── models.py              # BaseModel, SoftDelete*
-│   ├── exceptions.py          # BusinessException + 6 زیرکلاس
-│   ├── exception_handler.py   # envelope پاسخ خطا
+│   ├── exceptions.py          # BusinessException + 6 subclasses
+│   ├── exception_handler.py   # error response envelope
 │   ├── permissions.py         # IsStaffUser
 │   ├── views.py               # BackofficeAPIView
 │   ├── cache.py               # make_cache_key
-│   ├── redis_client.py        # کلاینت مشترک Redis
+│   ├── redis_client.py        # shared Redis client
 │   ├── sms.py                 # sms.ir wrapper
 │   ├── images.py              # WebP conversion
 │   └── checks.py              # production safety checks
@@ -96,99 +96,99 @@ fastfood-backend/
 │   └── payments/              # Payment + ZarinpalClient
 │
 ├── tests/                     # pytest suite
-├── docs/                      # مستندات این پروژه
+├── docs/                      # project docs
 ├── requirements.txt
 ├── pytest.ini
 ├── manage.py
 └── .env.example
 ```
 
-### قواعد ساختاری
+### Structural Rules
 
-هر app سه لایه دارد: models.py / selectors.py (خواندن) / services.py (نوشتن).
+Each app has three layers: models.py / selectors.py (read) / services.py (write).
 
-API layer در apis/storefront/ و apis/backoffice/ جدا است — هیچ business logic در view یا serializer نیست.
+The API layer is separated into apis/storefront/ and apis/backoffice/ — there is no business logic in views or serializers.
 
-هیچ Repository layer وجود ندارد (D19).
+There is no Repository layer (D19).
 
-## 3. پشته فناوری و تصمیمات کلیدی
+## 3. Technology Stack and Key Decisions
 
-| لایه | فناوری |
+| Layer | Technology |
 | --- | --- |
 | Framework | Django 5.x + DRF 3.15 |
 | DB | PostgreSQL 16 (dev: SQLite) |
 | Cache | Redis 7 |
-| Async | Celery 5.4 + Beat (۲ صف: high_priority و default) |
-| JWT | djangorestframework-simplejwt (فقط Storefront) |
+| Async | Celery 5.4 + Beat (2 queues: high_priority and default) |
+| JWT | djangorestframework-simplejwt (Storefront only) |
 | Images | Pillow → WebP |
-| Docs | drf-spectacular (Swagger جدا برای هر ناحیه) |
+| Docs | drf-spectacular (separate Swagger per area) |
 | Tests | pytest + pytest-django + Factory Boy |
 
-تصمیمات قفل‌شده (از D1–D25 + JWT)
+Locked-in decisions (from D1–D25 + JWT)
 
-| # | تصمیم | پیامد در کد |
+| # | Decision | Result in code |
 | --- | --- | --- |
-| D1 | پول = integer تومان | هیچ Decimal ای نیست |
-| D2 | Timezone = Asia/Tehran، USE_TZ=True | daily_number_date بر اساس timezone.localdate() |
+| D1 | Money = integer toman | No Decimal anywhere |
+| D2 | Timezone = Asia/Tehran, USE_TZ=True | daily_number_date based on timezone.localdate() |
 | D3 | Custom user = accounts.Customer | AUTH_USER_MODEL = "accounts.Customer" |
-| D4 | Backoffice = Session + is_staff | BackofficeAPIView فقط SessionAuthentication |
-| D5 | Django admin غیرفعال | django.contrib.admin در INSTALLED_APPS نیست |
-| D6 | Soft delete در BaseModel | objects فقط alive را می‌بیند |
+| D4 | Backoffice = Session + is_staff | BackofficeAPIView uses SessionAuthentication only |
+| D5 | Django admin disabled | django.contrib.admin not in INSTALLED_APPS |
+| D6 | Soft delete in BaseModel | objects only sees alive rows |
 | D7 | daily_number = Redis INCR | _assign_daily_number |
-| D8 | OTP فقط در Redis، TTL 120s | apps/accounts/otp.py |
-| D9 | Throttle: otp_request 5/h، otp_verify 10/h | common/views.py نیست — throttle class در throttles.py |
-| D10 | هزینه ارسال بر اساس is_out_of_zone | _resolve_address + settings |
-| D11 | مشتری نمی‌تواند سفارش پرداخت‌شده را لغو کند | فقط manager cancel |
+| D8 | OTP only in Redis, TTL 120s | apps/accounts/otp.py |
+| D9 | Throttle: otp_request 5/h, otp_verify 10/h | throttle class in throttles.py, not in common/views.py |
+| D10 | Delivery cost based on is_out_of_zone | _resolve_address + settings |
+| D11 | customer cannot cancel a paid order | only manager can cancel |
 | D12 | prep = max(items) + buffer | _compute_prep_time |
 | D13 | Live POS polling + is_printed | get_live_orders + mark_order_printed |
-| D14 | Zarinpal/sms.ir از env | settings.ZARINPAL_*, SMS_IR_* |
-| D15 | دو صف Celery | CELERY_TASK_ROUTES |
+| D14 | Zarinpal/sms.ir from env | settings.ZARINPAL_*, SMS_IR_* |
+| D15 | Two Celery queues | CELERY_TASK_ROUTES |
 | D16 | Error envelope | common/exception_handler.py |
 | D17 | BaseModel fields | created_at, updated_at, deleted_at |
-| D18 | ۶ زیرکلاس BusinessException | common/exceptions.py |
-| D19 | بدون Repository layer | selectors + services فقط |
-| D20 | بدون Variant model | محصولات سایز مختلف = رکورد جدا |
+| D18 | 6 BusinessException subclasses | common/exceptions.py |
+| D19 | No Repository layer | selectors + services only |
+| D20 | No Variant model | different product sizes = separate records |
 | D21 | Product status enum + is_main_dish | Product.Status, is_main_dish boolean |
-| D22 | AddOn دو لایه | AddOn global + ProductAddOn per-product |
-| D23 | SiteSection JSON | ۶ کلید مجاز |
-| D24 | RestaurantSettings singleton | save() اجباری pk=1 |
-| D25 | WebP conversion | common/images.py (اول Product.image، MediaAsset.file) |
+| D22 | Two-layer AddOn | AddOn global + ProductAddOn per-product |
+| D23 | SiteSection JSON | 6 valid keys |
+| D24 | RestaurantSettings singleton | save() force pk=1 |
+| D25 | WebP conversion | common/images.py (first Product.image, then MediaAsset.file) |
 
-JWT: Storefront JWT + Session → Backoffice Session فقط
+JWT: Storefront JWT + Session → Backoffice Session only
 
-## 4. راه‌اندازی سریع (Local)
+## 4. Quick Setup (Local)
 
-### پیش‌نیاز
+### Prerequisites
 
 - Python 3.12
-- Redis 7 (با Docker یا نصب مستقیم)
+- Redis 7 (via Docker or direct install)
 
 ```powershell
-# Redis با Docker
+# Redis via Docker
 docker run -d --name fastfood-redis -p 6379:6379 redis:7-alpine
 
-# یا اگر نصب مستقیم دارید
+# or if installed directly
 redis-server
 ```
 
-### نصب
+### Installation
 
 ```powershell
 cd backend
 python -m venv venv
-.\venv\Scripts\activate
+.env\Scriptsctivate
 pip install -r requirements.txt
 ```
 
-.env برای dev (SQLite)
+.env for dev (SQLite)
 
 ```dotenv
 SECRET_KEY=dev-key-not-for-production
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 
-# SQLite — نیازی به Postgres نیست
-# مسیر database در settings_sqlite.py تعریف شده
+# SQLite — no Postgres needed
+# database path defined in settings_sqlite.py
 
 REDIS_URL=redis://127.0.0.1:6379/0
 CELERY_BROKER_URL=redis://127.0.0.1:6379/1
@@ -226,9 +226,9 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 ```
 
-توضیح: CELERY_TASK_ALWAYS_EAGER = True باعث می‌شود همه‌ی taskهای Celery (OTP SMS، سفارش، تغییر prep time) به‌جای صف Redis، inline در پروسه‌ی runserver اجرا شوند. برای dev ایده‌آل است چون نه worker لازم است نه beat.
+Explanation: CELERY_TASK_ALWAYS_EAGER = True causes all Celery tasks (OTP SMS, order, prep time change) to run inline in the runserver process instead of the Redis queue. This is ideal for dev because no worker or beat is needed.
 
-### راه‌اندازی
+### Startup
 
 ```powershell
 python manage.py migrate --settings=config.settings_sqlite
@@ -236,14 +236,14 @@ python manage.py create_staff 09123456789 "Test@1234" --superuser --settings=con
 python manage.py runserver --settings=config.settings_sqlite
 ```
 
-سرور روی http://127.0.0.1:8000 بالا می‌آید. بررسی:
+The server starts at http://127.0.0.1:8000. Check:
 
 ```bash
 curl http://127.0.0.1:8000/health/
 # {"success": true, "data": {"status": "ok"}}
 ```
 
-نکته: اگر --settings را زیاد تایپ می‌کنید، یک alias در PowerShell بسازید:
+Note: if typing `--settings` is annoying, create an alias in PowerShell:
 
 ```powershell
 function devpy { python manage.py @args --settings=config.settings_sqlite }
@@ -252,31 +252,31 @@ devpy create_staff 09123456789 "Test@1234" --superuser
 devpy runserver
 ```
 
-## 5. پیکربندی و متغیرهای محیطی
+## 5. Configuration and Environment Variables
 
-| متغیر | الزام؟ | پیش‌فرض | توضیح |
+| Variable | Required? | Default | Description |
 | --- | --- | --- | --- |
-| SECRET_KEY | ✅ در prod | dev-insecure | کلید امضای session، CSRF، JWT |
-| DEBUG | — | False | در dev True |
-| ALLOWED_HOSTS | ✅ در prod | 127.0.0.1,localhost | comma-separated |
+| SECRET_KEY | ✅ in prod | dev-insecure | signing key for session, CSRF, JWT |
+| DEBUG | — | False | True in dev |
+| ALLOWED_HOSTS | ✅ in prod | 127.0.0.1,localhost | comma-separated |
 | REDIS_URL | ✅ | redis://127.0.0.1:6379/0 | Cache backend |
-| CELERY_BROKER_URL | ✅ | redis://.../1 | صف taskها |
-| CELERY_RESULT_BACKEND | — | redis://.../2 | نتیجه‌ی taskها |
-| MANAGER_PHONE | توصیه | خالی | برای SMS سفارش جدید |
-| ZARINPAL_MERCHANT_ID | ✅ در prod | خالی | — |
-| ZARINPAL_CALLBACK_URL | ✅ در dev | باید HTTPS باشد در prod | — |
-| ZARINPAL_SANDBOX | — | True | در prod False |
-| SMS_IR_API_KEY | توصیه | خالی | اگر خالی، SMS لاگ می‌شود |
-| SMS_IR_SENDER | توصیه | خالی | شماره خط |
-| PAYMENT_FRONTEND_RESULT_URL | توصیه | dev URL | کاربر بعد از پرداخت به آنجا redirect می‌شود |
+| CELERY_BROKER_URL | ✅ | redis://.../1 | task queue |
+| CELERY_RESULT_BACKEND | — | redis://.../2 | task results |
+| MANAGER_PHONE | recommended | empty | for new order SMS |
+| ZARINPAL_MERCHANT_ID | ✅ in prod | empty | — |
+| ZARINPAL_CALLBACK_URL | ✅ in dev | must be HTTPS in prod | — |
+| ZARINPAL_SANDBOX | — | True | False in prod |
+| SMS_IR_API_KEY | recommended | empty | if empty, SMS is logged |
+| SMS_IR_SENDER | recommended | empty | line number |
+| PAYMENT_FRONTEND_RESULT_URL | recommended | dev URL | user redirects there after payment |
 | JWT_ACCESS_LIFETIME_MINUTES | — | 60 | — |
 | JWT_REFRESH_LIFETIME_DAYS | — | 7 | — |
 
-در dev: اگر SMS_IR_API_KEY خالی باشد، پیام‌ها در کنسول runserver لاگ می‌شوند. یعنی OTP را از کنسول می‌خوانید — نیازی به SMS واقعی نیست.
+In dev: if SMS_IR_API_KEY is empty, messages are logged to the runserver console. That means you read the OTP from the console — no real SMS is required.
 
-## 6. معماری جریان درخواست
+## 6. Request Flow Architecture
 
-### الگوی کلی
+### General Pattern
 
 ```text
 [Client] → [Django URL] → [APIView] → [Serializer.validate]
@@ -293,40 +293,40 @@ devpy runserver
                      [Response] → [Client]
 ```
 
-### قواعد طلایی
+### Golden Rules
 
-Views و Serializers فقط validation و serialization. هیچ منطق کسب‌وکاری.
+Views and serializers do validation and serialization only. No business logic.
 
-همه‌ی خواندن‌ها در selectors.py. هیچ‌جا Model.objects.filter(...) در view نیست.
+All reads belong in selectors.py. No `Model.objects.filter(...)` in views.
 
-همه‌ی نوشتن‌ها در services.py. هیچ Model instance در view ساخته/ذخیره نمی‌شود.
+All writes belong in services.py. No model instance is created or saved in views.
 
-@transaction.atomic روی هر service که بیش از یک جدول را تغییر می‌دهد یا state transition دارد.
+`@transaction.atomic` on every service that touches more than one table or performs a state transition.
 
-transaction.on_commit() برای side-effectهای بیرونی (Celery task، cache invalidation).
+`transaction.on_commit()` for external side effects (Celery tasks, cache invalidation).
 
-### پوشش خطا (D16)
+### Error Envelope (D16)
 
-هر پاسخ غیر 2xx:
+Every non-2xx response:
 
 ```json
 {
   "success": false,
   "error": {
     "code": "ERROR_CODE_STRING",
-    "message": "پیام فارسی برای کاربر",
+    "message": "user-facing Persian message",
     "details": null
   }
 }
 ```
 
-details می‌تواند null، یک dict از field→message، یا هر ساختار کمکی باشد.
+details can be null, a dict of field → message, or any other helper structure.
 
-پاسخ‌های موفق data را مستقیم برمی‌گردانند (بدون wrapper).
+Successful responses return data directly (no wrapper).
 
-## 7. ماژول‌ها به تفصیل
+## 7. Modules in Detail
 
-### 7.1 هستهٔ مشترک
+### 7.1 Common
 
 #### BaseModel + Soft Delete (D17)
 
@@ -336,25 +336,25 @@ class BaseModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    objects = SoftDeleteManager()   # فقط alive
-    all_objects = models.Manager()  # همه
+    objects = SoftDeleteManager()   # only alive
+    all_objects = models.Manager()  # all
 
     def soft_delete(self): ...      # deleted_at = now()
-    def restore(self): ...          # deleted_at = None
-    def hard_delete(self): ...      # حذف فیزیکی
-    def delete(self, ...): ...      # soft_delete() را صدا می‌زند
+    def restore(self): ...           # deleted_at = None
+    def hard_delete(self): ...       # real deletion
+    def delete(self, ...): ...       # calls soft_delete()
 ```
 
-چرا: حذف هیچ‌وقت فیزیکی نیست تا audit trail حفظ شود. objects هرگز رکورد حذف‌شده را برنمی‌گرداند.
+Why: deletion is never physical so the audit trail is preserved. `objects` never returns deleted records.
 
 SoftDeleteQuerySet:
 
-- .alive() — فقط deleted_at IS NULL
-- .dead() — فقط deleted_at NOT NULL
-- .delete() — به‌جای حذف، UPDATE deleted_at=now()
-- .hard_delete() — حذف واقعی
+- .alive() — only `deleted_at IS NULL`
+- .dead() — only `deleted_at NOT NULL`
+- .delete() — instead of deleting, `UPDATE deleted_at=now()`
+- .hard_delete() — real deletion
 
-#### استثناها (D18)
+#### Exceptions (D18)
 
 ```text
 BusinessException (status 400)
@@ -366,7 +366,7 @@ BusinessException (status 400)
 └── PaymentError             (402, PAYMENT_ERROR)
 ```
 
-هر subclass در appهای مختلف ممکن است default_code را override کند:
+Any subclass in different apps may override `default_code`:
 
 ```python
 class OTPExpiredError(ValidationError):
@@ -379,24 +379,24 @@ class OTPExpiredError(ValidationError):
 ```python
 def custom_exception_handler(exc, context):
     if isinstance(exc, BusinessException):
-        # از code/message/status خودش استفاده می‌کند
+        # uses its own code/message/status
     if isinstance(exc, DjangoValidationError):
-        # → 422 با envelope
+        # → 422 with envelope
     response = drf_exception_handler(exc, context)
     if response:
-        # DRF exception → wrap در envelope
-    # پیش‌فرض: 500 با پیام ژنریک (بدون leak)
+        # DRF exception → wrap in envelope
+    # default: 500 with generic message (no leak)
 ```
 
 #### BackofficeAPIView
 
 ```python
 class BackofficeAPIView(APIView):
-    authentication_classes = [SessionAuthentication]  # نه JWT
+    authentication_classes = [SessionAuthentication]  # not JWT
     permission_classes = [IsStaffUser]
 ```
 
-چرا جدا: تضمین می‌کند JWT (که فقط برای Storefront است) روی Backoffice پذیرفته نشود. اگر مهاجم توکن مشتری را داشته باشد، نمی‌تواند به backoffice حمله کند — مگر اینکه staff هم باشد و session داشته باشد.
+Why separate: ensures JWT (which is only for Storefront) is not accepted on Backoffice. If an attacker has a customer token, they still cannot reach the backoffice unless they are staff and have a session.
 
 #### common/cache.py
 
@@ -406,7 +406,7 @@ def make_cache_key(area: str, scope: str, version: str = CACHE_VERSION) -> str:
     return f"{area}:{scope}:{version}"
 ```
 
-Cache backend از KEY_PREFIX="fastfood" استفاده می‌کند، پس کلید نهایی می‌شود:
+The cache backend uses `KEY_PREFIX="fastfood"`, so the final key becomes:
 
 ```text
 fastfood:catalog:storefront_menu:v1
@@ -418,11 +418,11 @@ fastfood:catalog:storefront_menu:v1
 def send_sms(*, phone: str, message: str) -> bool
 ```
 
-اگر SMS_IR_API_KEY خالی است → فقط لاگ می‌کند و True برمی‌گرداند (برای dev).
+If `SMS_IR_API_KEY` is empty → it only logs and returns `True` (for dev).
 
-در غیر این صورت → POST https://api.sms.ir/v1/send/bulk با x-api-key.
+Otherwise → `POST https://api.sms.ir/v1/send/bulk` with `x-api-key`.
 
-روی هر خطا False برمی‌گرداند (بدون exception).
+On any error it returns `False` (without exception).
 
 #### common/images.py
 
@@ -431,11 +431,11 @@ def convert_image_to_webp(image_field, quality=85) -> ContentFile
 def generate_webp_for_field(instance, source_field="image", target_field="webp_image")
 ```
 
-اگر تبدیل شکست بخورد → فقط warning، فایل اصلی حفظ می‌شود. بهترین تلاش، نه بلوکه‌کننده.
+If conversion fails → only a warning is logged and the original file remains. Best effort, not blocking.
 
 ### 7.2 Accounts
 
-#### مدل Customer
+#### Customer model
 
 ```python
 class Customer(AbstractBaseUser, PermissionsMixin):
@@ -450,12 +450,12 @@ class Customer(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 ```
 
-چرا از BaseModel ارث نمی‌برد: soft delete برای user مشکل‌ساز است (auth با is_active مدیریت می‌شود).
+Why it does not inherit from `BaseModel`: soft delete on users is problematic (auth is managed by `is_active`).
 
-مدیر Customer:
+CustomerManager:
 
-- create_user(phone, password=None) — اگر password ندهید، set_unusable_password() می‌کند (مشتری عادی نمی‌تواند با password login کند).
-- create_superuser(phone, password) — is_staff=True و is_superuser=True.
+- `create_user(phone, password=None)` — if no password is supplied, `set_unusable_password()` is called (normal customer cannot log in with password).
+- `create_superuser(phone, password)` — `is_staff=True` and `is_superuser=True`.
 
 #### OTP (D8)
 
@@ -463,25 +463,25 @@ class Customer(AbstractBaseUser, PermissionsMixin):
 
 ```python
 def generate_code() -> str:              # secrets.randbelow — cryptographic
-def store_otp(*, phone, code) -> int:    # cache.set با TTL=120s
+def store_otp(*, phone, code) -> int:    # cache.set with TTL=120s
 def get_otp_code(*, phone) -> str|None:
 def delete_otp(*, phone) -> None:
 ```
 
-فرمت ذخیره: JSON {"code": "123456"} در کلید fastfood:otp:code:0912...:v1. چرا JSON؟ آینده‌نگر برای افزودن متادیتا بدون تغییر type.
+Stored format: JSON `{"code": "123456"}` in key `fastfood:otp:code:0912...:v1`. Why JSON? To allow future metadata without changing type.
 
-در verify:
+In verify:
 
 ```python
 if not hmac.compare_digest(stored, code or ""):
     raise OTPInvalidError()
 ```
 
-compare_digest جلوگیری از timing attack.
+`compare_digest` prevents timing attacks.
 
-مصرف کد: پس از verify موفق، کد حذف می‌شود تا دوباره استفاده نشود. اگر verify شکست خورد، کد باقی می‌ماند (تا TTL).
+Code consumption: after successful verification the code is deleted so it cannot be reused. If verification fails, the code remains until TTL expires.
 
-#### محدودسازی نرخ (D9)
+#### Throttling (D9)
 
 ```python
 class OTPRequestThrottle(SimpleRateThrottle):
@@ -491,22 +491,22 @@ class OTPRequestThrottle(SimpleRateThrottle):
         return f"{scope}:{phone}:{ip}"
 ```
 
-کلید = phone:ip. یعنی:
+Key = `phone:ip`. Meaning:
 
-- یک IP نمی‌تواند برای یک شماره بیش از ۵ بار/ساعت OTP بزند
-- یک مهاجم با IP rotation می‌تواند دور بزند → اگر خواستید محکم‌تر کنید، throttle دوم per-phone (بدون IP) اضافه کنید.
+- one IP cannot request OTP for a single number more than 5 times per hour
+- an attacker with IP rotation can bypass it → if you want a stronger limit, add a second throttle per phone (without IP)
 
-`services.verify_otp` — کامل
+`services.verify_otp` — complete
 
 ```python
 def verify_otp(*, phone, code) -> Customer:
     normalized = normalize_phone(phone)
     stored = otp_service.get_otp_code(phone=normalized)
     if stored is None:
-        raise OTPExpiredError()                  # کد وجود ندارد یا TTL گذشته
+        raise OTPExpiredError()                  # code does not exist or TTL expired
     if not hmac.compare_digest(stored, code):
-        raise OTPInvalidError()                  # کد اشتباه، کد پاک نمی‌شود
-    otp_service.delete_otp(phone=normalized)     # مصرف شد
+        raise OTPInvalidError()                  # wrong code, code not deleted
+    otp_service.delete_otp(phone=normalized)     # consumed
 
     customer, created = Customer.objects.get_or_create(phone=normalized)
     if created:
@@ -520,7 +520,7 @@ def verify_otp(*, phone, code) -> Customer:
     return customer
 ```
 
-#### آدرس‌ها
+#### Addresses
 
 `CustomerAddress:`
 
@@ -528,10 +528,10 @@ def verify_otp(*, phone, code) -> Customer:
 - address_text
 - recipient_name
 - recipient_phone
-- is_out_of_zone (تعیین‌کننده هزینه ارسال — D10)
-- is_default (UniqueConstraint روی (customer) با شرط is_default=True AND deleted_at IS NULL)
+- is_out_of_zone (determines delivery cost — D10)
+- is_default (UniqueConstraint on `(customer)` with condition `is_default=True AND deleted_at IS NULL`)
 
-نکته‌ی کلیدی: service قبل از is_default=True کردن آدرس جدید، default قبلی را false می‌کند:
+Key point: before setting a new address to `is_default=True`, the service sets the old default to `False`:
 
 ```python
 if data.get("is_default"):
@@ -540,18 +540,18 @@ if data.get("is_default"):
     ).update(is_default=False)
 ```
 
-#### یادداشت مشتری (CRM)
+#### CustomerNote (CRM)
 
 ```python
 class CustomerNote(BaseModel):
     customer = FK
-    author = FK(Customer, null=True)  # کارمندی که نوشت
+    author = FK(Customer, null=True)  # employee who wrote it
     text = TextField
 ```
 
-یادداشت‌ها در پنل مدیر قابل مشاهده و قابل چاپ در رسید سفارش جدید هستند (در فاز بعدی؛ فعلاً فقط داده ذخیره می‌شود).
+Notes are visible in the admin panel and printable on new order receipts (in a later phase; for now they are only stored).
 
-#### پروفایل ۳۶۰ درجه مشتری
+#### Customer 360
 
 `selectors.get_customer_360(customer_id):`
 
@@ -562,21 +562,21 @@ class CustomerNote(BaseModel):
     "notes": [...],
     "orders_count": int,
     "completed_orders_count": int,
-    "lifetime_value": int,   # مجموع total_amount سفارش‌های PAID
+    "lifetime_value": int,   # sum of total_amount of PAID orders
     "last_order_at": datetime|None,
 }
 ```
 
-حلقه‌ی هوشمند: از django_apps.get_model("orders", "Order") با try/except استفاده می‌کند. اگر app orders نصب نباشد (در حین توسعه)، صفرها برمی‌گردد. در حال حاضر نصب است، پس واقعی می‌شود.
+Smart loop: it uses `django_apps.get_model("orders", "Order")` with try/except. If the `orders` app is not installed (during development), it returns zeros. At present it is installed, so it becomes real.
 
 #### JWT
 
 ```python
 def issue_tokens_for_customer(customer) -> {"access": str, "refresh": str}
-def blacklist_refresh_token(refresh) -> bool  # True اگر موفق
+def blacklist_refresh_token(refresh) -> bool  # True if successful
 ```
 
-`OTPVerifyView` هم session و هم JWT برمی‌گرداند:
+`OTPVerifyView` returns both session and JWT:
 
 ```python
 login(request._request, customer)        # session cookie
@@ -586,27 +586,27 @@ return Response({"user": ..., "access": ..., "refresh": ...})
 
 `TokenRefreshView` (`_SimpleJWTRefreshView`):
 
-ورودی: {"refresh": "..."}
+Input: `{"refresh": "..."}`
 
-خروجی: {"access": "...", "refresh": "..."} — چون rotation فعال است
+Output: `{"access": "...", "refresh": "..."}` — because rotation is enabled
 
-refresh قدیمی blacklist می‌شود
+Old refresh token is blacklisted.
 
-استفاده‌ی دوم از refresh قدیمی → 401
+Using the same old refresh token again → 401
 
 `TokenLogoutView:`
 
-ورودی: {"refresh": "..."}
+Input: `{"refresh": "..."}`
 
-خروجی: 204
+Output: 204
 
-refresh را blacklist می‌کند + session را هم پاک می‌کند
+It blacklists the refresh token and clears the session.
 
-#### ورود کارکنان
+#### Staff Login
 
 ```python
 def staff_login(phone, password):
-    normalized = normalize_phone(phone)          # اگر invalid → InvalidCredentialsError (no leak)
+    normalized = normalize_phone(phone)          # if invalid → InvalidCredentialsError (no leak)
     customer = Customer.objects.get(phone=normalized)
     if customer.is_blocked: raise AccountBlockedError()
     if not customer.is_active: raise AccountInactiveError()
@@ -616,7 +616,7 @@ def staff_login(phone, password):
     customer.save()
 ```
 
-POST /api/v1/backoffice/auth/login/ با SessionAuthentication جواب می‌دهد:
+`POST /api/v1/backoffice/auth/login/` responds with `SessionAuthentication`:
 
 ```json
 {
@@ -627,7 +627,7 @@ POST /api/v1/backoffice/auth/login/ با SessionAuthentication جواب می‌�
 
 ### 7.3 CMS
 
-#### RestaurantSettings (تک‌مقدار — D24)
+#### RestaurantSettings (singleton — D24)
 
 ```python
 class RestaurantSettings(models.Model):
@@ -640,7 +640,7 @@ class RestaurantSettings(models.Model):
     prep_time_buffer_minutes = PositiveSmallIntegerField(default=5)
 
     def save(self, *args, **kwargs):
-        self.pk = 1  # هر ذخیره‌ای pk=1 را force می‌کند
+        self.pk = 1  # force any save to pk=1
         super().save(*args, **kwargs)
 
     def is_open(self, now=None) -> bool:
@@ -651,15 +651,15 @@ class RestaurantSettings(models.Model):
         return now >= self.open_time or now < self.close_time  # overnight
 ```
 
-نکته‌ی کلیدی is_open: ساعت بسته‌شدن می‌تواند فردای ساعت باز‌شدن باشد. مثلاً 11:00 → 01:00 یعنی از ۱۱ صبح تا ۱ بامداد. الگوریتم:
+Key point about `is_open`: closing time may be the next day relative to opening time. For example, 11:00 → 01:00 means from 11 AM to 1 AM. The algorithm:
 
-اگر open < close → همون روز، بین این دو
+If `open < close` → same day, between these two.
 
-اگر open >= close → cross-midnight: از open تا midnight، یا از midnight تا close
+If `open >= close` → cross-midnight: from `open` to midnight, or from midnight to `close`.
 
-Singleton با save() force: حتی اگر کسی instance.pk = 42 بگذارد و save کند، دوباره pk=1 می‌شود.
+Singleton via forced save: even if someone sets `instance.pk = 42` and saves it, it becomes `pk=1` again.
 
-Seed: migration 0002_seed_restaurant_settings.py رکورد pk=1 را در اولین migrate می‌سازد.
+Seed: migration `0002_seed_restaurant_settings.py` creates the `pk=1` record on first migrate.
 
 #### SiteSection (D23)
 
@@ -669,11 +669,11 @@ class SiteSection(BaseModel):
     content = JSONField(default=dict)
 ```
 
-کلیدهای مجاز: hero, header, footer, announcement, lucky_wheel, about_us.
+Allowed keys: `hero`, `header`, `footer`, `announcement`, `lucky_wheel`, `about_us`.
 
-default content: DEFAULT_SITE_SECTION_CONTENT dict دارد. اگر برای key ای رکورد نباشد، selector از default استفاده می‌کند — هرگز خطای "not found" به کاربر نمی‌دهد.
+default content: `DEFAULT_SITE_SECTION_CONTENT` dict exists. If there is no record for a key, the selector uses the default — it never throws a "not found" error to the user.
 
-UniqueConstraint: روی key با deleted_at IS NULL. یعنی می‌توانید رکورد را soft-delete کنید و دوباره با همان key بسازید، بدون conflict.
+UniqueConstraint: on `key` with `deleted_at IS NULL`. This means you can soft-delete a record and create a new one with the same key without conflict.
 
 #### MediaAsset (D25)
 
@@ -684,39 +684,39 @@ class MediaAsset(BaseModel):
     webp_file = ImageField(upload_to="cms/webp/%Y/%m/", null=True, blank=True)
 ```
 
-آپلود: services.create_media_asset:
+Upload: `services.create_media_asset:`
 
-- فایل اصلی را ذخیره می‌کند
-- با Pillow به WebP تبدیل می‌کند
-- اگر تبدیل موفق شد، webp_file را ذخیره می‌کند
-- اگر شکست خورد، فقط warning — فایل اصلی همچنان کار می‌کند
+- saves the original file
+- converts it to WebP with Pillow
+- if conversion succeeds, saves the `webp_file`
+- if it fails, only warns — the original file still works
 
-بازگرداندن URL:
+Return URL:
 
 ```python
 def get_image_url(obj):
     return obj.webp_file.url if obj.webp_file else (obj.file.url if obj.file else None)
 ```
 
-#### کشینگ
+#### Caching
 
 `get_restaurant_settings():`
 
-- کلید: cms:restaurant_settings:v1
-- TTL: 1 ساعت
-- Invalidation: در update_restaurant_settings با transaction.on_commit(lambda: cache.delete(...))
+- key: `cms:restaurant_settings:v1`
+- TTL: 1 hour
+- invalidation: in `update_restaurant_settings` via `transaction.on_commit(lambda: cache.delete(...))`
 
 `get_site_section(key):`
 
-- کلید: cms:site_section_<key>:v1
-- TTL: 1 ساعت
-- Invalidation: در upsert_site_section
+- key: `cms:site_section_<key>:v1`
+- TTL: 1 hour
+- invalidation: in `upsert_site_section`
 
-چرا on_commit و نه فوری؟ اگر cache را قبل از commit پاک کنیم و تراکنش rollback شود، cache خالی می‌ماند در حالی که داده هنوز قدیمی است → درخواست بعدی داده‌ی قدیمی را دوباره cache می‌کند. با on_commit، فقط بعد از commit موفق پاک می‌شود.
+Why `on_commit` instead of immediate deletion? If we delete the cache before the transaction commits and the transaction rolls back, the cache stays empty while the data is still old → the next request re-caches old data. With `on_commit`, cleanup only happens after a successful commit.
 
 ### 7.4 Catalog
 
-#### دسته‌بندی
+#### Category
 
 ```python
 class Category(BaseModel):
@@ -724,22 +724,22 @@ class Category(BaseModel):
     display_order, is_active
 ```
 
-UniqueConstraint: روی slug با deleted_at IS NULL. یعنی slug پس از soft-delete قابل استفاده‌ی مجدد است.
+UniqueConstraint: on `slug` with `deleted_at IS NULL`. That means the slug can be reused after soft-delete.
 
-حذف: اگر محصول زنده‌ای به category وصل باشد → CategoryHasProductsError. باید اول محصولات soft-delete شوند.
+Deletion: if a live product is linked to the category → `CategoryHasProductsError`. You must soft-delete the products first.
 
-#### AddOn (D22 — لایه اول)
+#### AddOn (D22 — first layer)
 
 ```python
 class AddOn(BaseModel):
     name = CharField
     price = PositiveIntegerField
-    is_available = BooleanField  # مدیر می‌تواند global خاموش کند
+    is_available = BooleanField  # manager can disable globally
 ```
 
-سناریو: آشپزخانه پنیر تمام می‌کند → مدیر is_available=False می‌کند → همه‌ی محصولات این افزودنی را از دست می‌دهند (در menu، در سفارش جدید).
+Scenario: the kitchen runs out of cheese → manager sets `is_available=False` → all products using this add-on lose it (in the menu and during new order creation).
 
-#### محصول (D21)
+#### Product (D21)
 
 ```python
 class Product(BaseModel):
@@ -752,20 +752,20 @@ class Product(BaseModel):
     display_order = PositiveIntegerField
 ```
 
-سه حالت (D21):
+Three states (D21):
 
-- AVAILABLE: در منو دیده می‌شود، قابل خرید، در Lucky Wheel
-- OUT_OF_STOCK: در منو دیده می‌شود با دکمه‌ی غیرفعال، در Lucky Wheel نیست، سفارش جدید نمی‌پذیرد
-- HIDDEN: از منو و Lucky Wheel کاملاً حذف
+- AVAILABLE: visible in menu, purchasable, in Lucky Wheel
+- OUT_OF_STOCK: visible in menu with disabled button, not in Lucky Wheel, cannot accept new orders
+- HIDDEN: removed completely from menu and Lucky Wheel
 
-بدون Variant (D20): «پیتزا مارگاریتا تک‌نفره» و «دو‌نفره» = دو رکورد جدا با slug، قیمت، عکس، prep_time مستقل.
+No Variant (D20): “Margherita single” and “double” are two separate records with their own slug, price, image, and prep time.
 
-is_main_dish:
+`is_main_dish`:
 
-- True → غذای اصلی، در Lucky Wheel
-- False → پیش‌غذا/نوشیدنی/افزودنی، در پیشنهاد upsell سبد خرید (سمت فرانت)
+- True → main dish, in Lucky Wheel
+- False → appetizer/drink/add-on, in the shopping cart upsell suggestions (frontend)
 
-#### ProductAddOn (D22 — لایه دوم)
+#### ProductAddOn (D22 — second layer)
 
 ```python
 class ProductAddOn(BaseModel):
@@ -775,37 +775,37 @@ class ProductAddOn(BaseModel):
     max_quantity = PositiveSmallIntegerField(default=5)
 ```
 
-CheckConstraint: min_quantity <= max_quantity در سطح DB.
+`CheckConstraint`: `min_quantity <= max_quantity` at DB level.
 
-UniqueConstraint: روی (product, addon) با deleted_at IS NULL — یک محصول نمی‌تواند دو لینک به همان add-on داشته باشد (اما می‌تواند قبلی را soft-delete و جدید بسازد).
+UniqueConstraint: on `(product, addon)` with `deleted_at IS NULL` — a product cannot have two links to the same add-on (but it can soft-delete the old one and create a new one).
 
-در عمل:
+In practice:
 
-- AddOn «پنیر اضافه» ساخته می‌شود (price=20k، global)
-- برای «پیتزا مارگاریتا»: ProductAddOn(addon=پنیر, min=0, max=3)
-- برای «برگر»: ProductAddOn(addon=پنیر, min=0, max=2)
+- AddOn “extra cheese” is created (`price=20k`, global)
+- For “Margherita pizza”: `ProductAddOn(addon=cheese, min=0, max=3)`
+- For “burger”: `ProductAddOn(addon=cheese, min=0, max=2)`
 
-مشتری می‌تواند تا ۳ عدد پنیر برای پیتزا انتخاب کند، تا ۲ برای برگر.
+The customer may select up to 3 cheese pieces for pizza and up to 2 for burger.
 
-#### کش منو
+#### Menu caching
 
 `get_storefront_menu():`
 
-- کلید: catalog:storefront_menu:v1
-- TTL: 1 ساعت
-- Query: categories → prefetch_related(products excluding HIDDEN) — فقط ۲–۳ کوئری
+- key: `catalog:storefront_menu:v1`
+- TTL: 1 hour
+- Query: categories → `prefetch_related(products excluding HIDDEN)` — only 2–3 queries
 
-OUT_OF_STOCK شامل است (طبق spec)، HIDDEN نه.
+`OUT_OF_STOCK` is included (per spec), `HIDDEN` is not.
 
-ساختار پاسخ:
+Response structure:
 
 ```json
 {
   "categories": [
     {
-      "id": 1, "name": "پیتزا", "image_url": "...",
+      "id": 1, "name": "Pizza", "image_url": "...",
       "products": [
-        {"id": 1, "name": "مارگاریتا", "price": 150000,
+        {"id": 1, "name": "Margherita", "price": 150000,
          "status": "AVAILABLE", "is_main_dish": true, "image_url": "..."}
       ]
     }
@@ -813,35 +813,35 @@ OUT_OF_STOCK شامل است (طبق spec)، HIDDEN نه.
 }
 ```
 
-Cache-safe: به‌جای pickle کردن model instance، selector مستقیماً dict می‌سازد. چرا؟ چون تغییرات schema بین دو deploy باعث می‌شوند pickle قدیمی با کد جدید ناسازگار شود.
+Cache-safe: instead of pickling model instances, the selector builds a dict directly. Why? Because schema changes between deploys can make older pickles incompatible with the new code.
 
-#### گردونه شانس
+#### Lucky Wheel
 
 `get_lucky_wheel_products(category_slug=None):`
 
-فقط AVAILABLE + is_main_dish=True + category.is_active=True
+Only `AVAILABLE + is_main_dish=True + category.is_active=True`
 
-می‌تواند بر اساس ?category=slug فیلتر شود
+It may be filtered according to `?category=slug`
 
-کش جدا (per category): catalog:lucky_wheel:v1 و catalog:lucky_wheel:pizzas:v1
+Separate cache (per category): `catalog:lucky_wheel:v1` and `catalog:lucky_wheel:pizzas:v1`
 
-منطق چرخش روی فرانت است. backend فقط لیست را می‌دهد. spec صریحاً گفت که load اضافی ایجاد نکنیم.
+The spin logic is on the frontend. The backend only provides the list. The spec explicitly says not to create extra load.
 
-#### جزئیات محصول (بدون کش)
+#### Product detail (uncached)
 
 `get_storefront_product(slug):`
 
-- select_related("category")
-- prefetch_related(addon_links با select_related("addon"))
-- فقط addon_links که addon.is_available=True هستند برمی‌گردند
+- `select_related("category")`
+- `prefetch_related(addon_links with select_related("addon"))`
+- only `addon_links` where `addon.is_available=True` are returned
 
-پاسخ:
+Response:
 
 ```json
 {
-  "id": 1, "name": "مارگاریتا", "price": 150000,
+  "id": 1, "name": "Margherita", "price": 150000,
   "category": {...}, "addons": [
-    {"addon_id": 1, "name": "پنیر اضافه", "price": 20000,
+    {"addon_id": 1, "name": "Extra cheese", "price": 20000,
      "min_quantity": 0, "max_quantity": 3}
   ]
 }
@@ -849,7 +849,7 @@ Cache-safe: به‌جای pickle کردن model instance، selector مستقیم
 
 ### 7.5 Orders
 
-#### ماشین حالت (قلب پروژه)
+#### State Machine (heart of the project)
 
 ```text
                           ┌──────────────────────┐
@@ -857,34 +857,34 @@ Cache-safe: به‌جای pickle کردن model instance، selector مستقیم
                           │  (15 min timeout)    │
                           └──────────┬───────────┘
                     ┌────────────────┼────────────────┐
-             پرداخت موفق        پرداخت ناموفق      15 دقیقه گذشت
+             successful payment    failed payment      15 minutes passed
                     ↓                ↓                 ↓
-            ┌───────────────┐   (در PENDING می‌ماند)  CANCELED
+            ┌───────────────┐   (remains in PENDING)  CANCELED
             │  PROCESSING   │  payment=PAID
             │  daily_number │
             └───────┬───────┘
-                    │ مدیر mark-ready
+                    │ manager marks ready
                     ↓
             ┌───────────────┐
-            │     READY     │  → SMS به مشتری
+            │     READY     │  → SMS to customer
             └───────┬───────┘
-                    │ مدیر mark-completed
+                    │ manager marks completed
                     ↓
             ┌───────────────┐
-            │   COMPLETED   │  (آرشیو)
+            │   COMPLETED   │  (archive)
             └───────────────┘
 ```
 
-مدیر cancel (از هر stage فعال به‌جز COMPLETED/CANCELED):
+Manager cancel (from any active stage except COMPLETED/CANCELED):
 
 - PAID → CANCELED + payment=AWAITING_REFUND
 - UNPAID → CANCELED + payment=UNPAID
 
-مدیر refund (از AWAITING_REFUND):
+Manager refund (from AWAITING_REFUND):
 
-- → payment=REFUNDED (با ثبت card_number و tracking_code)
+- → payment=REFUNDED (with `card_number` and `tracking_code` recorded)
 
-#### مدل Order
+#### Order model
 
 ```python
 class Order(BaseModel):
@@ -903,7 +903,7 @@ class Order(BaseModel):
     refund_card_number, refund_tracking_code, refunded_at, refunded_by
 ```
 
-delivery_address_snapshot: حتی اگر آدرس بعداً ویرایش یا soft-delete شود، فاکتور دست‌نخورده باقی می‌ماند.
+delivery_address_snapshot: even if the address is later edited or soft-deleted, the invoice remains unchanged.
 
 `OrderItem / OrderItemAddOn` (snapshot — spec §D)
 
@@ -924,16 +924,16 @@ class OrderItemAddOn(BaseModel):
     line_total
 ```
 
-چرا snapshot؟ اگر مدیر قیمت پیتزا را فردا از 150k به 200k تغییر دهد، فاکتورهای دیروز نباید تغییر کنند. snapshot این را تضمین می‌کند.
+Why snapshot? If the manager changes pizza price tomorrow from 150k to 200k, yesterday's invoices must not change. Snapshot guarantees this.
 
-#### ایجاد سفارش (services.create_order)
+#### Order creation (`services.create_order`)
 
 ```python
 def create_order(*, customer, delivery_type, address_id, items, notes_to_kitchen=""):
-    _ensure_restaurant_is_open()                        # RestaurantClosedError اگر بسته
+    _ensure_restaurant_is_open()                        # RestaurantClosedError if closed
     # validated delivery_type
-    address = _resolve_address(customer, address_id)    # NotFoundError اگر متعلق به کاربر نیست
-    # delivery_fee: PICKUP=0، DELIVERY با is_out_of_zone → in/out_zone_fee
+    address = _resolve_address(customer, address_id)    # NotFoundError if not owned by user
+    # delivery_fee: PICKUP=0, DELIVERY with is_out_of_zone → in/out_zone_fee
 
     prep_time = _compute_prep_time(items, product_by_id)  # max(item.prep) + buffer
     order = Order.objects.create(
@@ -948,18 +948,18 @@ def create_order(*, customer, delivery_type, address_id, items, notes_to_kitchen
     order.save()
 ```
 
-`_build_order_items` — validationها:
+`_build_order_items` validations:
 
-- محصول باید وجود داشته باشد (ProductNotFound)
-- محصول نباید HIDDEN باشد
-- محصول باید AVAILABLE باشد (نه OUT_OF_STOCK)
-- دسته‌ی محصول باید is_active=True باشد
-- افزودنی باید برای این محصول تعریف شده باشد (ProductAddOn)
-- افزودنی باید addon.is_available=True باشد
-- 0 <= addon.quantity <= link.max_quantity
-- اگر هر کدام شکست خورد → ValidationError با details مشخص.
+- product must exist (`ProductNotFound`)
+- product must not be `HIDDEN`
+- product must be `AVAILABLE` (not `OUT_OF_STOCK`)
+- product category must be `is_active=True`
+- add-on must be defined for this product (`ProductAddOn`)
+- add-on must have `addon.is_available=True`
+- `0 <= addon.quantity <= link.max_quantity`
+- if any fail → `ValidationError` with clear `details`.
 
-#### زمان آماده‌سازی (D12)
+#### Prep time (D12)
 
 ```python
 def _compute_prep_time(items, product_by_id) -> int:
@@ -968,21 +968,21 @@ def _compute_prep_time(items, product_by_id) -> int:
     return max_prep + buffer
 ```
 
-مثال: پیتزا ۱۵ دقیقه، نوشابه ۰ دقیقه → max = 15، + buffer 5 = 20.
+Example: pizza 15 minutes, soda 0 minutes → max = 15, + buffer 5 = 20.
 
-#### شماره روزانه (D7)
+#### Daily number (D7)
 
-`mark_order_paid` (که از payments.verify_payment صدا زده می‌شود):
+`mark_order_paid` (called by `payments.verify_payment`):
 
 ```python
 def _assign_daily_number(order):
-    today = timezone.localdate()                    # بر اساس Asia/Tehran
+    today = timezone.localdate()                    # based on Asia/Tehran
     key = f"order_seq:{today.isoformat()}"
     redis = get_redis()
     for attempt in range(10):
         number = int(redis.incr(key))
         if number == 1:
-            redis.expire(key, 60*60*48)             # 48h TTL برای پاکسازی
+            redis.expire(key, 60*60*48)             # 48h TTL for cleanup
         order.daily_number = number
         order.daily_number_date = today
         try:
@@ -993,9 +993,9 @@ def _assign_daily_number(order):
     raise RuntimeError(...)
 ```
 
-چرا Redis INCR؟ atomic، سریع، بدون lock. چرا retry روی IntegrityError؟ اگر Redis ری‌ست شود (dev یا crash)، شماره‌ها از ۱ شروع می‌شوند و ممکن است با رکوردهای قبلی هم‌روز تصادم کنند. UniqueConstraint((daily_number_date, daily_number)) تصادم را می‌گیرد و retry می‌کند.
+Why Redis `INCR`? Atomic, fast, lock-free. Why retry on `IntegrityError`? If Redis resets (dev or crash), numbers start at 1 again and may collide with previous records for the same day. The `UniqueConstraint((daily_number_date, daily_number))` catches the collision and retries.
 
-`mark_order_paid` — تراکنش کامل
+`mark_order_paid` — full transaction
 
 ```python
 @transaction.atomic
@@ -1012,12 +1012,12 @@ def mark_order_paid(*, order_id, paid_at=None) -> Order:
     order.is_printed = False
     order.save(...)
 
-    _assign_daily_number(order)                     # داخل همان تراکنش
+    _assign_daily_number(order)                     # inside the same transaction
     transaction.on_commit(lambda: send_order_registered_sms.delay(order.pk))
     return order
 ```
 
-نکته: SMS فقط بعد از commit — اگر commit شکست بخورد، SMS ارسال نمی‌شود.
+Note: SMS is sent only after commit — if the commit fails, SMS is not sent.
 
 #### Live POS (D13)
 
@@ -1027,12 +1027,12 @@ def mark_order_paid(*, order_id, paid_at=None) -> Order:
 Order.objects.filter(status__in=[PROCESSING, READY]).order_by("expected_ready_at")
 ```
 
-فرانت هر ۱۰–۱۵ ثانیه این را poll می‌کند. سفارش‌های is_printed=False → آلارم + چاپ. بعد از چاپ، فرانت POST /orders/<id>/mark-printed/ صدا می‌زند.
+The frontend polls this every 10–15 seconds. Orders with `is_printed=False` trigger alarms and printing. After printing, the frontend calls `POST /orders/<id>/mark-printed/`.
 
-#### لغو خودکار (D — ۱۵ دقیقه)
+#### Auto-cancel (D — 15 min)
 
 ```python
-cancel_expired_unpaid_orders هر ۶۰ ثانیه توسط Celery Beat اجرا می‌شود:
+cancel_expired_unpaid_orders runs every 60 seconds via Celery Beat:
 ```
 
 ```python
@@ -1047,19 +1047,19 @@ for order in expired:
     order.save()
 ```
 
-چرا Beat و نه apply_async(countdown=900)؟ اگر worker crash کند، countdown از دست می‌رود و سفارش هیچ‌وقت لغو نمی‌شود. Beat idempotent است و دوباره تلاش می‌کند.
+Why Beat instead of `apply_async(countdown=900)`? If the worker crashes, the countdown is lost and the order never gets canceled. Beat is idempotent and retries.
 
-#### تغییر زمان آماده‌سازی
+#### Prep time override
 
 `update_prep_time(order_id, new_prep_time_minutes):`
 
-فقط در PROCESSING یا READY مجاز
+Allowed only in PROCESSING or READY.
 
-expected_ready_at از paid_at بازمحاسبه می‌شود (نه از now())
+`expected_ready_at` is recalculated from `paid_at` (not `now()`).
 
-transaction.on_commit(send_prep_time_changed_sms.delay(...))
+`transaction.on_commit(send_prep_time_changed_sms.delay(...))`
 
-چرا از paid_at؟ اگر از now() محاسبه شود، مدیر می‌تواند هر بار با تغییر prep time، ETA را به تعویق بیندازد. از paid_at محاسبه شده تا زمان پرداخت پایه باشد.
+Why use `paid_at`? If we use `now()`, the manager could delay ETA every time they change prep time. Using `paid_at` keeps the calculation anchored to the original payment time.
 
 ### 7.6 Payments
 
@@ -1075,20 +1075,20 @@ class ZarinpalClient:
 
     def request_payment(*, amount, description, callback_url=None) -> dict:
         # POST → {"data": {"code": 100, "authority": "S..."}}
-        # اگر code != 100 → ZarinpalRequestError
+        # if code != 100 → ZarinpalRequestError
 
     def verify_payment(*, amount, authority) -> dict:
-        # POST → {"data": {"code": 100 یا 101, "ref_id": "..."}}
-        # 100 = موفق تازه، 101 = قبلاً تأیید شده (idempotent)
-        # هر code دیگه → ZarinpalVerifyError
+        # POST → {"data": {"code": 100 or 101, "ref_id": "..."}}
+        # 100 = newly successful, 101 = already verified (idempotent)
+        # any other code → ZarinpalVerifyError
 
     def build_redirect_url(authority) -> str:
         return f"{self.startpay_url}/{authority}"
 ```
 
-urllib به‌جای requests: بدون dependency اضافی. کنترل کامل روی timeout و exception.
+urllib instead of requests: no extra dependency needed. Full control over timeout and exceptions.
 
-#### مدل Payment
+#### Payment model
 
 ```python
 class Payment(BaseModel):
@@ -1096,12 +1096,12 @@ class Payment(BaseModel):
     amount = PositiveIntegerField
     status = Enum: PENDING / SUCCEEDED / FAILED / CANCELED
     authority = CharField (unique per alive)
-    ref_id = CharField (خالی تا verify)
+    ref_id = CharField (empty until verify)
     gateway_response_code, gateway_response_message
     verified_at, failed_at, canceled_at
 ```
 
-UniqueConstraint روی authority با deleted_at IS NULL: یک authority در یک لحظه فقط یک Payment زنده دارد.
+UniqueConstraint on `authority` with `deleted_at IS NULL`: one authority at a time belongs to only one live Payment.
 
 `start_payment_for_order`
 
@@ -1109,7 +1109,7 @@ UniqueConstraint روی authority با deleted_at IS NULL: یک authority در �
 def start_payment_for_order(*, order):
     if order.status != PENDING_PAYMENT: raise OrderStateError()
     if order.payment_status != UNPAID: raise OrderStateError()
-    if order.expires_at < now: raise OrderStateError("مهلت پرداخت تمام شده")
+    if order.expires_at < now: raise OrderStateError("payment window expired")
 
     revalidate_order_for_payment(order)  # restaurant open + product/addon available
 
@@ -1126,7 +1126,7 @@ def start_payment_for_order(*, order):
     }
 ```
 
-#### verify_payment — idempotent (کلیدی!)
+#### verify_payment — idempotent (key!)
 
 ```python
 @transaction.atomic
@@ -1134,7 +1134,7 @@ def verify_payment(*, authority, status):
     payment = Payment.objects.select_for_update().get(authority=authority)
 
     if payment.status == SUCCEEDED:
-        return payment                    # idempotent: callback تکراری
+        return payment                    # idempotent: repeated callback
     if payment.status in {FAILED, CANCELED}:
         raise PaymentNotVerifiableError()
 
@@ -1159,16 +1159,16 @@ def verify_payment(*, authority, status):
     return payment
 ```
 
-چرا select_for_update()؟ اگر دو callback هم‌زمان برسند (Zarinpal retries)، اولی lock می‌گیرد، verify می‌کند، commit می‌شود. دومی بعد از release، payment.status == SUCCEEDED را می‌بیند و بدون verify دوم برمی‌گردد → no double order transition.
+Why `select_for_update()`? If two callbacks arrive simultaneously (Zarinpal retries), the first acquires the lock, verifies, and commits. The second, after release, sees `payment.status == SUCCEEDED` and returns without a second verification → no double order transition.
 
-چرا verify + mark_order_paid در یک transaction.atomic؟ اگر mark_order_paid fail شود (مثلاً OrderStateError)، Payment هم rollback می‌شود و در PENDING می‌ماند. پس reverify_pending_payments بعداً دوباره تلاش می‌کند.
+Why `verify + mark_order_paid` in one `transaction.atomic`? If `mark_order_paid` fails (for example, `OrderStateError`), the `Payment` row also rolls back and remains `PENDING`. Then `reverify_pending_payments` retries later.
 
-`code == 101`: زرین‌پال این را "قبلاً تأیید شده" برمی‌گرداند. ما با verify_data که ref_id دارد، آن را موفق می‌گیریم.
+`code == 101`: Zarinpal returns this as “already verified”. We treat it as successful because `verify_data` includes `ref_id`.
 
-#### وظیفه باز-تأیید (پشتیبان)
+#### Re-verify task (backup)
 
 ```python
-reverify_pending_payments هر ۵ دقیقه:
+reverify_pending_payments runs every 5 minutes:
 ```
 
 ```python
@@ -1176,27 +1176,27 @@ for payment in Payment.objects.filter(status=PENDING, created_at__lt=now-3min):
     try:
         verify_payment(authority=payment.authority, status="OK")
     except Exception:
-        logger.warning(...)  # در دور بعد دوباره
+        logger.warning(...)  # try again next round
 ```
 
-سناریو: کاربر پرداخت کرد، ولی callback به هر دلیل (شبکه، restart) نرسید. این task پرداخت‌های PENDING قدیمی‌تر از ۳ دقیقه را دوباره verify می‌کند. زرین‌پال verify idempotent است، پس هیچ خطری ندارد.
+Scenario: the user paid, but the callback did not arrive due to network or restart issues. This task re-verifies old `PENDING` payments older than 3 minutes. Since Zarinpal verification is idempotent, there is no risk.
 
-#### جریان بازپرداخت (D11)
+#### Refund workflow (D11)
 
-مدیر POST /orders/<id>/cancel/ → cancel_order_by_manager
+Manager `POST /orders/<id>/cancel/` → `cancel_order_by_manager`
 
-- از PROCESSING/READY: status=CANCELED, payment=AWAITING_REFUND
-- از PENDING: status=CANCELED, payment=UNPAID
+- from PROCESSING/READY: `status=CANCELED`, `payment=AWAITING_REFUND`
+- from PENDING: `status=CANCELED`, `payment=UNPAID`
 
-مدیر دستی پول را برمی‌گرداند (کارت‌به‌کارت)
+Manager manually returns the money (card-to-card)
 
-مدیر POST /orders/<id>/refund/ با {card_number, tracking_code} → record_refund
+Manager `POST /orders/<id>/refund/` with `{card_number, tracking_code}` → `record_refund`
 
-payment=REFUNDED، ثبت card و tracking
+`payment=REFUNDED`, card and tracking code recorded.
 
-## 8. احراز هویت و مجوزها
+## 8. Authentication and Authorization
 
-### جدول کامل
+### Full Table
 
 | Endpoint | Auth | Permission | CSRF |
 | --- | --- | --- | --- |
@@ -1205,55 +1205,55 @@ payment=REFUNDED، ثبت card و tracking
 | POST /storefront/auth/token/refresh/ | — | AllowAny | ✗ |
 | POST /storefront/auth/token/logout/ | — | AllowAny | ✗ |
 | POST /storefront/auth/logout/ | Session | IsAuthenticated | ✓ |
-| GET /storefront/auth/me/ | JWT یا Session | IsAuthenticated | — |
+| GET /storefront/auth/me/ | JWT or Session | IsAuthenticated | — |
 | POST /backoffice/auth/login/ | — | AllowAny | ✗ |
 | POST /backoffice/auth/logout/ | Session | IsStaffUser | ✓ |
-| همه‌ی Backoffice محافظت‌شده | Session فقط | IsStaffUser | ✓ |
+| all protected Backoffice endpoints | Session only | IsStaffUser | ✓ |
 
-### الگوی Storefront
+### Storefront Pattern
 
-فرانت وب (SPA) → JWT:
+Frontend SPA → JWT:
 
 ```text
 Authorization: Bearer <access>
 ```
 
-(هیچ CSRF نیاز نیست، چون هدر Authorization خودش anti-CSRF است)
+(No CSRF required because the Authorization header itself is anti-CSRF.)
 
-مرورگر سنتی → Session:
+Traditional browser → Session:
 
 ```text
 Cookie: sessionid=...
 Header: X-CSRFToken: ...
 ```
 
-هر دو با هم کار می‌کنند. JWTAuthentication اول چک می‌شود؛ اگر هدر Authorization نبود، SessionAuthentication fallback است.
+Both work. `JWTAuthentication` is checked first; if no Authorization header exists, `SessionAuthentication` is used as fallback.
 
-### الگوی Backoffice (چرا Session فقط — D4)
+### Backoffice Pattern (why Session only — D4)
 
 ```python
 class BackofficeAPIView(APIView):
     authentication_classes = [SessionAuthentication]
 ```
 
-اگر مهاجم JWT مشتری را داشته باشد و مشتری هم اتفاقاً staff باشد — JWT بازهم رد می‌شود، چون session cookie لازم است. این defense-in-depth است.
+If an attacker has a customer JWT and the customer is also staff, the JWT still gets rejected because a session cookie is required. This is defense-in-depth.
 
-تست: `test_jwt_rejected_on_backoffice` این را تأیید می‌کند.
+Test: `test_jwt_rejected_on_backoffice` verifies this.
 
-### CSRF — چه زمانی لازم است؟
+### CSRF — when is it required?
 
-| روش auth | CSRF |
+| Auth method | CSRF |
 | --- | --- |
-| JWT (هدر Authorization) | ✗ |
-| Session (cookie) | ✓ برای POST/PATCH/DELETE |
+| JWT (Authorization header) | ✗ |
+| Session (cookie) | ✓ for POST/PATCH/DELETE |
 
-چرا؟ CSRF attack با ارسال کوکی خودکار اتفاق می‌افتد. JWT در هدر دستی است، پس مهاجم نمی‌تواند از سایت خودش آن را ارسال کند.
+Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so an attacker cannot send it from their own site.
 
-## 9. مرجع کامل API
+## 9. Complete API Reference
 
 ### 9.1 Storefront
 
-#### احراز هویت
+#### Auth
 
 | Method | Path | Auth | Body / Params |
 | --- | --- | --- | --- |
@@ -1267,7 +1267,7 @@ class BackofficeAPIView(APIView):
 | GET/POST | /auth/addresses/ | ✓ | {address_text, recipient_name?, is_out_of_zone?, is_default?} |
 | GET/PATCH/DELETE | /auth/addresses/<id>/ | ✓ | — |
 
-#### کاتالوگ
+#### Catalog
 
 | Method | Path | Auth | Params |
 | --- | --- | --- | --- |
@@ -1275,7 +1275,7 @@ class BackofficeAPIView(APIView):
 | GET | /catalog/lucky-wheel/ | — | ?category=slug |
 | GET | /catalog/products/<slug>/ | — | — |
 
-#### سفارش‌ها
+#### Orders
 
 | Method | Path | Auth | Body |
 | --- | --- | --- | --- |
@@ -1283,7 +1283,7 @@ class BackofficeAPIView(APIView):
 | POST | /orders/ | ✓ | {delivery_type, address_id?, notes_to_kitchen?, items: [{product_id, quantity, addons?: [{addon_id, quantity}]}]} |
 | GET | /orders/<id>/ | ✓ | — |
 
-#### پرداخت‌ها
+#### Payments
 
 | Method | Path | Auth | Body |
 | --- | --- | --- | --- |
@@ -1303,7 +1303,7 @@ class BackofficeAPIView(APIView):
 
 ### 9.2 Backoffice
 
-#### احراز هویت
+#### Auth
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1322,7 +1322,7 @@ class BackofficeAPIView(APIView):
 | GET/POST | /crm/customers/<id>/notes/ | {text} |
 | DELETE | /crm/customers/<id>/notes/<note_id>/ | — |
 
-#### کاتالوگ
+#### Catalog
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1336,7 +1336,7 @@ class BackofficeAPIView(APIView):
 | POST | /catalog/products/<id>/image/ | multipart image |
 | GET/PUT | /catalog/products/<id>/addons/ | {addons: [{addon_id, min_quantity, max_quantity}]} |
 
-#### سفارش‌ها
+#### Orders
 
 | Method | Path | Body |
 | --- | --- | --- |
@@ -1350,7 +1350,7 @@ class BackofficeAPIView(APIView):
 | PATCH | /orders/<id>/prep-time/ | {prep_time_minutes} |
 | POST | /orders/<id>/refund/ | {card_number, tracking_code} |
 
-#### پرداخت‌ها
+#### Payments
 
 | Method | Path |
 | --- | --- |
@@ -1371,35 +1371,35 @@ class BackofficeAPIView(APIView):
 | Method | Path |
 | --- | --- |
 | GET | /health/ |
-| GET | /api/v1/storefront/schema/ و /docs/ |
-| GET | /api/v1/backoffice/schema/ و /docs/ (staff only) |
+| GET | /api/v1/storefront/schema/ and /docs/ |
+| GET | /api/v1/backoffice/schema/ and /docs/ (staff only) |
 
-## 10. عیب‌یابی
+## 10. Troubleshooting
 
-| علامت | علت | راه‌حل |
+| Symptom | Cause | Solution |
 | --- | --- | --- |
-| no such table: accounts_customer | migrate اجرا نشده | python manage.py migrate |
-| 500 روی OTP request | Redis بالا نیست | redis-cli ping یا docker start fastfood-redis |
-| 403 CSRF Failed | هدر X-CSRFToken فراموش شده | GET /auth/csrf/ و هدر را بفرستید |
-| 401 Not authenticated | session ندارید یا JWT منقضی | OTP دوباره یا refresh کنید |
-| 409 RestaurantClosedError | خارج از ساعت | PATCH restaurant-settings ساعت را گسترده کنید |
-| OTP در console نمی‌آید | SMS_IR_API_KEY پر است | خالی کنید |
-| NOT_STAFF در login backoffice | user is_staff=False | python manage.py create_staff <phone> <pass> --superuser |
-| refresh کار نمی‌کند | migration token_blacklist اجرا نشده | python manage.py migrate |
-| JWT rejected on backoffice | درست است — by design | از session استفاده کنید |
-| test_*.py fail روی Redis | DB 15 کانفیگ شده ولی Redis بالا نیست | Redis را بالا بیاورید |
-| billiard PermissionError در Celery | pool پیش‌فرض روی Windows | -P solo یا -P threads |
-| Celery Ctrl+C کار نمی‌کند | باگ Celery 5.4 | ارتقا به celery>=5.5 یا -P solo |
-| migrate به SQLite دیگری می‌رود | دو فایل db.sqlite3 | Get-ChildItem -Recurse -Filter db.sqlite3 |
-| daily_number صفر می‌ماند | پرداخت موفق mark نشده | Payment.verify_payment را چک کنید |
+| no such table: accounts_customer | migration not run | `python manage.py migrate` |
+| 500 on OTP request | Redis is down | `redis-cli ping` or `docker start fastfood-redis` |
+| 403 CSRF Failed | X-CSRFToken header missing | `GET /auth/csrf/` and send the header |
+| 401 Not authenticated | no session or JWT expired | request OTP again or refresh |
+| 409 RestaurantClosedError | outside open hours | PATCH `restaurant-settings` to widen the hours |
+| OTP not appearing in console | `SMS_IR_API_KEY` is set | clear it |
+| NOT_STAFF on backoffice login | user `is_staff=False` | `python manage.py create_staff <phone> <pass> --superuser` |
+| refresh not working | `token_blacklist` migration not run | `python manage.py migrate` |
+| JWT rejected on backoffice | correct — by design | use session |
+| `test_*.py` fail on Redis | DB 15 config but Redis down | bring Redis up |
+| `billiard PermissionError` in Celery | default pool on Windows | `-P solo` or `-P threads` |
+| Celery `Ctrl+C` does not work | Celery 5.4 bug | upgrade to `celery>=5.5` or use `-P solo` |
+| migrate points to a different SQLite DB | two `db.sqlite3` files | `Get-ChildItem -Recurse -Filter db.sqlite3` |
+| `daily_number` stays zero | successful payment not marked | check `Payment.verify_payment` |
 
-## 11. چک‌لیست نهایی
+## 11. Final Checklist
 
-هدف: از صفر به یک بک‌اند کامل تست‌شده در ~۳۰ دقیقه.
+Goal: from zero to a fully working backend tested in ~30 minutes.
 
-پیش‌نیاز: Redis روی 127.0.0.1:6379 در حال اجرا، .env طبق بخش ۴، settings_sqlite.py موجود.
+Prerequisite: Redis running on 127.0.0.1:6379, `.env` according to section 4, and `settings_sqlite.py` present.
 
-### مرحله ۰ — راه‌اندازی
+### Step 0 — Setup
 
 ```powershell
 python manage.py migrate --settings=config.settings_sqlite
@@ -1407,20 +1407,20 @@ python manage.py create_staff 09123456789 "Test@1234" --superuser --settings=con
 python manage.py runserver --settings=config.settings_sqlite
 ```
 
-- [ ] migrate بدون خطا تمام شد
-- [ ] create_staff پیام Created superuser user: 09123456789 چاپ کرد
-- [ ] runserver روی http://127.0.0.1:8000 بالا آمد
+- [ ] migrate completed without errors
+- [ ] create_staff printed `Created superuser user: 09123456789`
+- [ ] runserver started at http://127.0.0.1:8000
 
-### مرحله ۱ — Health & Docs
+### Step 1 — Health & Docs
 
 ```bash
 curl http://127.0.0.1:8000/health/
 ```
 
-- [ ] پاسخ: {"success": true, "data": {"status": "ok"}}
-- [ ] مرورگر: http://127.0.0.1:8000/api/v1/storefront/docs/ باز می‌شود (لیست endpointها)
+- [ ] response: `{"success": true, "data": {"status": "ok"}}`
+- [ ] browser: http://127.0.0.1:8000/api/v1/storefront/docs/ opens (list of endpoints)
 
-### مرحله ۲ — OTP Flow (مشتری)
+### Step 2 — OTP Flow (customer)
 
 ```text
 POST /api/v1/storefront/auth/otp/request/
@@ -1429,8 +1429,8 @@ Content-Type: application/json
 {"phone": "09120000000"}
 ```
 
-- [ ] پاسخ: {"message": "کد تایید ارسال شد.", "expires_in": 120}
-- [ ] در console runserver خط کد تایید شما: NNNNNN دیده می‌شود — کد را بردارید
+- [ ] response: `{"message": "کد تایید ارسال شد.", "expires_in": 120}`
+- [ ] in the runserver console, the OTP code appears: `NNNNNN` — copy it
 
 ```text
 POST /api/v1/storefront/auth/otp/verify/
@@ -1439,87 +1439,87 @@ Content-Type: application/json
 {"phone": "09120000000", "code": "NNNNNN"}
 ```
 
-- [ ] پاسخ شامل user, access, refresh است
+- [ ] response includes `user`, `access`, and `refresh`
 
-### مرحله ۳ — Session تست
+### Step 3 — Session Test
 
 ```text
 GET /api/v1/storefront/auth/me/
 ```
 
-- [ ] با cookie session، پاسخ {"id": 1, "phone": "09120000000", ...} است
+- [ ] with a session cookie, response is `{"id": 1, "phone": "09120000000", ...}`
 
-### مرحله ۴ — JWT تست
+### Step 4 — JWT Test
 
-- [ ] کپی access از پاسخ مرحله ۲
-- [ ] یک tab جدید Postman، بدون cookie
+- [ ] copy the `access` from step 2
+- [ ] open a new Postman tab without cookies
 
 ```text
 GET /api/v1/storefront/auth/me/
 Authorization: Bearer <access>
 ```
 
-- [ ] پاسخ ۲۰۰ با همان user
+- [ ] 200 response with the same user
 
-### مرحله ۵ — Refresh تست
+### Step 5 — Refresh Test
 
 ```text
 POST /api/v1/storefront/auth/token/refresh/
-{"refresh": "<refresh از مرحله ۲>"}
+{"refresh": "<refresh from step 2>"}
 ```
 
-- [ ] پاسخ شامل access و refresh جدید است
-- [ ] refresh جدید متفاوت از قبلی است (rotation)
-- [ ] همان refresh قدیمی را دوباره refresh کنید → ۴۰۱
+- [ ] response includes a new `access` and `refresh`
+- [ ] new refresh differs from the old one (rotation)
+- [ ] use the old refresh again → 401
 
-### مرحله ۶ — Backoffice Login
+### Step 6 — Backoffice Login
 
 ```text
 POST /api/v1/backoffice/auth/login/
 {"phone": "09123456789", "password": "Test@1234"}
 ```
 
-- [ ] پاسخ ۲۰۰ با user.is_staff: true و csrf_token
-- [ ] از این لحظه، JWT مشتری در یک tab جدید کار نمی‌کند روی backoffice:
+- [ ] 200 response with `user.is_staff: true` and `csrf_token`
+- [ ] from this point, the customer JWT in a new tab does not work on backoffice:
 
 ```text
 GET /api/v1/backoffice/orders/
-Authorization: Bearer <access مشتری>
+Authorization: Bearer <customer access>
 ```
 
-- [ ] پاسخ ۴۰۱ یا ۴۰۳ (تأیید D4)
+- [ ] response 401 or 403 (confirms D4)
 
-### مرحله ۷ — ساخت Category
+### Step 7 — Create Category
 
 ```text
 POST /api/v1/backoffice/catalog/categories/
-X-CSRFToken: <csrf از login>
+X-CSRFToken: <csrf from login>
 Content-Type: application/json
 
-{"name": "پیتزا", "slug": "pizzas", "display_order": 1}
+{"name": "Pizza", "slug": "pizzas", "display_order": 1}
 ```
 
-- [ ] ۲۰۱ با id: 1
+- [ ] 201 with id: 1
 
-### مرحله ۸ — ساخت AddOn
+### Step 8 — Create AddOn
 
 ```text
 POST /api/v1/backoffice/catalog/addons/
 X-CSRFToken: <csrf>
 
-{"name": "پنیر اضافه", "price": 20000}
+{"name": "Extra Cheese", "price": 20000}
 ```
 
-- [ ] ۲۰۱ با id: 1
+- [ ] 201 with id: 1
 
-### مرحله ۹ — ساخت Product
+### Step 9 — Create Product
 
 ```text
 POST /api/v1/backoffice/catalog/products/
 X-CSRFToken: <csrf>
 
 {
-  "name": "مارگاریتا - تک نفره",
+  "name": "Margherita - Single",
   "slug": "margherita-single",
   "category_id": 1,
   "price": 150000,
@@ -1530,53 +1530,53 @@ X-CSRFToken: <csrf>
 }
 ```
 
-- [ ] ۲۰۱ با id: 1 و addons: [{"addon_id": 1, ...}]
+- [ ] 201 with id: 1 and addons: `[{"addon_id": 1, ...}]`
 
-### مرحله ۱۰ — Menu (public)
+### Step 10 — Menu (public)
 
 ```text
 GET /api/v1/storefront/catalog/menu/
 ```
 
-- [ ] categories[0].products[0].name == "مارگاریتا - تک نفره"
+- [ ] `categories[0].products[0].name == "Margherita - Single"`
 
-### مرحله ۱۱ — Lucky Wheel
+### Step 11 — Lucky Wheel
 
 ```text
 GET /api/v1/storefront/catalog/lucky-wheel/
 ```
 
-- [ ] products شامل مارگاریتا است
+- [ ] response includes Margherita
 
-### مرحله ۱۲ — Product Detail
+### Step 12 — Product Detail
 
 ```text
 GET /api/v1/storefront/catalog/products/margherita-single/
 ```
 
-- [ ] پاسخ شامل addons: [{"addon_id": 1, "name": "پنیر اضافه", "price": 20000, "min_quantity": 0, "max_quantity": 3}]
+- [ ] response includes `addons: [{"addon_id": 1, "name": "Extra Cheese", "price": 20000, "min_quantity": 0, "max_quantity": 3}]`
 
-### مرحله ۱۳ — افزودن Address (به‌عنوان مشتری)
+### Step 13 — Add Address (as customer)
 
-برگردید به tab مشتری (session یا JWT):
+Return to the customer tab (session or JWT):
 
 ```text
 POST /api/v1/storefront/auth/addresses/
-Authorization: Bearer <access مشتری>
+Authorization: Bearer <customer access>
 Content-Type: application/json
 
 {
-  "address_text": "تهران، خیابان ولیعصر، پلاک ۱۰",
-  "recipient_name": "علی رضایی",
+  "address_text": "Tehran, Valiasr Street, No. 10",
+  "recipient_name": "Ali Rezaei",
   "recipient_phone": "09120000000",
   "is_out_of_zone": false,
   "is_default": true
 }
 ```
 
-- [ ] ۲۰۱
+- [ ] 201
 
-### مرحله ۱۴ — ساخت Order
+### Step 14 — Create Order
 
 ```text
 POST /api/v1/storefront/orders/
@@ -1584,25 +1584,25 @@ Authorization: Bearer <access>
 
 {
   "delivery_type": "PICKUP",
-  "notes_to_kitchen": "بدون پیاز",
+  "notes_to_kitchen": "no onion",
   "items": [
     {"product_id": 1, "quantity": 2, "addons": [{"addon_id": 1, "quantity": 1}]}
   ]
 }
 ```
 
-- [ ] ۲۰۱ با:
-  - status: "PENDING_PAYMENT"
-  - payment_status: "UNPAID"
-  - subtotal: 320000 (150000*2 + 20000*1)
-  - total_amount: 320000
-  - prep_time_minutes: 20 (15 + 5 buffer)
-  - expires_at حدوداً ۱۵ دقیقه بعد
-- [ ] id را ذخیره کنید (مثلاً 1)
+- [ ] 201 with:
+  - status: `"PENDING_PAYMENT"`
+  - payment_status: `"UNPAID"`
+  - subtotal: `320000` (`150000*2 + 20000*1`)
+  - total_amount: `320000`
+  - prep_time_minutes: `20` (15 + 5 buffer)
+  - expires_at roughly 15 minutes later
+- [ ] save the id (example: 1)
 
-### مرحله ۱۵ — Payment Request (بدون Zarinpal واقعی)
+### Step 15 — Payment Request (without a real Zarinpal)
 
-چون ZARINPAL_MERCHANT_ID خالی است، این endpoint با خطا برمی‌گردد. اما منطقش تست‌شده است. برای تست دستی موفق پرداخت، از shell استفاده کنید:
+Since `ZARINPAL_MERCHANT_ID` is empty, this endpoint returns an error. But the logic is tested. For a successful manual payment, use the shell:
 
 ```powershell
 python manage.py shell --settings=config.settings_sqlite -c "
@@ -1622,167 +1622,167 @@ print(f'status={o.status}, payment={o.payment_status}, daily={o.daily_number}')
 "
 ```
 
-- [ ] خروجی: status=PROCESSING, payment=PAID, daily=1
+- [ ] output: `status=PROCESSING, payment=PAID, daily=1`
 
-### مرحله ۱۶ — Order Tracking (مشتری)
+### Step 16 — Order Tracking (customer)
 
 ```text
 GET /api/v1/storefront/orders/1/
 Authorization: Bearer <access>
 ```
 
-- [ ] status: "PROCESSING", daily_number: 1, expected_ready_at: <ISO datetime>
+- [ ] status: `"PROCESSING"`, `daily_number`: `1`, `expected_ready_at`: `<ISO datetime>`
 
-### مرحله ۱۷ — Live POS (ادمین)
+### Step 17 — Live POS (admin)
 
-با session backoffice:
+Using the backoffice session:
 
 ```text
 GET /api/v1/backoffice/orders/live/
 Cookie: sessionid=<...>
 ```
 
-- [ ] پاسخ آرایه‌ای شامل سفارش شما با is_printed: false
-- [ ] مرتب بر اساس expected_ready_at
+- [ ] response is an array containing your order with `is_printed: false`
+- [ ] ordered by `expected_ready_at`
 
-### مرحله ۱۸ — Mark Printed
+### Step 18 — Mark Printed
 
 ```text
 POST /api/v1/backoffice/orders/1/mark-printed/
 X-CSRFToken: <csrf>
 ```
 
-- [ ] is_printed: true و printed_at پر شده
+- [ ] `is_printed: true` and `printed_at` set
 
-### مرحله ۱۹ — Mark Ready (SMS به مشتری)
+### Step 19 — Mark Ready (SMS to customer)
 
 ```text
 POST /api/v1/backoffice/orders/1/mark-ready/
 ```
 
-- [ ] status: "READY"
-- [ ] در console runserver خط ارسال SMS (اگر SMS_IR_API_KEY خالی، به‌عنوان warning)
+- [ ] status: `"READY"`
+- [ ] in the runserver console, the SMS sending line appears (if `SMS_IR_API_KEY` is empty, it logs as a warning)
 
-### مرحله ۲۰ — Override Prep Time
+### Step 20 — Override Prep Time
 
 ```text
 PATCH /api/v1/backoffice/orders/1/prep-time/
 {"prep_time_minutes": 25}
 ```
 
-- [ ] prep_time_minutes: 25، expected_ready_at بازمحاسبه شده (paid_at + 25min)
+- [ ] `prep_time_minutes: 25`, `expected_ready_at` recalculated (`paid_at + 25min`)
 
-### مرحله ۲۱ — Mark Completed
+### Step 21 — Mark Completed
 
 ```text
 POST /api/v1/backoffice/orders/1/mark-completed/
 ```
 
-- [ ] status: "COMPLETED"
+- [ ] status: `"COMPLETED"`
 
-### مرحله ۲۲ — Refund Flow (سفارش دوم)
+### Step 22 — Refund Flow (second order)
 
-سفارش دوم بسازید (مراحل ۱۴–۱۵ با order_id=2):
+Create a second order (steps 14–15 with `order_id=2`):
 
-- [ ] سفارش دوم PROCESSING است
+- [ ] second order is `PROCESSING`
 
 ```text
 POST /api/v1/backoffice/orders/2/cancel/
 {"reason": "customer request"}
 ```
 
-- [ ] status: "CANCELED", payment_status: "AWAITING_REFUND"
+- [ ] status: `"CANCELED"`, payment_status: `"AWAITING_REFUND"`
 
 ```text
 POST /api/v1/backoffice/orders/2/refund/
 {"card_number": "6037-1234-5678-9012", "tracking_code": "123456789"}
 ```
 
-- [ ] payment_status: "REFUNDED", refund_tracking_code: "123456789"
+- [ ] payment_status: `"REFUNDED"`, `refund_tracking_code`: `"123456789"`
 
-### مرحله ۲۳ — CRM
+### Step 23 — CRM
 
 ```text
 GET /api/v1/backoffice/crm/customers/1/
 ```
 
-- [ ] orders_count: 2, lifetime_value: 320000 (فقط سفارش PAID حساب می‌شود — سفارش دوم REFUNDED است، پس ممکن است lifetime_value: 320000 باشد و completed_orders_count: 1)
+- [ ] `orders_count: 2`, `lifetime_value: 320000` (only PAID orders count — the second order is REFUNDED, so lifetime_value may still be 320000 and `completed_orders_count: 1`)
 
 ```text
 POST /api/v1/backoffice/crm/customers/1/notes/
-{"text": "مشتری VIP"}
+{"text": "VIP customer"}
 ```
 
-- [ ] ۲۰۱ با author_phone
+- [ ] 201 with `author_phone`
 
-### مرحله ۲۴ — CMS Settings
+### Step 24 — CMS Settings
 
 ```text
 PATCH /api/v1/backoffice/cms/restaurant-settings/
 {"in_zone_delivery_fee": 60000, "prep_time_buffer_minutes": 7}
 ```
 
-- [ ] ۲۰۰ با مقادیر جدید
+- [ ] 200 with new values
 
 ```text
 GET /api/v1/storefront/cms/restaurant-status/
 ```
 
-- [ ] in_zone_delivery_fee: 60000
+- [ ] `in_zone_delivery_fee: 60000`
 
-### مرحله ۲۵ — CMS Site Section
+### Step 25 — CMS Site Section
 
 ```text
 PUT /api/v1/backoffice/cms/site-sections/hero/
-{"content": {"title": "سلام", "subtitle": "خوش آمدید"}}
+{"content": {"title": "Hello", "subtitle": "Welcome"}}
 ```
 
-- [ ] ۲۰۰
+- [ ] 200
 
 ```text
 GET /api/v1/storefront/cms/site-sections/hero/
 ```
 
-- [ ] content.title == "سلام"
+- [ ] `content.title == "Hello"`
 
-### مرحله ۲۶ — Rate Limit OTP
+### Step 26 — OTP Rate Limit
 
 ```text
-POST /api/v1/storefront/auth/otp/request/  (× 6 بار سریع)
+POST /api/v1/storefront/auth/otp/request/  (× 6 rapid requests)
 {"phone": "09129999999"}
 ```
 
-- [ ] بار ششم → 429 Too Many Requests با envelope {"success": false, "error": {"code": "THROTTLED", ...}}
+- [ ] on the 6th request → 429 Too Many Requests with envelope `{"success": false, "error": {"code": "THROTTLED", ...}}`
 
-### مرحله ۲۷ — Authorization Isolation
+### Step 27 — Authorization Isolation
 
-بدون login، backoffice را بزنید:
+Without login, call backoffice:
 
 ```text
 GET /api/v1/backoffice/orders/
 ```
 
-- [ ] ۴۰۱ یا ۴۰۳
+- [ ] 401 or 403
 
-به‌عنوان مشتری، سفارش دیگران:
+As a customer, try another customer's order:
 
 ```text
 GET /api/v1/storefront/orders/999/
-Authorization: Bearer <access مشتری>
+Authorization: Bearer <customer access>
 ```
 
-- [ ] ۴۰۴ ORDER_NOT_FOUND
+- [ ] 404 `ORDER_NOT_FOUND`
 
-### مرحله ۲۸ — اجرای تست‌های خودکار
+### Step 28 — Run the Automated Tests
 
 ```powershell
 pytest -v
 ```
 
-- [ ] همه‌ی تست‌ها PASS
-- [ ] حداقل ۴۰ تست (accounts, orders, payments, catalog, cms, jwt, permissions, n+1, e2e)
+- [ ] all tests PASS
+- [ ] at least 40 tests (accounts, orders, payments, catalog, cms, jwt, permissions, n+1, e2e)
 
-### مرحله ۲۹ — Production Check
+### Step 29 — Production Check
 
 ```powershell
 $env:DEBUG="False"
@@ -1790,18 +1790,18 @@ python manage.py check --deploy
 ```
 
 - [ ] System check identified no issues (0 silenced).
-- [ ] اگر SECRET_KEY dev بود، خطای common.E001 → در .env تغییر دهید
+- [ ] if `SECRET_KEY` is dev, error `common.E001` appears → change it in `.env`
 
-## جمع‌بندی
+## Summary
 
-اگر همه‌ی مراحل بالا را تیک زدید:
+If you complete all the steps above:
 
-✅ بک‌اند کامل کار می‌کند — از OTP تا پرداخت، از Live POS تا Refund و CRM و CMS.
+✅ The backend works completely — from OTP to payment, from Live POS to refund, CRM, and CMS.
 
-### کارهای باقی‌مانده برای production واقعی
+### Remaining tasks for real production
 
-- تنظیم secrets و production env
-- راه‌اندازی Redis و Celery workers با config production
-- فعال‌سازی HTTPS و domainها
-- بررسی rate limits و monitoring
-- اسکریپت backup و deploy pipeline
+- set production secrets and env
+- deploy Redis and Celery workers with production config
+- enable HTTPS and domains
+- review rate limits and monitoring
+- backup script and deploy pipeline
