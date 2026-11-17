@@ -8,7 +8,7 @@ from kombu import Queue
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("SECRET_KEY", default="dev-insecure-change-me")
-DEBUG = config("DEBUG", default=False, cast=bool)
+DEBUG = True  # config("DEBUG", default=False, cast=bool)
 
 _allowed_hosts = config("ALLOWED_HOSTS", default="127.0.0.1,localhost")
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
@@ -58,15 +58,22 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": config("POSTGRES_DB", default="fastfood"),
+#         "USER": config("POSTGRES_USER", default="fastfood"),
+#         "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
+#         "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
+#         "PORT": config("POSTGRES_PORT", default=5432, cast=int),
+#         "CONN_MAX_AGE": 60,
+#     }
+# }
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB", default="fastfood"),
-        "USER": config("POSTGRES_USER", default="fastfood"),
-        "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
-        "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
-        "PORT": config("POSTGRES_PORT", default=5432, cast=int),
-        "CONN_MAX_AGE": 60,
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -168,6 +175,9 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
 
 MANAGER_PHONE = config("MANAGER_PHONE", default="")
 
@@ -193,6 +203,24 @@ PAYMENT_FRONTEND_RESULT_URL = config(
 
 SMS_IR_API_KEY = config("SMS_IR_API_KEY", default="")
 SMS_IR_SENDER = config("SMS_IR_SENDER", default="")
+
+
+
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=True, cast=bool)
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=31_536_000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
+
+
 
 LOGGING = {
     "version": 1,
