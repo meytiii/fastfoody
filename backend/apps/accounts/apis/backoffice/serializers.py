@@ -76,3 +76,22 @@ class CustomerUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     is_blocked = serializers.BooleanField(required=False)
     is_active = serializers.BooleanField(required=False)
+
+
+class StaffLoginSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=20)
+    password = serializers.CharField(max_length=128, write_only=True)
+
+
+class StaffProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = (
+            "id",
+            "phone",
+            "full_name",
+            "is_staff",
+            "is_superuser",
+            "date_joined",
+        )
+        read_only_fields = fields

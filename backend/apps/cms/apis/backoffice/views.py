@@ -5,18 +5,22 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+
 
 from apps.cms.selectors import (
     get_all_site_sections,
     get_restaurant_settings,
     get_site_section,
     list_media_assets,
+    get_media_asset,
 )
 from apps.cms.services import (
     create_media_asset,
     soft_delete_media_asset,
     update_restaurant_settings,
     upsert_site_section,
+    update_media_asset,
 )
 from common.permissions import IsStaffUser
 
@@ -24,7 +28,11 @@ from .serializers import (
     MediaAssetSerializer,
     RestaurantSettingsSerializer,
     SiteSectionWriteSerializer,
+    MediaAssetUpdateSerializer,
 )
+
+
+
 
 
 class RestaurantSettingsView(APIView):
@@ -96,6 +104,19 @@ class MediaAssetListCreateView(APIView):
 
 class MediaAssetDetailView(APIView):
     permission_classes = [IsStaffUser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get(self, request: Request, pk: int) -> Response:
+        asset = get_media_asset(pk)
+        return Response(MediaAssetSerializer(asset).data)
+
+    def patch(self, request: Request, pk: int) -> Response:
+        serializer = MediaAssetUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        asset = update_media_asset(
+            asset_id=pk, data=dict(serializer.validated_data)
+        )
+        return Response(MediaAssetSerializer(asset).data)
 
     def delete(self, request: Request, pk: int) -> Response:
         soft_delete_media_asset(asset_id=pk)

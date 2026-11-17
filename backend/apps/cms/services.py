@@ -149,3 +149,27 @@ def create_media_asset(
 def soft_delete_media_asset(*, asset_id: int) -> None:
     """Soft-delete a MediaAsset (idempotent)."""
     MediaAsset.objects.filter(pk=asset_id).delete()
+
+@transaction.atomic
+def update_media_asset(
+    *,
+    asset_id: int,
+    data: dict[str, Any],
+) -> MediaAsset:
+    from common.exceptions import NotFoundError
+
+    try:
+        asset = MediaAsset.objects.select_for_update().get(pk=asset_id)
+    except MediaAsset.DoesNotExist:
+        raise NotFoundError(
+            message="رسانه یافت نشد.",
+            code="MEDIA_ASSET_NOT_FOUND",
+        )
+
+    editable = {"title", "alt_text"}
+    for field, value in data.items():
+        if field in editable:
+            setattr(asset, field, value)
+
+    asset.save(update_fields=list(data.keys()) + ["updated_at"])
+    return asset

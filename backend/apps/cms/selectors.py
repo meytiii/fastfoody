@@ -85,3 +85,17 @@ def list_media_assets(kind: str | None = None) -> list[MediaAsset]:
     if kind is not None:
         qs = qs.filter(kind=kind)
     return list(qs)
+
+
+def get_media_asset(asset_id: int) -> MediaAsset:
+    from .exceptions import MediaAssetConversionError  # reuse a 404-style error
+
+    try:
+        return MediaAsset.objects.get(pk=asset_id)
+    except MediaAsset.DoesNotExist:
+        from common.exceptions import NotFoundError
+
+        raise NotFoundError(
+            message="رسانه یافت نشد.",
+            code="MEDIA_ASSET_NOT_FOUND",
+        )

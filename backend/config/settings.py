@@ -116,17 +116,23 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 20,
-    "DEFAULT_THROTTLE_RATES": {
+     "DEFAULT_THROTTLE_RATES": {
         "otp_request": "5/hour",
         "otp_verify": "10/hour",
+        "staff_login": "10/hour",   # ← new
     },
 }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "FastFood Backend API",
-    "DESCRIPTION": "Storefront and Backoffice APIs for a single-location fast-food restaurant.",
+    "DESCRIPTION": (
+        "Storefront and Backoffice APIs for a single-location fast-food "
+        "restaurant. Storefront docs are public. Backoffice docs require "
+        "a staff session (login at /api/v1/backoffice/auth/login/)."
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/1")

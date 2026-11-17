@@ -226,3 +226,44 @@ def delete_customer_note(*, customer_id: int, note_id: int) -> None:
             code="NOTE_NOT_FOUND",
         )
     note.soft_delete()
+
+
+@transaction.atomic
+def staff_login(*, phone: str, password: str) -> Customer:
+    """
+    Password-based staff login.
+
+    - Normalizes phone; wrong format → InvalidCredentialsError.
+    - Wrong phone/password → InvalidCredentialsError (no info leak).
+    - Blocked/inactive/non-staff → raises their specific errors.
+    """
+    from .exceptions import (
+        AccountBlockedError,
+        AccountInactiveError,
+        InvalidCredentialsError,
+        NotStaffError,
+    )
+
+    try:
+        normalized = normalize_phone(phone)
+    except ValidationError:
+        raise InvalidCredentialsError()
+
+    try:
+        customer = Customer.objects.select_for_update().get(phone=normalized)
+    except Customer.DoesNotExist:
+        raise InvalidCredentialsError()
+
+    if customer.is_blocked:
+        raise AccountBlockedError()
+    if not customer.is_active:
+        raise AccountInactiveError()
+    if not customer.is_staff:
+        raise NotStaffError()
+    if not customer.check_password(password or ""):
+        raise InvalidCredentialsError()
+
+    customer.last_login = timezone.now()
+    customer.save(update_fields=["last_login"])
+
+    return customer

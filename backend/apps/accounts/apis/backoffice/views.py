@@ -15,7 +15,20 @@ from .serializers import (
     CustomerNoteCreateSerializer,
     CustomerNoteSerializer,
     CustomerUpdateSerializer,
+    StaffLoginSerializer,
+    StaffProfileSerializer,
 )
+
+
+
+
+from django.contrib.auth import login, logout
+from django.http import HttpRequest, JsonResponse
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework.permissions import AllowAny
+
+from apps.accounts.throttles import StaffLoginThrottle
 
 
 class CustomerListView(APIView):
@@ -80,3 +93,51 @@ class CustomerNoteDetailView(APIView):
     def delete(self, request: Request, pk: int, note_id: int) -> Response:
         services.delete_customer_note(customer_id=pk, note_id=note_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+
+
+@ensure_csrf_cookie
+def backoffice_csrf_view(request: HttpRequest) -> JsonResponse:
+    return JsonResponse({"csrf_token": get_token(request)})
+
+
+class StaffLoginView(APIView):
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_classes = [StaffLoginThrottle]
+
+    def post(self, request: Request) -> Response:
+        serializer = StaffLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer = services.staff_login(
+            phone=serializer.validated_data["phone"],
+            password=serializer.validated_data["password"],
+        )
+        login(
+            request._request,
+            customer,
+            backend="django.contrib.auth.backends.ModelBackend",
+        )
+        return Response(
+            {
+                "user": StaffProfileSerializer(customer).data,
+                "csrf_token": get_token(request._request),
+            }
+        )
+
+
+class StaffLogoutView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request: Request) -> Response:
+        logout(request._request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StaffMeView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request: Request) -> Response:
+        return Response(StaffProfileSerializer(request.user).data)
+

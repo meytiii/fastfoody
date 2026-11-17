@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from common.exceptions import PermissionDeniedError, ValidationError
+from common.exceptions import BusinessException, PermissionDeniedError, ValidationError
 
 
 class OTPExpiredError(ValidationError):
@@ -25,3 +25,15 @@ class AccountInactiveError(PermissionDeniedError):
     default_code = "ACCOUNT_INACTIVE"
     default_message = "حساب کاربری شما فعال نیست."
     status_code = 403
+
+
+class NotStaffError(PermissionDeniedError):
+    default_code = "NOT_STAFF"
+    default_message = "دسترسی فقط برای کارکنان مجاز است."
+    status_code = 403
+
+
+class InvalidCredentialsError(BusinessException):
+    default_code = "INVALID_CREDENTIALS"
+    default_message = "شماره یا رمز عبور نامعتبر است."
+    status_code = 401

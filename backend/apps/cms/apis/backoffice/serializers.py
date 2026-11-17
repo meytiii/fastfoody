@@ -95,3 +95,8 @@ __all__ = [
     "SiteSectionReadSerializer",
     "SiteSectionWriteSerializer",
 ]
+
+
+class MediaAssetUpdateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    alt_text = serializers.CharField(max_length=255, required=False, allow_blank=True)

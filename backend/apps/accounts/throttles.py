@@ -23,3 +23,7 @@ class OTPRequestThrottle(_BaseOTPThrottle):
 
 class OTPVerifyThrottle(_BaseOTPThrottle):
     scope = "otp_verify"
+
+    
+class StaffLoginThrottle(_BaseOTPThrottle):
+    scope = "staff_login"
