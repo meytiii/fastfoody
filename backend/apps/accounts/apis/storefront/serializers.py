@@ -51,3 +51,15 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
         if not cleaned:
             raise serializers.ValidationError("آدرس نمی‌تواند خالی باشد.")
         return cleaned
+
+
+class OTPVerifyResponseSerializer(serializers.Serializer):
+    """Shape documented for OpenAPI — actual response is built in the view."""
+
+    user = CustomerProfileSerializer()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class TokenLogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()

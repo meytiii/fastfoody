@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from common.views import BackofficeAPIView
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
@@ -35,7 +36,7 @@ from .serializers import (
 
 
 
-class RestaurantSettingsView(APIView):
+class RestaurantSettingsView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:
@@ -54,14 +55,14 @@ class RestaurantSettingsView(APIView):
         return Response(RestaurantSettingsSerializer(updated).data)
 
 
-class SiteSectionListView(APIView):
+class SiteSectionListView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:
         return Response(get_all_site_sections())
 
 
-class SiteSectionDetailView(APIView):
+class SiteSectionDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request, key: str) -> Response:
@@ -78,7 +79,7 @@ class SiteSectionDetailView(APIView):
         return Response({"key": section.key, "content": section.content})
 
 
-class MediaAssetListCreateView(APIView):
+class MediaAssetListCreateView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -102,7 +103,7 @@ class MediaAssetListCreateView(APIView):
         )
 
 
-class MediaAssetDetailView(APIView):
+class MediaAssetDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 

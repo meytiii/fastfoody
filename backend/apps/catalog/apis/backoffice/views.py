@@ -6,6 +6,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from common.views import BackofficeAPIView
 
 from apps.catalog import selectors, services
 from common.permissions import IsStaffUser
@@ -29,7 +30,7 @@ from .serializers import (
 # ---------------------------------------------------------------------------
 # Category
 # ---------------------------------------------------------------------------
-class CategoryListCreateView(APIView):
+class CategoryListCreateView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -58,7 +59,7 @@ class CategoryListCreateView(APIView):
         )
 
 
-class CategoryDetailView(APIView):
+class CategoryDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -79,7 +80,7 @@ class CategoryDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CategoryImageUploadView(APIView):
+class CategoryImageUploadView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [MultiPartParser]
 
@@ -96,7 +97,7 @@ class CategoryImageUploadView(APIView):
 # ---------------------------------------------------------------------------
 # AddOn
 # ---------------------------------------------------------------------------
-class AddOnListCreateView(APIView):
+class AddOnListCreateView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -125,7 +126,7 @@ class AddOnListCreateView(APIView):
         )
 
 
-class AddOnDetailView(APIView):
+class AddOnDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -149,7 +150,7 @@ class AddOnDetailView(APIView):
 # ---------------------------------------------------------------------------
 # Product
 # ---------------------------------------------------------------------------
-class ProductListCreateView(APIView):
+class ProductListCreateView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -184,7 +185,7 @@ class ProductListCreateView(APIView):
         )
 
 
-class ProductDetailView(APIView):
+class ProductDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 
@@ -206,7 +207,7 @@ class ProductDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ProductImageUploadView(APIView):
+class ProductImageUploadView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [MultiPartParser]
 
@@ -220,7 +221,7 @@ class ProductImageUploadView(APIView):
         return Response(ProductDetailReadSerializer(product).data)
 
 
-class ProductAddonsView(APIView):
+class ProductAddonsView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
     parser_classes = [JSONParser]
 

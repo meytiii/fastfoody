@@ -5,6 +5,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from common.views import BackofficeAPIView
 
 from apps.orders import selectors, services
 from common.permissions import IsStaffUser
@@ -19,7 +20,7 @@ from .serializers import (
 )
 
 
-class OrderListView(APIView):
+class OrderListView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:
@@ -38,7 +39,7 @@ class OrderListView(APIView):
         )
 
 
-class OrderDetailView(APIView):
+class OrderDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request, pk: int) -> Response:
@@ -46,7 +47,7 @@ class OrderDetailView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class LiveOrdersView(APIView):
+class LiveOrdersView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:
@@ -54,7 +55,7 @@ class LiveOrdersView(APIView):
         return Response(LiveOrderSerializer(qs, many=True).data)
 
 
-class MarkReadyView(APIView):
+class MarkReadyView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request, pk: int) -> Response:
@@ -63,7 +64,7 @@ class MarkReadyView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class MarkCompletedView(APIView):
+class MarkCompletedView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request, pk: int) -> Response:
@@ -72,7 +73,7 @@ class MarkCompletedView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class MarkPrintedView(APIView):
+class MarkPrintedView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request, pk: int) -> Response:
@@ -81,7 +82,7 @@ class MarkPrintedView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class CancelOrderView(APIView):
+class CancelOrderView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request, pk: int) -> Response:
@@ -96,7 +97,7 @@ class CancelOrderView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class UpdatePrepTimeView(APIView):
+class UpdatePrepTimeView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def patch(self, request: Request, pk: int) -> Response:
@@ -110,7 +111,7 @@ class UpdatePrepTimeView(APIView):
         return Response(OrderDetailBackofficeSerializer(order).data)
 
 
-class RecordRefundView(APIView):
+class RecordRefundView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request, pk: int) -> Response:

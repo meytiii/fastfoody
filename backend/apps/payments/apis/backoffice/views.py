@@ -4,6 +4,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from common.views import BackofficeAPIView
 
 from apps.payments.selectors import list_payments_for_order
 from common.permissions import IsStaffUser
@@ -11,7 +12,7 @@ from common.permissions import IsStaffUser
 from .serializers import PaymentBackofficeSerializer
 
 
-class OrderPaymentListView(APIView):
+class OrderPaymentListView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request, order_id: int) -> Response:

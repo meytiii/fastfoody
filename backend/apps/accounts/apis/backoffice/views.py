@@ -5,6 +5,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from common.views import BackofficeAPIView
 
 from apps.accounts import selectors, services
 from common.permissions import IsStaffUser
@@ -31,7 +32,7 @@ from rest_framework.permissions import AllowAny
 from apps.accounts.throttles import StaffLoginThrottle
 
 
-class CustomerListView(APIView):
+class CustomerListView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:
@@ -49,7 +50,7 @@ class CustomerListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-class CustomerDetailView(APIView):
+class CustomerDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request, pk: int) -> Response:
@@ -66,7 +67,7 @@ class CustomerDetailView(APIView):
         return Response(CustomerListSerializer(customer).data)
 
 
-class CustomerNoteListCreateView(APIView):
+class CustomerNoteListCreateView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request, pk: int) -> Response:
@@ -87,7 +88,7 @@ class CustomerNoteListCreateView(APIView):
         )
 
 
-class CustomerNoteDetailView(APIView):
+class CustomerNoteDetailView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def delete(self, request: Request, pk: int, note_id: int) -> Response:
@@ -127,7 +128,7 @@ class StaffLoginView(APIView):
         )
 
 
-class StaffLogoutView(APIView):
+class StaffLogoutView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request: Request) -> Response:
@@ -135,7 +136,7 @@ class StaffLogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class StaffMeView(APIView):
+class StaffMeView(BackofficeAPIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request: Request) -> Response:

@@ -10,7 +10,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import services , selectors
+from rest_framework_simplejwt.views import TokenRefreshView as _SimpleJWTRefreshView
+
+from apps.accounts import services, selectors, tokens
 from apps.accounts.throttles import OTPRequestThrottle, OTPVerifyThrottle
 
 from .serializers import (
@@ -18,6 +20,7 @@ from .serializers import (
     CustomerProfileSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
+    TokenLogoutSerializer,
 )
 
 
@@ -53,12 +56,24 @@ class OTPVerifyView(APIView):
             phone=serializer.validated_data["phone"],
             code=serializer.validated_data["code"],
         )
+
+        # Session (backward compatibility + browser flows)
         login(
             request._request,
             customer,
             backend="django.contrib.auth.backends.ModelBackend",
         )
-        return Response({"user": CustomerProfileSerializer(customer).data})
+
+        # JWT (for SPA / mobile)
+        token_pair = tokens.issue_tokens_for_customer(customer)
+
+        return Response(
+            {
+                "user": CustomerProfileSerializer(customer).data,
+                "access": token_pair["access"],
+                "refresh": token_pair["refresh"],
+            }
+        )
 
 
 class LogoutView(APIView):
@@ -115,4 +130,36 @@ class AddressDetailView(APIView):
 
     def delete(self, request: Request, pk: int) -> Response:
         services.delete_address(customer=request.user, address_id=pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+class TokenRefreshView(_SimpleJWTRefreshView):
+    """Public: exchange a refresh token for a fresh access (and rotated refresh)."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+
+class TokenLogoutView(APIView):
+    """
+    Public: blacklist the provided refresh token.
+
+    Also clears an active session if one exists, so the same endpoint can be
+    used by both JWT and Session clients.
+    """
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = TokenLogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tokens.blacklist_refresh_token(serializer.validated_data["refresh"])
+
+        # Best-effort session cleanup (no error if not authenticated)
+        if request.user and request.user.is_authenticated:
+            logout(request._request)
+
         return Response(status=status.HTTP_204_NO_CONTENT)
