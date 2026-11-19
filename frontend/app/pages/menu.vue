@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Utensils, Search } from 'lucide-vue-next'
+import { Search } from 'lucide-vue-next'
 import { useMenuStore } from '~/stores/menu'
 import { usePersian } from '~/composables/usePersian'
 import CategoryNav from '~/components/CategoryNav.vue'
@@ -38,10 +38,6 @@ useHead({
         <div class="space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-              <div class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-surface-cream)] px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] mb-2">
-                <Utensils :size="14" />
-                <span>منوی کامل رستوران</span>
-              </div>
               <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--color-brand-forest)]">
                 طعم‌های دست‌ساز، تازه و متنوع
               </h1>

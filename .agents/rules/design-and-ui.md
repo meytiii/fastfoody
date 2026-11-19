@@ -9,7 +9,7 @@ All frontend work in this project must adhere to the high-craft design and inter
 
 ## 1. Visual Craft Floor & Anti-Slop (Hallmark, Taste, High-End Visual Design)
 - **Brand Identity & Theme:** Scandinavian minimalism with warm ivory (`#F4EFE3`), white dominant (65–75%), forest green primary (`#183A2D`, 15–25%), and subtle muted gold accents (`#D6A84B`, 5–10%). Text: Main `#292B27`, Secondary `#777A73`, Borders `#E8E5DC`.
-- **No AI Clichés:** Ban glassmorphism cards-in-cards, harsh 1px borders, thick black drop shadows, saturated purple/blue gradients, and generic 3-card Bootstrap grids.
+- **No AI Clichés:** Ban generic pill badges above headings/heroes (e.g. rounded chips with pulsing dots or icons like "پخت اصیل ناپلی · مواد اولیه ۱۰۰٪ ارگانیک" or "New Feature"), glassmorphism cards-in-cards, harsh 1px borders, thick black drop shadows, saturated purple/blue gradients, and generic 3-card Bootstrap grids. Allow typography and confident headlines to lead the section without decorative pill chips.
 - **Structural Variety:** Design pages with rhythm and clear hierarchy. Avoid repetitive cookie-cutter layouts.
 - **RTL & Persian:** Native RTL layout support, clean geometric Persian typography (IranSans), proper punctuation, and Persian digits for customer-facing numbers.
 

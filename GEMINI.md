@@ -15,6 +15,7 @@ Operating rules and directives for Gemini-based agents working in `fastfoody`.
 ## 2. Core Architectural & Design Directives
 
 - **Design System Authority:** Always consult `frontend/DESIGN_SYSTEM.md` for tokens, spacing, typography, and color harmony.
+- **Anti-Slop Craft Standard:** Strictly ban generic AI tropes such as pill badges with pulsing dots/icons floating above section titles and heroes. Let authentic typography and visual hierarchy lead.
 - **Modern Nuxt 4 Architecture:** Nuxt 4 Composition API, Tailwind CSS 4 `@theme`, Pinia state management.
 - **RTL & Persian Typography:** Native RTL layouts with logical CSS properties and Persian numerals (`۰-۹`).
 - **Automated Commit & Push:** Commit with Conventional Commits format and push directly to `main`.

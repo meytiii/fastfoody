@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChefHat, ArrowLeft, Sparkles, HeartHandshake } from 'lucide-vue-next'
+import { ArrowLeft, Sparkles } from 'lucide-vue-next'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 useHead({
@@ -21,11 +21,6 @@ const navigateToMenu = () => {
   <main class="min-h-screen pt-12 pb-24 px-4 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-4xl">
       <div class="text-center mb-12">
-        <div class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-4 py-1.5 text-xs font-bold text-[var(--color-brand-forest)] mb-4 shadow-xs">
-          <ChefHat :size="16" class="text-[var(--color-accent-gold)]" />
-          <span>روایت اصالت و طعم</span>
-        </div>
-
         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--color-brand-forest)] tracking-tight">
           درباره رستوران فست‌فودی
         </h1>

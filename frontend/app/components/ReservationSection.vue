@@ -9,7 +9,6 @@ import {
   User,
   CheckCircle2,
   MapPin,
-  CalendarCheck,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { usePersian } from '~/composables/usePersian'
@@ -59,11 +58,6 @@ const handleReservation = async () => {
       <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
         
         <div class="space-y-6 lg:col-span-5">
-          <div class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--color-brand-forest)] shadow-2xs">
-            <CalendarCheck :size="14" />
-            <span>تجربه حضور در رستوران</span>
-          </div>
-
           <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-brand-forest)] leading-tight">
             میز خود را در محیط آرام و صمیمی فست‌فودی رزرو کنید
           </h2>

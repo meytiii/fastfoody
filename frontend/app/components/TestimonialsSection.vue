@@ -45,10 +45,6 @@ const reviews = [
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       
       <div class="mb-12 text-center max-w-2xl mx-auto space-y-3">
-        <div class="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3.5 py-1 text-xs font-bold text-[var(--color-brand-forest)] shadow-2xs">
-          <Star :size="13" class="fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]" />
-          <span>دیدگاه‌های میهمانان</span>
-        </div>
         <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-brand-forest)]">
           آنچه مشتریان درباره طعم‌های فست‌فودی می‌گویند
         </h2>

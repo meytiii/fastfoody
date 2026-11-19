@@ -25,6 +25,7 @@ This document establishes universal operating guidelines, skills suite configura
 
 - **Frontend (`frontend/`):** Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS 4 + Pinia
 - **Design System:** Scandinavian minimalism, warm ivory (`#F4EFE3`), white dominant (`#FFFFFF`), forest green (`#183A2D`), muted gold (`#D6A84B`).
+- **Anti-Slop Directives:** Never use floating pill badges above titles/heroes (e.g. rounded chips with pulsing dots or icons). Keep typography confident and editorial.
 - **Typography & Localization:** Native RTL support, clean modern Persian typography (IranSansX), Persian digits for customer-facing numbers.
 - **Authoritative Source of Truth:** Consult `frontend/DESIGN_SYSTEM.md` before making any visual, styling, or component modifications.
 

@@ -52,11 +52,6 @@ const navigateToAbout = () => {
           class="w-full max-w-lg lg:max-w-[390px] xl:max-w-[420px] text-right rounded-3xl p-6 sm:p-8 lg:p-0 bg-[#12251D]/85 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none border border-white/10 lg:border-0 shadow-2xl lg:shadow-none"
           style="direction: rtl;"
         >
-          <div class="inline-flex items-center gap-2 rounded-full border border-[var(--color-accent-gold)]/40 bg-[#12251D]/90 px-3.5 py-1.5 text-xs font-bold text-[var(--color-accent-gold)] shadow-xs backdrop-blur-md mb-4 sm:mb-5">
-            <span class="inline-block w-2 h-2 rounded-full bg-[var(--color-accent-gold)] animate-pulse" />
-            <span>پخت اصیل ناپلی · مواد اولیه ۱۰۰٪ ارگانیک</span>
-          </div>
-
           <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.2] tracking-tight">
             فست‌فودی؛
             <span class="block text-[var(--color-accent-gold)] text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-1 sm:mt-2">

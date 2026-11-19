@@ -33,30 +33,6 @@ const scrollToReservation = () => {
       >
         
         <div class="flex flex-col items-start lg:col-span-7 space-y-6">
-          
-          <div
-            class="inline-flex items-center gap-2.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-4 py-1.5 shadow-2xs"
-          >
-            <div class="flex -space-x-1.5 space-x-reverse">
-              <span class="inline-block h-6 w-6 rounded-full bg-[var(--color-brand-forest)] text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white">
-                م
-              </span>
-              <span class="inline-block h-6 w-6 rounded-full bg-[var(--color-accent-gold)] text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white">
-                س
-              </span>
-              <span class="inline-block h-6 w-6 rounded-full bg-[var(--color-brand-forest-light)] text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white">
-                ع
-              </span>
-            </div>
-            <div class="flex items-center gap-1">
-              <Star :size="13" class="fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]" />
-              <span class="text-xs font-bold text-[var(--color-text-primary)]">
-                +{{ toPersianDigits('۳۵۰۰') }} نظر رضایت‌بخش
-              </span>
-            </div>
-          </div>
-
-          
           <div class="space-y-3">
             <h1
               class="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-[1.25] text-[var(--color-brand-forest)] tracking-tight"
