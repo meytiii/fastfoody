@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft } from 'lucide-vue-next'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
+import NimbuMirchi from '~/components/ui/NimbuMirchi.vue'
 
 useHead({
   title: 'فست‌فودی | رستوران و کافه غذاهای ارگانیک و دست‌ساز',
@@ -46,6 +47,12 @@ const navigateToAbout = () => {
         class="absolute inset-0 hidden lg:block bg-gradient-to-r from-[#143527]/50 via-transparent to-transparent pointer-events-none"
         aria-hidden="true"
       />
+
+      <ClientOnly>
+        <div class="absolute top-0 right-4 sm:right-12 lg:right-20 xl:right-32 w-40 sm:w-60 lg:w-72 h-[300px] sm:h-[440px] lg:h-[520px] z-20 pointer-events-auto">
+          <NimbuMirchi class="w-full h-full" />
+        </div>
+      </ClientOnly>
 
       <div class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-0 flex items-center justify-start" style="direction: ltr;">
         <div
