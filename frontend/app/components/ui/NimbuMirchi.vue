@@ -194,9 +194,35 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       })
     )
   )
+  const ropeBump = canvasTexture(128, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#808080'
+    ctx.fillRect(0, 0, w, h)
+    for (let i = -6; i < 18; i++) {
+      const g = ctx.createLinearGradient(0, 0, w, h)
+      g.addColorStop(0, 'rgba(230,230,230,0.5)')
+      g.addColorStop(0.5, 'rgba(40,40,40,0.5)')
+      g.addColorStop(1, 'rgba(230,230,230,0.5)')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.moveTo(i * 14, 0)
+      ctx.lineTo((i + 1) * 14, 0)
+      ctx.lineTo((i + 9) * 14, h)
+      ctx.lineTo((i + 8) * 14, h)
+      ctx.closePath()
+      ctx.fill()
+    }
+  }, [1, 6])
+
   const calyxMat = track(new THREE.MeshStandardMaterial({ color: 0x4d6e1d, roughness: 0.8, envMapIntensity: 0.5 }))
   const stemMat = track(new THREE.MeshStandardMaterial({ color: 0x6b7f2a, roughness: 0.85, envMapIntensity: 0.5 }))
-  const threadMat = track(new THREE.MeshStandardMaterial({ color: 0xf1e9d6, roughness: 0.95 }))
+  const threadMat = track(
+    new THREE.MeshStandardMaterial({
+      color: 0xf1e9d6,
+      roughness: 0.9,
+      bumpMap: ropeBump,
+      bumpScale: 0.05,
+    })
+  )
   const lemonMat = track(
     new THREE.MeshPhysicalMaterial({
       map: peelColor,
@@ -365,23 +391,16 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
   const bottom = pts[6]!
 
   const links: [VerletPoint, VerletPoint, number, number][] = [
-    ...pts.slice(0, 4).map((a, i) => [a, pts[i + 1]!, 0, SEG] as [VerletPoint, VerletPoint, number, number]),
+    ...pts.slice(0, 4).map((a, i) => [a, pts[i + 1]!, SEG * 0.5, SEG] as [VerletPoint, VerletPoint, number, number]),
     [top, joint, CHILI, CHILI],
     [joint, bottom, LEMON, LEMON],
     [top, bottom, Math.sqrt(CHILI ** 2 + LEMON ** 2 + 2 * CHILI * LEMON * Math.cos(MAX_BEND)), Infinity],
   ]
 
-  const knotEnd = new Vector3()
-  const curve = new THREE.CatmullRomCurve3([...pts.slice(0, 5).map(p => p.p), knotEnd], false, 'chordal')
-  const plies = [0, 1, 2].map(() => {
-    const m = mesh(new THREE.BufferGeometry(), threadMat)
-    scene.add(m)
-    return m
-  })
-  const SAMPLES = 32
-  const PLY_OFFSET = 0.022
-  const PLY_R = 0.024
-  const TWIST = 0.3
+  const curve = new THREE.CatmullRomCurve3(pts.slice(0, 5).map(p => p.p), false, 'centripetal')
+  const ropeMesh = mesh(new THREE.BufferGeometry(), threadMat)
+  const knotMesh = mesh(track(new THREE.SphereGeometry(0.065, 8, 8)), threadMat)
+  scene.add(ropeMesh, knotMesh)
 
   const raycaster = new THREE.Raycaster()
   const ndc = new THREE.Vector2()
@@ -594,41 +613,11 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       lemonGroup.quaternion.setFromUnitVectors(DOWN, dirBottom).multiply(qb.setFromAxisAngle(UP, twist * 0.9))
     }
 
-    const dirKnot = joint.p.clone().sub(top.p)
-    if (dirKnot.lengthSq() > 1e-6) {
-      knotEnd.copy(dirKnot).setLength(0.08).add(top.p)
-    } else {
-      knotEnd.copy(top.p).add(DOWN.clone().multiplyScalar(0.08))
-    }
+    knotMesh.position.copy(top.p)
 
     curve.updateArcLengths()
-    const centre = curve.getSpacedPoints(SAMPLES)
-    const length = curve.getLength()
-    plies.forEach((ply, k) => {
-      const path: THREE.Vector3[] = []
-      for (let i = 0; i <= SAMPLES; i++) {
-        const c = centre[i]!
-        const pPrev = centre[Math.max(0, i - 1)]!
-        const pNext = centre[Math.min(SAMPLES, i + 1)]!
-        const tangent = pNext.clone().sub(pPrev)
-        if (tangent.lengthSq() > 1e-6) {
-          tangent.normalize()
-        } else {
-          tangent.copy(DOWN)
-        }
-        let n = new Vector3().crossVectors(tangent, FRONT)
-        if (n.lengthSq() < 1e-4) {
-          n.set(1, 0, 0)
-        } else {
-          n.normalize()
-        }
-        const b = new Vector3().crossVectors(tangent, n).normalize()
-        const a = (2 * Math.PI * length * (1 - i / SAMPLES)) / TWIST + (k * 2 * Math.PI) / 3 + twist
-        path.push(c.clone().addScaledVector(n, Math.cos(a) * PLY_OFFSET).addScaledVector(b, Math.sin(a) * PLY_OFFSET))
-      }
-      ply.geometry.dispose()
-      ply.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path), SAMPLES, PLY_R, 4)
-    })
+    ropeMesh.geometry.dispose()
+    ropeMesh.geometry = new THREE.TubeGeometry(curve, 24, 0.042, 8, false)
   }
 
   let sway = 0
@@ -671,7 +660,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       if (document.body.style.cursor === 'grab' || document.body.style.cursor === 'grabbing') {
         document.body.style.cursor = ''
       }
-      plies.forEach(p => p.geometry.dispose())
+      ropeMesh.geometry.dispose()
       disposables.forEach(d => d.dispose())
       envTex.dispose()
       renderer.dispose()
