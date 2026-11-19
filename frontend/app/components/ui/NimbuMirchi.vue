@@ -333,11 +333,11 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
   const STEP = 1 / 120
   const DAMPING = 0.985
   const MAX_SPEED = 0.05
-  const STRETCH_MAX = 3.5
+  const STRETCH_MAX = 2.0
   const ROPE = 4 * SEG
   let stretch = 1
   let recoil = 0
-  const MAX_BEND = THREE.MathUtils.degToRad(35)
+  const MAX_BEND = THREE.MathUtils.degToRad(70)
 
   const anchorPoint = () => {
     const h = Math.max(container.clientHeight || 400, 320)
@@ -378,7 +378,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     scene.add(m)
     return m
   })
-  const SAMPLES = 64
+  const SAMPLES = 32
   const PLY_OFFSET = 0.022
   const PLY_R = 0.024
   const TWIST = 0.3
@@ -396,6 +396,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
 
   const aim = (x: number, y: number) => {
     const r = container.getBoundingClientRect()
+    if (!r.width || !r.height) return
     ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1)
     raycaster.setFromCamera(ndc, camera)
   }
@@ -406,6 +407,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
   }
 
   const onDown = (e: PointerEvent) => {
+    aim(e.clientX, e.clientY)
     const found = hit(e.clientX, e.clientY)
     if (!found) return
     e.preventDefault()
@@ -427,12 +429,18 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
   const onMove = (e: PointerEvent) => {
     aim(e.clientX, e.clientY)
     if (grab) {
-      raycaster.ray.intersectPlane(plane, target)
+      if (raycaster.ray.intersectPlane(plane, target)) {
+        target.clamp(new Vector3(-VIEW_H * camera.aspect, -VIEW_H, -2), new Vector3(VIEW_H * camera.aspect, VIEW_H, 2))
+      }
       return
     }
     plane.constant = 0
     if (raycaster.ray.intersectPlane(plane, cursor)) {
-      if (hasCursor) push.add(cursor.clone().sub(lastCursor).clampLength(0, 0.4))
+      if (hasCursor) {
+        const delta = cursor.clone().sub(lastCursor).clampLength(0, 0.25)
+        push.add(delta)
+        push.clampLength(0, 0.4)
+      }
       lastCursor.copy(cursor)
       hasCursor = true
     }
@@ -452,7 +460,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     if (document.body.style.cursor === 'grabbing') {
       document.body.style.cursor = ''
     }
-    if (stretch > 1.05) recoil = 0.8
+    if (stretch > 1.05) recoil = 0.5
   }
 
   const onLeave = () => {
@@ -479,6 +487,8 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
   window.addEventListener('pointerup', onUp)
   window.addEventListener('pointercancel', onUp)
   window.addEventListener('touchstart', onTouch, { passive: false })
+  window.addEventListener('blur', onUp)
+  document.addEventListener('pointerleave', onLeave)
 
   let twist = 0
   let spin = 0
@@ -488,8 +498,8 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     clock += STEP
     const wind = breeze ? (Math.sin(clock * 0.6) * 0.6 + Math.sin(clock * 1.7 + 1) * 0.3) * 1.6 : 0
     recoil = Math.max(0, recoil - STEP)
-    if (!grab) stretch = 1 + (stretch - 1) * 0.9
-    const cap = recoil || stretch > 1.02 ? 0.2 : MAX_SPEED
+    if (!grab) stretch = 1 + (stretch - 1) * 0.94
+    const cap = Math.min(0.2, MAX_SPEED + recoil * 0.15 + Math.max(0, stretch - 1) * 0.08)
     for (const pt of pts) {
       if (!pt.w) continue
       const v = pt.p.clone().sub(pt.q).multiplyScalar(DAMPING).clampLength(0, cap)
@@ -510,20 +520,24 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     if (grab) {
       const goal = target.clone().add(grab.offset)
       const fromAnchor = goal.clone().sub(pts[0]!.p)
-      const rigid = grab.reach - ROPE
-      stretch = Math.min(Math.max((fromAnchor.length() - rigid) / ROPE, 1), STRETCH_MAX)
+      const rigid = Math.max(0, grab.reach - ROPE)
+      const curLen = fromAnchor.length()
+      stretch = Math.min(Math.max((curLen - rigid) / ROPE, 1), STRETCH_MAX)
       const reach = rigid + ROPE * stretch
-      if (fromAnchor.length() > reach) goal.copy(pts[0]!.p).add(fromAnchor.setLength(reach))
+      if (curLen > reach && curLen > 1e-4) goal.copy(pts[0]!.p).add(fromAnchor.setLength(reach))
       grab.pt.q.copy(grab.pt.p)
       grab.pt.p.lerp(goal, 0.35)
     }
     const sw = top.w + bottom.w
     if (sw) {
-      const straight = joint.p.clone().sub(top.p).setLength(LEMON).add(joint.p).sub(bottom.p).multiplyScalar(8e-4 / sw)
-      bottom.p.addScaledVector(straight, bottom.w)
-      top.p.addScaledVector(straight, -top.w)
+      const dirJoint = joint.p.clone().sub(top.p)
+      if (dirJoint.lengthSq() > 1e-6) {
+        const straight = dirJoint.setLength(LEMON).add(joint.p).sub(bottom.p).multiplyScalar(8e-4 / sw)
+        bottom.p.addScaledVector(straight, bottom.w)
+        top.p.addScaledVector(straight, -top.w)
+      }
     }
-    for (let n = 0; n < 30; n++) {
+    for (let n = 0; n < 15; n++) {
       for (const [a, b, min, max] of links) {
         const ws = a.w + b.w
         if (!ws) continue
@@ -537,36 +551,83 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
         b.p.addScaledVector(d, -b.w)
       }
     }
-    if (!grab) spin += (bottom.p.x - bottom.q.x) * 0.12
-    spin = (spin - twist * 0.01) * 0.93
+    if (!grab) {
+      const dx = Math.max(-0.2, Math.min(0.2, bottom.p.x - bottom.q.x))
+      spin += dx * 0.08
+    }
+    spin = (spin - twist * 0.04) * 0.92
+    spin = Math.max(-0.06, Math.min(0.06, spin))
     twist += spin
+    twist = Math.max(-Math.PI * 1.2, Math.min(Math.PI * 1.2, twist))
   }
 
   const DOWN = new Vector3(0, -1, 0)
   const UP = new Vector3(0, 1, 0)
+  const FRONT = new Vector3(0, 0, 1)
   const qa = new Quaternion()
   const qb = new Quaternion()
 
   function sync() {
     chiliGroup.position.copy(top.p)
     chiliThread.scale.y = Math.max(1, top.p.distanceTo(joint.p) / CHILI)
-    chiliGroup.quaternion.setFromUnitVectors(DOWN, joint.p.clone().sub(top.p).normalize()).multiply(qa.setFromAxisAngle(UP, twist))
+
+    const dirTop = joint.p.clone().sub(top.p)
+    const lenTop = dirTop.length()
+    if (lenTop > 1e-4) {
+      dirTop.divideScalar(lenTop)
+      if (dirTop.y > 0.98) {
+        dirTop.y = 0.98
+        dirTop.normalize()
+      }
+      chiliGroup.quaternion.setFromUnitVectors(DOWN, dirTop).multiply(qa.setFromAxisAngle(UP, twist))
+    }
+
     lemonGroup.position.copy(joint.p)
-    lemonGroup.quaternion.setFromUnitVectors(DOWN, bottom.p.clone().sub(joint.p).normalize()).multiply(qb.setFromAxisAngle(UP, twist * 0.9))
-    knotEnd.copy(joint.p).sub(top.p).setLength(0.08).add(top.p)
+    const dirBottom = bottom.p.clone().sub(joint.p)
+    const lenBottom = dirBottom.length()
+    if (lenBottom > 1e-4) {
+      dirBottom.divideScalar(lenBottom)
+      if (dirBottom.y > 0.98) {
+        dirBottom.y = 0.98
+        dirBottom.normalize()
+      }
+      lemonGroup.quaternion.setFromUnitVectors(DOWN, dirBottom).multiply(qb.setFromAxisAngle(UP, twist * 0.9))
+    }
+
+    const dirKnot = joint.p.clone().sub(top.p)
+    if (dirKnot.lengthSq() > 1e-6) {
+      knotEnd.copy(dirKnot).setLength(0.08).add(top.p)
+    } else {
+      knotEnd.copy(top.p).add(DOWN.clone().multiplyScalar(0.08))
+    }
+
     curve.updateArcLengths()
     const centre = curve.getSpacedPoints(SAMPLES)
-    const { normals, binormals } = curve.computeFrenetFrames(SAMPLES, false)
     const length = curve.getLength()
     plies.forEach((ply, k) => {
-      const path = centre.map((c, i) => {
+      const path: THREE.Vector3[] = []
+      for (let i = 0; i <= SAMPLES; i++) {
+        const c = centre[i]!
+        const pPrev = centre[Math.max(0, i - 1)]!
+        const pNext = centre[Math.min(SAMPLES, i + 1)]!
+        const tangent = pNext.clone().sub(pPrev)
+        if (tangent.lengthSq() > 1e-6) {
+          tangent.normalize()
+        } else {
+          tangent.copy(DOWN)
+        }
+        let n = new Vector3().crossVectors(tangent, FRONT)
+        if (n.lengthSq() < 1e-4) {
+          n.set(1, 0, 0)
+        } else {
+          n.normalize()
+        }
+        const b = new Vector3().crossVectors(tangent, n).normalize()
         const a = (2 * Math.PI * length * (1 - i / SAMPLES)) / TWIST + (k * 2 * Math.PI) / 3 + twist
-        const n = normals[i] || new Vector3(1, 0, 0)
-        const b = binormals[i] || new Vector3(0, 0, 1)
-        return c.clone().addScaledVector(n, Math.cos(a) * PLY_OFFSET).addScaledVector(b, Math.sin(a) * PLY_OFFSET)
-      })
+        path.push(c.clone().addScaledVector(n, Math.cos(a) * PLY_OFFSET).addScaledVector(b, Math.sin(a) * PLY_OFFSET))
+      }
       ply.geometry.dispose()
-      ply.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path), SAMPLES, PLY_R, 5)
+      ply.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path), SAMPLES, PLY_R, 4)
     })
   }
 
@@ -579,12 +640,14 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     last = now
     if (!active()) return
     acc += dt
-    const steps = Math.floor(acc / STEP)
-    acc -= steps * STEP
+    const steps = Math.min(Math.floor(acc / STEP), 5)
+    acc = steps > 0 ? acc - steps * STEP : acc
+    if (acc > STEP * 2) acc = 0
     const p0 = pts[0]!
     const from = p0.p.clone()
     const to = anchorPoint()
-    sway += (Math.max(-0.6, Math.min(0.6, (to.y - from.y) * 4)) - sway) * Math.min(1, dt * 5)
+    const dy = Math.max(-0.3, Math.min(0.3, to.y - from.y))
+    sway += (dy * 2 - sway) * Math.min(1, dt * 5)
     to.x = to.x + sway
     for (let i = 1; i <= steps; i++) {
       p0.p.lerpVectors(from, to, i / steps)
@@ -603,6 +666,8 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
       window.removeEventListener('touchstart', onTouch)
+      window.removeEventListener('blur', onUp)
+      document.removeEventListener('pointerleave', onLeave)
       if (document.body.style.cursor === 'grab' || document.body.style.cursor === 'grabbing') {
         document.body.style.cursor = ''
       }
