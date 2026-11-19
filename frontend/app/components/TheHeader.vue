@@ -5,7 +5,6 @@ import {
   Menu as MenuIcon,
   UtensilsCrossed,
   ChefHat,
-  Sparkles,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { useUiStore } from '~/stores/ui'
@@ -17,8 +16,16 @@ const uiStore = useUiStore()
 const { toPersianDigits, formatToman } = usePersian()
 const route = useRoute()
 
-const navLinks = [
-  { label: 'صفحه اصلی', href: '/', id: 'home', icon: Sparkles },
+interface NavLinkItem {
+  label: string
+  href: string
+  id: string
+  icon?: any
+  svg?: string
+}
+
+const navLinks: NavLinkItem[] = [
+  { label: 'صفحه اصلی', href: '/', id: 'home', svg: '/svg/home.svg' },
   { label: 'منوی غذا', href: '/menu', id: 'menu', icon: UtensilsCrossed },
   { label: 'درباره ما', href: '/about', id: 'about', icon: ChefHat },
 ]
@@ -195,8 +202,17 @@ onUnmounted(() => {
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)]/70'
           "
         >
+          <img
+            v-if="link.svg"
+            :src="link.svg"
+            alt=""
+            aria-hidden="true"
+            class="w-[18px] h-[18px] shrink-0 transition-transform duration-200 object-contain"
+            :class="activeHref === link.href ? 'scale-105' : 'opacity-70'"
+          />
           <component
             :is="link.icon"
+            v-else-if="link.icon"
             :size="15"
             :stroke-width="2.2"
             class="shrink-0 transition-transform duration-200"
