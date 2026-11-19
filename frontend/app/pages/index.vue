@@ -49,7 +49,7 @@ const navigateToAbout = () => {
       />
 
       <ClientOnly>
-        <div class="absolute top-0 right-4 sm:right-12 lg:right-20 xl:right-32 w-40 sm:w-60 lg:w-72 h-[300px] sm:h-[440px] lg:h-[520px] z-20 pointer-events-auto">
+        <div class="absolute inset-0 z-20 pointer-events-none">
           <NimbuMirchi class="w-full h-full" />
         </div>
       </ClientOnly>

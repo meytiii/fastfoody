@@ -421,8 +421,7 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     const reach = 4 * SEG + (pick === top ? 0 : CHILI) + (pick === bottom ? LEMON : 0)
     grab = { pt: pick, offset: pick.p.clone().sub(target), w: pick.w, reach }
     pick.w = 0
-    container.setPointerCapture?.(e.pointerId)
-    container.style.cursor = 'grabbing'
+    document.body.style.cursor = 'grabbing'
   }
 
   const onMove = (e: PointerEvent) => {
@@ -437,7 +436,12 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       lastCursor.copy(cursor)
       hasCursor = true
     }
-    container.style.cursor = raycaster.intersectObject(charm, true).length ? 'grab' : ''
+    const isHover = raycaster.intersectObject(charm, true).length > 0
+    if (isHover) {
+      document.body.style.cursor = 'grab'
+    } else if (document.body.style.cursor === 'grab') {
+      document.body.style.cursor = ''
+    }
   }
 
   const onUp = () => {
@@ -445,7 +449,9 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     grab.pt.w = grab.w
     grab = null
     justDragged = true
-    container.style.cursor = ''
+    if (document.body.style.cursor === 'grabbing') {
+      document.body.style.cursor = ''
+    }
     if (stretch > 1.05) recoil = 0.8
   }
 
@@ -468,13 +474,11 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     }
   }
 
-  container.addEventListener('pointerdown', onDown)
-  container.addEventListener('pointermove', onMove)
-  container.addEventListener('pointerup', onUp)
-  container.addEventListener('pointercancel', onUp)
-  container.addEventListener('pointerleave', onLeave)
-  container.addEventListener('click', onClick, true)
-  container.addEventListener('touchstart', onTouch, { passive: false })
+  window.addEventListener('pointerdown', onDown)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
+  window.addEventListener('touchstart', onTouch, { passive: false })
 
   let twist = 0
   let spin = 0
@@ -594,13 +598,14 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
     dispose() {
       renderer.setAnimationLoop(null)
       resizer.disconnect()
-      container.removeEventListener('pointerdown', onDown)
-      container.removeEventListener('pointermove', onMove)
-      container.removeEventListener('pointerup', onUp)
-      container.removeEventListener('pointercancel', onUp)
-      container.removeEventListener('pointerleave', onLeave)
-      container.removeEventListener('click', onClick, true)
-      container.removeEventListener('touchstart', onTouch)
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('touchstart', onTouch)
+      if (document.body.style.cursor === 'grab' || document.body.style.cursor === 'grabbing') {
+        document.body.style.cursor = ''
+      }
       plies.forEach(p => p.geometry.dispose())
       disposables.forEach(d => d.dispose())
       envTex.dispose()
@@ -634,7 +639,7 @@ onUnmounted(() => {
 <template>
   <div
     ref="containerRef"
-    class="relative touch-pan-y overflow-hidden select-none"
+    class="relative touch-pan-y overflow-hidden select-none pointer-events-none"
     :class="props.class"
   >
     <canvas
