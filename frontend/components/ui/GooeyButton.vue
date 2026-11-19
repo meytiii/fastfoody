@@ -53,6 +53,7 @@ const variantClass = computed(() => {
     ]"
     @click="(e) => emit('click', e)"
   >
+    <span class="gooey-button__sheen" aria-hidden="true" />
     <span class="relative z-10 flex items-center justify-center gap-2 font-bold leading-none pointer-events-none">
       <slot />
     </span>

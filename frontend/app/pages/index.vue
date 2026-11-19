@@ -74,17 +74,20 @@ const navigateToAbout = () => {
             <GooeyButton
               variant="gold"
               size="lg"
+              class="hero-btn-enter-1 shadow-[0_4px_16px_rgba(214,168,75,0.28)]"
               aria-label="مشاهده منوی کامل غذاها"
               @click="navigateToMenu"
             >
               <span>مشاهده منو</span>
-              <ArrowLeft :size="16" class="icon-directional" />
+              <span class="inline-flex items-center transition-transform duration-200 ease-out group-hover:-translate-x-1.5 will-change-transform">
+                <ArrowLeft :size="16" class="icon-directional" />
+              </span>
             </GooeyButton>
 
             <GooeyButton
               variant="outline"
               size="lg"
-              class="!bg-white/10 !text-white !border-white/30 hover:!bg-white/20 hover:!border-white/50 backdrop-blur-xs"
+              class="hero-btn-enter-2 !bg-white/10 !text-white !border-white/30 hover:!bg-white/20 hover:!border-white/50 backdrop-blur-xs"
               aria-label="درباره رستوران فست‌فودی"
               @click="navigateToAbout"
             >

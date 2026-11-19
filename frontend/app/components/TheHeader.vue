@@ -238,32 +238,32 @@ onUnmounted(() => {
         <button
           type="button"
           @click="cartStore.toggleCart"
-          class="touch-target relative flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 text-sm font-medium text-[var(--color-text-primary)] shadow-sm transition-all hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-95"
+          class="touch-target group relative flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 text-sm font-medium text-[var(--color-text-primary)] shadow-sm transition-all duration-200 hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] hover:shadow-[0_4px_14px_rgba(24,58,45,0.08)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 select-none cursor-pointer"
           aria-label="مشاهده سبد خرید"
         >
           <div class="relative flex items-center justify-center">
             <img
               src="/svg/cart.svg"
               alt="سبد خرید"
-              class="h-5 w-5 object-contain"
+              class="h-5 w-5 object-contain transition-transform duration-250 ease-out group-hover:-translate-y-0.5 group-hover:-rotate-6 group-hover:scale-105 will-change-transform"
             />
             <span
               v-if="cartStore.totalCount > 0"
-              class="absolute -top-2.5 -right-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
+              :key="cartStore.totalCount"
+              class="nav-cart-badge absolute -top-2.5 -right-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
               aria-live="polite"
             >
               {{ toPersianDigits(cartStore.totalCount) }}
             </span>
           </div>
-          <span v-if="cartStore.subtotal > 0" class="hidden font-bold lg:inline">
+          <span v-if="cartStore.subtotal > 0" class="hidden font-bold lg:inline transition-opacity duration-200">
             {{ formatToman(cartStore.subtotal) }}
           </span>
-          <span v-else class="text-xs text-[var(--color-text-secondary)]">
+          <span v-else class="text-xs text-[var(--color-text-secondary)] transition-opacity duration-200">
             سبد خرید
           </span>
         </button>
 
-        
         <GooeyButton
           variant="primary"
           size="sm"
@@ -274,7 +274,7 @@ onUnmounted(() => {
           <img
             src="/svg/order.svg"
             alt="سفارش"
-            class="h-5 w-5 object-contain"
+            class="h-5 w-5 object-contain transition-transform duration-250 ease-out group-hover:rotate-[-8deg] group-hover:scale-110 will-change-transform"
           />
           <span>سفارش</span>
         </GooeyButton>
