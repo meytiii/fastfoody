@@ -151,7 +151,7 @@ const goToCheckout = () => {
             size="sm"
             aria-label="مشاهده منوی غذاها"
             class="mt-6"
-            @click="cartStore.closeCart"
+            @click="() => { cartStore.closeCart(); navigateTo('/menu') }"
           >
             <UtensilsCrossed :size="16" />
             <span>مشاهده منوی غذاها</span>

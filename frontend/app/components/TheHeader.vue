@@ -5,8 +5,7 @@ import {
   Menu as MenuIcon,
   UtensilsCrossed,
   ChefHat,
-  CalendarCheck,
-  MessageSquareQuote,
+  Sparkles,
 } from 'lucide-vue-next'
 import { useCartStore } from '~/stores/cart'
 import { useUiStore } from '~/stores/ui'
@@ -19,17 +18,14 @@ const { toPersianDigits, formatToman } = usePersian()
 const route = useRoute()
 
 const navLinks = [
-  { label: 'منوی غذا', href: '/#menu', id: 'menu', icon: UtensilsCrossed },
-  { label: 'پیشنهاد سرآشپز', href: '/#specials', id: 'specials', icon: ChefHat },
-  { label: 'رزرو میز', href: '/#reservation', id: 'reservation', icon: CalendarCheck },
-  { label: 'نظرات میهمانان', href: '/#testimonials', id: 'testimonials', icon: MessageSquareQuote },
+  { label: 'صفحه اصلی', href: '/', id: 'home', icon: Sparkles },
+  { label: 'منوی غذا', href: '/menu', id: 'menu', icon: UtensilsCrossed },
+  { label: 'درباره ما', href: '/about', id: 'about', icon: ChefHat },
 ]
 
-const activeHref = ref('/#menu')
+const activeHref = ref(route.path)
 const navRef = ref<HTMLElement | null>(null)
 const linkRefs = new Map<string, HTMLElement>()
-let isClickScrolling = false
-let scrollTimeout: ReturnType<typeof setTimeout> | null = null
 
 const setLinkRef = (el: any, href: string) => {
   if (el) {
@@ -70,85 +66,32 @@ const updateLampPosition = () => {
   lampReady.value = true
 }
 
-const scrollTo = (href: string) => {
+const handleNavClick = (href: string) => {
   uiStore.closeMobileMenu()
   activeHref.value = href
   nextTick(() => updateLampPosition())
-
-  if (href.startsWith('/#')) {
-    const id = href.replace('/#', '')
-    const el = document.getElementById(id)
-    if (el) {
-      isClickScrolling = true
-      if (scrollTimeout) clearTimeout(scrollTimeout)
-      el.scrollIntoView({ behavior: 'smooth' })
-      scrollTimeout = setTimeout(() => {
-        isClickScrolling = false
-        updateLampPosition()
-      }, 750)
-    }
-  }
+  navigateTo(href)
 }
 
 const goToTop = () => {
   uiStore.closeMobileMenu()
-  activeHref.value = '/#menu'
+  activeHref.value = '/'
   nextTick(() => updateLampPosition())
-  if (route.path === '/') {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  } else {
-    navigateTo('/')
-  }
-}
-
-const onScroll = () => {
-  if (isClickScrolling || route.path !== '/') return
-
-  const scrollY = window.scrollY
-  const offset = 220
-
-  if (scrollY < 260) {
-    if (activeHref.value !== '/#menu') {
-      activeHref.value = '/#menu'
-      updateLampPosition()
-    }
-    return
-  }
-
-  const sections = ['testimonials', 'reservation', 'specials', 'menu']
-  for (const id of sections) {
-    const el = document.getElementById(id)
-    if (el) {
-      const top = el.offsetTop - offset
-      if (scrollY >= top) {
-        const targetHref = `/#${id}`
-        if (activeHref.value !== targetHref) {
-          activeHref.value = targetHref
-          updateLampPosition()
-        }
-        return
-      }
-    }
-  }
+  navigateTo('/')
 }
 
 watch(
   () => route.path,
   (newPath) => {
-    if (newPath !== '/') {
-      lampStyle.opacity = 0
-    } else {
-      nextTick(() => {
-        updateLampPosition()
-      })
-    }
-  }
+    activeHref.value = newPath === '/products' ? '/menu' : newPath
+    nextTick(() => updateLampPosition())
+  },
+  { immediate: true }
 )
 
 onMounted(() => {
   nextTick(() => {
     updateLampPosition()
-    window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', updateLampPosition, { passive: true })
     if (document.fonts) {
       document.fonts.ready.then(() => updateLampPosition())
@@ -157,9 +100,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', onScroll)
   window.removeEventListener('resize', updateLampPosition)
-  if (scrollTimeout) clearTimeout(scrollTimeout)
 })
 </script>
 
@@ -211,7 +152,7 @@ onUnmounted(() => {
       >
         
         <div
-          v-if="lampReady && route.path === '/'"
+          v-if="lampReady"
           class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
           :style="{
             left: `${lampStyle.left}px`,
@@ -246,7 +187,7 @@ onUnmounted(() => {
           :href="link.href"
           role="tab"
           :aria-selected="activeHref === link.href"
-          @click.prevent="scrollTo(link.href)"
+          @click.prevent="handleNavClick(link.href)"
           class="relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 rounded-full cursor-pointer select-none"
           :class="
             activeHref === link.href
@@ -312,7 +253,7 @@ onUnmounted(() => {
           size="sm"
           aria-label="سفارش آنلاین"
           class="ps-3.5 pe-4.5"
-          @click="scrollTo('/#menu')"
+          @click="handleNavClick('/menu')"
         >
           <img
             src="/svg/order.svg"

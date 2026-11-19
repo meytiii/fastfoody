@@ -12,6 +12,7 @@ import ProductDetailModal from '~/components/ProductDetailModal.vue'
 import AuroraBackground from '~/components/ui/AuroraBackground.vue'
 
 const cartStore = useCartStore()
+const route = useRoute()
 
 onMounted(() => {
   cartStore.initFromStorage()
@@ -28,7 +29,7 @@ onMounted(() => {
       <NuxtPage />
     </div>
 
-    <TheFooter class="relative z-10" />
+    <TheFooter v-if="route.path !== '/'" class="relative z-10" />
 
     <FloatingCartPill />
 

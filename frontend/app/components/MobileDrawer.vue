@@ -7,30 +7,19 @@ const uiStore = useUiStore()
 const route = useRoute()
 
 const links = [
-  { label: 'منوی کامل غذاها', href: '/#menu' },
-  { label: 'پیشنهادهای ویژه سرآشپز', href: '/#specials' },
-  { label: 'رزرو آنلاین میز', href: '/#reservation' },
-  { label: 'نظرات مشتریان', href: '/#testimonials' },
+  { label: 'صفحه اصلی', href: '/' },
+  { label: 'منوی کامل غذاها', href: '/menu' },
+  { label: 'درباره ما', href: '/about' },
 ]
 
 const navigateToSection = (href: string) => {
   uiStore.closeMobileMenu()
-  if (href.startsWith('/#')) {
-    const id = href.replace('/#', '')
-    const el = document.getElementById(id)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
+  navigateTo(href)
 }
 
 const goToTop = () => {
   uiStore.closeMobileMenu()
-  if (route.path === '/') {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  } else {
-    navigateTo('/')
-  }
+  navigateTo('/')
 }
 </script>
 
@@ -138,7 +127,7 @@ const goToTop = () => {
           size="md"
           class="w-full"
           aria-label="مشاهده منو و سفارش"
-          @click="navigateToSection('/#menu')"
+          @click="navigateToSection('/menu')"
         >
           <span>مشاهده منو و سفارش</span>
         </GooeyButton>
