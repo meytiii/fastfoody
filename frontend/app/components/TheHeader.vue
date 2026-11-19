@@ -195,7 +195,7 @@ onUnmounted(() => {
           role="tab"
           :aria-selected="activeHref === link.href"
           @click.prevent="handleNavClick(link.href)"
-          class="relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 rounded-full cursor-pointer select-none"
+          class="relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 rounded-full cursor-pointer select-none group"
           :class="
             activeHref === link.href
               ? 'text-[var(--color-brand-forest)]'
@@ -207,8 +207,8 @@ onUnmounted(() => {
             :src="link.svg"
             alt=""
             aria-hidden="true"
-            class="w-[18px] h-[18px] shrink-0 transition-transform duration-200 object-contain"
-            :class="activeHref === link.href ? 'scale-105' : 'opacity-70'"
+            class="w-[18px] h-[18px] shrink-0 transition-all duration-200 object-contain"
+            :class="activeHref === link.href ? 'scale-105 opacity-100' : 'opacity-70 group-hover:opacity-100'"
           />
           <component
             :is="link.icon"
