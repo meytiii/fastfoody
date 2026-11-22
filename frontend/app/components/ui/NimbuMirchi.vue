@@ -42,16 +42,34 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let charmInstance: { dispose(): void } | null = null
 
-function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } {
-  const {
-    container,
-    canvas,
-    anchorY = () => 0,
-    anchorX = () => 0,
-    active = () => true,
-    shadows = true,
-    breeze = true,
-  } = opts
+function isWebGLSupported(): boolean {
+  try {
+    if (typeof window === 'undefined') return false
+    const testCanvas = document.createElement('canvas')
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (testCanvas.getContext('webgl2') ||
+          testCanvas.getContext('webgl') ||
+          testCanvas.getContext('experimental-webgl'))
+    )
+  } catch {
+    return false
+  }
+}
+
+function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } | null {
+  if (!isWebGLSupported()) return null
+
+  try {
+    const {
+      container,
+      canvas,
+      anchorY = () => 0,
+      anchorX = () => 0,
+      active = () => true,
+      shadows = true,
+      breeze = true,
+    } = opts
 
   const { Vector3, Quaternion } = THREE
   const smooth = THREE.MathUtils.smoothstep
@@ -666,20 +684,27 @@ function createNimbuMirchiEngine(opts: NimbuMirchiOptions): { dispose(): void } 
       renderer.dispose()
     },
   }
+} catch {
+  return null
+}
 }
 
 onMounted(async () => {
   await nextTick()
   if (!containerRef.value || !canvasRef.value) return
-  charmInstance = createNimbuMirchiEngine({
-    container: containerRef.value,
-    canvas: canvasRef.value,
-    anchorY: props.anchorY,
-    anchorX: props.anchorX,
-    active: props.active,
-    shadows: props.shadows,
-    breeze: props.breeze,
-  })
+  try {
+    charmInstance = createNimbuMirchiEngine({
+      container: containerRef.value,
+      canvas: canvasRef.value,
+      anchorY: props.anchorY,
+      anchorX: props.anchorX,
+      active: props.active,
+      shadows: props.shadows,
+      breeze: props.breeze,
+    })
+  } catch {
+    charmInstance = null
+  }
 })
 
 onUnmounted(() => {
