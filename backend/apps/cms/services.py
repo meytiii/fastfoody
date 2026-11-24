@@ -45,7 +45,9 @@ _EDITABLE_SETTINGS_FIELDS: frozenset[str] = frozenset(
 def update_restaurant_settings(*, data: dict[str, Any]) -> RestaurantSettings:
     """Update the singleton settings; validate then persist."""
     if not data:
-        return RestaurantSettings.objects.get(pk=1)
+        # Never assume the seeded row exists (old databases, manual restores).
+        instance, _ = RestaurantSettings.objects.get_or_create(pk=1)
+        return instance
 
     for field in data:
         if field not in _EDITABLE_SETTINGS_FIELDS:
@@ -54,6 +56,7 @@ def update_restaurant_settings(*, data: dict[str, Any]) -> RestaurantSettings:
                 details={field: "این فیلد قابل ویرایش نیست."},
             )
 
+    RestaurantSettings.objects.get_or_create(pk=1)
     instance = RestaurantSettings.objects.select_for_update().get(pk=1)
 
     for field, value in data.items():

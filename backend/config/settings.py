@@ -10,7 +10,9 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config("SECRET_KEY", default="dev-insecure-change-me")
-DEBUG = True  # config("DEBUG", default=False, cast=bool)
+# Development defaults to DEBUG=True; production must set DEBUG=False in the env,
+# which activates the security block at the bottom of this file.
+DEBUG = config("DEBUG", default=True, cast=bool)
 
 _allowed_hosts = config("ALLOWED_HOSTS", default="127.0.0.1,localhost")
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
@@ -61,32 +63,71 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": config("POSTGRES_DB", default="fastfood"),
-#         "USER": config("POSTGRES_USER", default="fastfood"),
-#         "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
-#         "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
-#         "PORT": config("POSTGRES_PORT", default=5432, cast=int),
-#         "CONN_MAX_AGE": 60,
-#     }
-# }
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+# SQLite is the active *development* database. It is selected by default and can
+# be overridden per environment; PostgreSQL configuration is kept intact so the
+# project can switch back by setting DB_ENGINE=postgres in the env only.
+#
+#   DB_ENGINE=sqlite    (default) -> db.sqlite3, no server required
+#   DB_ENGINE=postgres            -> POSTGRES_* variables below
+#
+# The application code deliberately avoids PostgreSQL-only features (no
+# ArrayField, JSONField lookups, Full Text Search or trigram indexes), so no
+# model or query change is needed when switching engines.
+DB_ENGINE = config("DB_ENGINE", default="sqlite").strip().lower()
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if DB_ENGINE in {"postgres", "postgresql"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("POSTGRES_DB", default="fastfood"),
+            "USER": config("POSTGRES_USER", default="fastfood"),
+            "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
+            "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
+            "PORT": config("POSTGRES_PORT", default=5432, cast=int),
+            "CONN_MAX_AGE": 60,
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": config("SQLITE_PATH", default=str(BASE_DIR / "db.sqlite3")),
+            # Wait instead of failing immediately when two writers overlap.
+            "OPTIONS": {"timeout": 20},
+        }
+    }
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://127.0.0.1:6379/0"),
-        "KEY_PREFIX": "fastfood",
+# ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+# REDIS_URL is declared as a real setting because common/redis_client.py reads
+# settings.REDIS_URL. It is also the single source for the Redis cache backend
+# and for Celery's default broker URLs.
+REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+
+# Development uses the in-process cache; a non-DEBUG deployment keeps the
+# production expectation (Redis) unless explicitly overridden.
+if config("CACHE_BACKEND", default="locmem" if DEBUG else "redis") == "redis":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "fastfood",
+        }
     }
-}
+else:
+    # Local development default: no external service is required for the API to
+    # boot. Set CACHE_BACKEND=redis (and REDIS_URL) to mirror production.
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "fastfood-dev",
+            "KEY_PREFIX": "fastfood",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -135,6 +176,8 @@ REST_FRAMEWORK = {
         "otp_request": "5/hour",
         "otp_verify": "10/hour",
         "staff_login": "10/hour",
+        "catalog_search": "120/min",
+        "catalog_suggest": "120/min",
     },
 }
 
@@ -215,11 +258,44 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
-CELERY_TASK_ALWAYS_EAGER = True
+# Inline task execution is a development convenience only; it follows DEBUG so a
+# deployed environment does not run SMS/HTTP calls inside the web process.
+CELERY_TASK_ALWAYS_EAGER = config(
+    "CELERY_TASK_ALWAYS_EAGER", default=DEBUG, cast=bool
+)
 CELERY_TASK_EAGER_PROPAGATES = True
 
 
 MANAGER_PHONE = config("MANAGER_PHONE", default="")
+
+
+# Product autocomplete limits (see apps/catalog/apis/storefront/views.py).
+# The requested `limit` is clamped to PRODUCT_SUGGESTIONS_MAX_LIMIT.
+PRODUCT_SUGGESTIONS_DEFAULT_LIMIT = 5
+PRODUCT_SUGGESTIONS_MAX_LIMIT = 10
+
+
+# ---------------------------------------------------------------------------
+# Catalog search
+# ---------------------------------------------------------------------------
+# Extra synonym pairs/groups, merged with the built-in Persian food synonyms:
+#   CATALOG_SEARCH_SYNONYMS={"برگر": ["همبرگر"], "نوشابه": ["کوکاکولا"]}
+# Values are read once at startup (apps/catalog/search.py).
+CATALOG_SEARCH_SYNONYMS: dict[str, list[str]] = {}
+
+# Bounded typo tolerance for autocomplete: only used when a search returns no
+# rows. Correction compares query words with product-name words (Levenshtein via
+# difflib); it is not a replacement for a real search engine.
+CATALOG_SEARCH_FUZZY_ENABLED = config(
+    "CATALOG_SEARCH_FUZZY_ENABLED", default=True, cast=bool
+)
+CATALOG_SEARCH_FUZZY_CUTOFF = config(
+    "CATALOG_SEARCH_FUZZY_CUTOFF", default=0.8, cast=float
+)
+# Maximum number of product names used to build the in-process vocabulary.
+CATALOG_SEARCH_VOCAB_LIMIT = config(
+    "CATALOG_SEARCH_VOCAB_LIMIT", default=2000, cast=int
+)
 
 
 

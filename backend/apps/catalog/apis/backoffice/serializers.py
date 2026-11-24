@@ -18,6 +18,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
         model = Category
         fields = (
             "id",
+            "parent_id",
             "name",
             "slug",
             "description",
@@ -39,6 +40,9 @@ class CategoryReadSerializer(serializers.ModelSerializer):
 class CategoryWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
     slug = serializers.SlugField(max_length=128)
+    parent_id = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1
+    )
     description = serializers.CharField(
         required=False, allow_blank=True, default=""
     )
@@ -49,6 +53,9 @@ class CategoryWriteSerializer(serializers.Serializer):
 class CategoryUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128, required=False)
     slug = serializers.SlugField(max_length=128, required=False)
+    parent_id = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1
+    )
     description = serializers.CharField(required=False, allow_blank=True)
     display_order = serializers.IntegerField(min_value=0, required=False)
     is_active = serializers.BooleanField(required=False)
@@ -108,6 +115,10 @@ class ProductReadSerializer(serializers.ModelSerializer):
             "image_url",
             "webp_image_url",
             "price",
+            "compare_at_price",
+            "discount_percent",
+            "stock_quantity",
+            "is_in_stock",
             "status",
             "is_main_dish",
             "prep_time_minutes",
@@ -115,6 +126,7 @@ class ProductReadSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        read_only_fields = ("discount_percent", "is_in_stock")
 
     def get_image_url(self, obj: Product) -> str | None:
         return obj.image.url if obj.image else None
@@ -148,6 +160,25 @@ class ProductDetailReadSerializer(ProductReadSerializer):
         fields = ProductReadSerializer.Meta.fields + ("addons",)
 
 
+def _validate_compare_at_price(attrs: dict[str, Any]) -> dict[str, Any]:
+    """Reject an original price that is not strictly above the selling price."""
+    price = attrs.get("price")
+    compare_at_price = attrs.get("compare_at_price")
+    if (
+        price is not None
+        and compare_at_price is not None
+        and compare_at_price <= price
+    ):
+        raise serializers.ValidationError(
+            {
+                "compare_at_price": (
+                    "قیمت قبل از تخفیف باید بیشتر از قیمت فروش باشد."
+                )
+            }
+        )
+    return attrs
+
+
 class ProductWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     slug = serializers.SlugField(max_length=255)
@@ -156,6 +187,12 @@ class ProductWriteSerializer(serializers.Serializer):
         required=False, allow_blank=True, default=""
     )
     price = serializers.IntegerField(min_value=0)
+    compare_at_price = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0
+    )
+    stock_quantity = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0
+    )
     status = serializers.ChoiceField(
         choices=Product.Status.choices, default=Product.Status.AVAILABLE
     )
@@ -164,6 +201,9 @@ class ProductWriteSerializer(serializers.Serializer):
     display_order = serializers.IntegerField(min_value=0, default=0)
     addons = AddonLinkSerializer(many=True, required=False)
 
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _validate_compare_at_price(attrs)
+
 
 class ProductUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=False)
@@ -171,11 +211,20 @@ class ProductUpdateSerializer(serializers.Serializer):
     category_id = serializers.IntegerField(required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     price = serializers.IntegerField(min_value=0, required=False)
+    compare_at_price = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0
+    )
+    stock_quantity = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0
+    )
     status = serializers.ChoiceField(choices=Product.Status.choices, required=False)
     is_main_dish = serializers.BooleanField(required=False)
     prep_time_minutes = serializers.IntegerField(min_value=0, required=False)
     display_order = serializers.IntegerField(min_value=0, required=False)
     addons = AddonLinkSerializer(many=True, required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _validate_compare_at_price(attrs)
 
 
 class ImageUploadSerializer(serializers.Serializer):

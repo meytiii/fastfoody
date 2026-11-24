@@ -56,8 +56,8 @@ Django admin is disabled. All administrative operations are performed through th
 fastfood-backend/
 ├── config/
 │   ├── __init__.py            # exports celery_app
-│   ├── settings.py            # the only settings file (D1 — no split)
-│   ├── settings_sqlite.py     # local dev only
+│   ├── settings.py            # the only settings file (D1 — no split);
+│   │                          # DB_ENGINE selects SQLite (default) or PostgreSQL
 │   ├── celery.py              # app + autodiscover
 │   ├── urls.py                # health + schema + docs + mounts
 │   ├── api_urls_storefront.py
@@ -161,7 +161,8 @@ JWT: Storefront JWT + Session → Backoffice Session only
 ### Prerequisites
 
 - Python 3.12
-- Redis 7 (via Docker or direct install)
+- Redis 7 — optional for the default dev setup (`CACHE_BACKEND=locmem`); required for
+  `CACHE_BACKEND=redis` or Celery workers
 
 ```powershell
 # Redis via Docker
@@ -187,8 +188,10 @@ SECRET_KEY=dev-key-not-for-production
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 
-# SQLite — no Postgres needed
-# database path defined in settings_sqlite.py
+# SQLite — no Postgres and no Redis server needed for the API to boot
+DB_ENGINE=sqlite
+# SQLITE_PATH=./db.sqlite3        # optional; defaults to BASE_DIR/db.sqlite3
+CACHE_BACKEND=locmem              # use `redis` (with REDIS_URL) to mirror production
 
 REDIS_URL=redis://127.0.0.1:6379/0
 CELERY_BROKER_URL=redis://127.0.0.1:6379/1
@@ -208,32 +211,28 @@ JWT_ACCESS_LIFETIME_MINUTES=60
 JWT_REFRESH_LIFETIME_DAYS=7
 ```
 
-`config/settings_sqlite.py`
+Database selection lives in `config/settings.py` (no separate settings module):
 
 ```python
-from __future__ import annotations
-
-from .settings import *  # noqa: F401,F403
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
-    }
-}
-
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
+DB_ENGINE = config("DB_ENGINE", default="sqlite")  # "sqlite" | "postgres"
 ```
 
-Explanation: CELERY_TASK_ALWAYS_EAGER = True causes all Celery tasks (OTP SMS, order, prep time change) to run inline in the runserver process instead of the Redis queue. This is ideal for dev because no worker or beat is needed.
+With `DB_ENGINE=sqlite` (the default) Django uses `SQLITE_PATH` or
+`BASE_DIR/db.sqlite3`. For PostgreSQL set `DB_ENGINE=postgres` plus the existing
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`,
+`POSTGRES_PORT` variables; no code change is required. `CACHE_BACKEND=locmem`
+(the default) uses Django's in-process cache, so Redis is optional in dev.
+
+`CELERY_TASK_ALWAYS_EAGER` defaults to the value of `DEBUG`; in dev all Celery tasks
+(OTP SMS, order, prep time change) run inline in the runserver process instead of the
+Redis queue, so no worker or beat is needed.
 
 ### Startup
 
 ```powershell
-python manage.py migrate --settings=config.settings_sqlite
-python manage.py create_staff 09123456789 "Test@1234" --superuser --settings=config.settings_sqlite
-python manage.py runserver --settings=config.settings_sqlite
+python manage.py migrate
+python manage.py create_staff 09123456789 "Test@1234" --superuser
+python manage.py runserver
 ```
 
 The server starts at http://127.0.0.1:8000. Check:
@@ -246,7 +245,7 @@ curl http://127.0.0.1:8000/health/
 Note: if typing `--settings` is annoying, create an alias in PowerShell:
 
 ```powershell
-function devpy { python manage.py @args --settings=config.settings_sqlite }
+function devpy { python manage.py @args }
 devpy migrate
 devpy create_staff 09123456789 "Test@1234" --superuser
 devpy runserver
@@ -257,9 +256,12 @@ devpy runserver
 | Variable | Required? | Default | Description |
 | --- | --- | --- | --- |
 | SECRET_KEY | ✅ in prod | dev-insecure | signing key for session, CSRF, JWT |
-| DEBUG | — | False | True in dev |
+| DEBUG | — | True | set False in production (enables SSL/HSTS block) |
 | ALLOWED_HOSTS | ✅ in prod | 127.0.0.1,localhost | comma-separated |
-| REDIS_URL | ✅ | redis://127.0.0.1:6379/0 | Cache backend |
+| DB_ENGINE | — | sqlite | `sqlite` (dev) or `postgres` |
+| SQLITE_PATH | — | BASE_DIR/db.sqlite3 | SQLite file path |
+| CACHE_BACKEND | — | locmem | `locmem` or `redis` |
+| REDIS_URL | prod (redis cache) | redis://127.0.0.1:6379/0 | cache/Redis client |
 | CELERY_BROKER_URL | ✅ | redis://.../1 | task queue |
 | CELERY_RESULT_BACKEND | — | redis://.../2 | task results |
 | MANAGER_PHONE | recommended | empty | for new order SMS |
@@ -1273,6 +1275,8 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 | --- | --- | --- | --- |
 | GET | /catalog/menu/ | — | — |
 | GET | /catalog/lucky-wheel/ | — | ?category=slug |
+| GET | /catalog/products/ | — | `?q=&category=&category_id=&include_subcategories=&min_price=&max_price=&available=&in_stock=&discount=&is_main_dish=&sort=&limit=&offset=` (see `PROJECT_CONTEXT.md` §16) |
+| GET | /catalog/suggestions/ | — | `?q=&limit=` (autocomplete, max 10 results, `did_you_mean` on typo) |
 | GET | /catalog/products/<slug>/ | — | — |
 
 #### Orders
@@ -1326,12 +1330,12 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 
 | Method | Path | Body |
 | --- | --- | --- |
-| GET/POST | /catalog/categories/ | {name, slug, description?, display_order?, is_active?} |
-| GET/PATCH/DELETE | /catalog/categories/<id>/ | — |
+| GET/POST | /catalog/categories/ | {name, slug, parent_id?, description?, display_order?, is_active?} |
+| GET/PATCH/DELETE | /catalog/categories/<id>/ | — (delete blocked when products or child categories exist) |
 | POST | /catalog/categories/<id>/image/ | multipart image |
 | GET/POST | /catalog/addons/ | {name, price, is_available?} |
 | GET/PATCH/DELETE | /catalog/addons/<id>/ | — |
-| GET/POST | /catalog/products/?category_id=&status=&is_main_dish=&search= | {name, slug, category_id, price, status?, is_main_dish?, prep_time_minutes?, addons?} |
+| GET/POST | /catalog/products/?category_id=&status=&is_main_dish=&search= | {name, slug, category_id, price, compare_at_price?, stock_quantity?, status?, is_main_dish?, prep_time_minutes?, display_order?, addons?} |
 | GET/PATCH/DELETE | /catalog/products/<id>/ | — |
 | POST | /catalog/products/<id>/image/ | multipart image |
 | GET/PUT | /catalog/products/<id>/addons/ | {addons: [{addon_id, min_quantity, max_quantity}]} |
@@ -1397,14 +1401,14 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 
 Goal: from zero to a fully working backend tested in ~30 minutes.
 
-Prerequisite: Redis running on 127.0.0.1:6379, `.env` according to section 4, and `settings_sqlite.py` present.
+Prerequisite: `.env` according to section 4. Redis is only needed when `CACHE_BACKEND=redis` (or for Celery workers); the default SQLite + locmem setup boots without it.
 
 ### Step 0 — Setup
 
 ```powershell
-python manage.py migrate --settings=config.settings_sqlite
-python manage.py create_staff 09123456789 "Test@1234" --superuser --settings=config.settings_sqlite
-python manage.py runserver --settings=config.settings_sqlite
+python manage.py migrate
+python manage.py create_staff 09123456789 "Test@1234" --superuser
+python manage.py runserver
 ```
 
 - [ ] migrate completed without errors
@@ -1605,7 +1609,7 @@ Authorization: Bearer <access>
 Since `ZARINPAL_MERCHANT_ID` is empty, this endpoint returns an error. But the logic is tested. For a successful manual payment, use the shell:
 
 ```powershell
-python manage.py shell --settings=config.settings_sqlite -c "
+python manage.py shell -c "
 from apps.orders.models import Order
 from apps.orders.services import mark_order_paid
 from apps.payments.models import Payment

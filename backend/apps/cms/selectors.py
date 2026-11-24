@@ -20,11 +20,19 @@ def _site_section_cache_key(key: str) -> str:
 
 
 def get_restaurant_settings() -> RestaurantSettings:
-    """Return the singleton settings, cached for one hour."""
+    """
+    Return the singleton settings, cached for one hour.
+
+    ``get_or_create`` makes a fresh database safe: migration
+    ``cms.0002_seed_restaurant_settings`` seeds the row, and this fallback also
+    covers databases migrated before that migration existed. Without it, the
+    storefront status endpoint and every order/payment operation raised
+    ``DoesNotExist`` (HTTP 500) until someone created the row manually.
+    """
     cached = cache.get(SETTINGS_CACHE_KEY)
     if cached is not None:
         return cached
-    instance = RestaurantSettings.objects.get(pk=1)
+    instance, _ = RestaurantSettings.objects.get_or_create(pk=1)
     cache.set(SETTINGS_CACHE_KEY, instance, timeout=_CACHE_TIMEOUT)
     return instance
 

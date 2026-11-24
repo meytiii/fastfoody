@@ -6,12 +6,19 @@ from typing import Any
 from django.core.cache import cache
 from django.db import transaction
 
+from common.exceptions import ValidationError
 from common.images import generate_webp_for_field
 
-from .constants import CACHE_KEY_LUCKY_WHEEL, CACHE_KEY_MENU
+from .constants import (
+    CACHE_KEY_LUCKY_WHEEL,
+    CACHE_KEY_MENU,
+    CACHE_KEY_SEARCH_VOCAB,
+)
 from .exceptions import (
     AddOnNotFoundError,
+    CategoryHasChildrenError,
     CategoryHasProductsError,
+    CategoryHierarchyError,
     CategoryNotFoundError,
     ProductNotFoundError,
     SlugAlreadyExistsError,
@@ -27,6 +34,57 @@ logger = logging.getLogger(__name__)
 def _invalidate_catalog_cache() -> None:
     cache.delete(CACHE_KEY_MENU)
     cache.delete(CACHE_KEY_LUCKY_WHEEL)
+    cache.delete(CACHE_KEY_SEARCH_VOCAB)
+    # ``get_lucky_wheel_products`` writes one key per category; those derived
+    # keys must be cleared too or they stay stale until the timeout expires.
+    for slug in Category.all_objects.values_list("slug", flat=True):
+        cache.delete(f"{CACHE_KEY_LUCKY_WHEEL}:{slug}")
+
+
+def _resolve_parent_category(
+    *,
+    parent_id: int | None,
+    category: Category | None = None,
+) -> Category | None:
+    """Resolve and validate a parent category (exists, not self, no cycle)."""
+    if parent_id is None:
+        return None
+
+    try:
+        parent = Category.objects.get(pk=parent_id)
+    except Category.DoesNotExist:
+        raise CategoryNotFoundError()
+
+    if category is not None:
+        if parent.pk == category.pk:
+            raise CategoryHierarchyError(
+                message="یک دسته‌بندی نمی‌تواند والد خودش باشد.",
+                details={"parent_id": "دسته‌بندی نمی‌تواند والد خودش باشد."},
+            )
+        ancestor: Category | None = parent
+        seen: set[int] = set()
+        while ancestor is not None and ancestor.pk not in seen:
+            if ancestor.pk == category.pk:
+                raise CategoryHierarchyError(
+                    message="این جابه‌جایی یک حلقه در درخت دسته‌بندی ایجاد می‌کند.",
+                    details={"parent_id": "والد انتخابی زیرمجموعه همین دسته است."},
+                )
+            seen.add(ancestor.pk)
+            ancestor = ancestor.parent
+
+    return parent
+
+
+def _validate_pricing(*, price: int, compare_at_price: int | None) -> None:
+    """Guard the DB check constraint with a proper API error."""
+    if compare_at_price is not None and compare_at_price <= price:
+        raise ValidationError(
+            message="قیمت قبل از تخفیف باید بیشتر از قیمت فروش باشد.",
+            code="INVALID_PRICE",
+            details={
+                "compare_at_price": "قیمت قبل از تخفیف باید بیشتر از قیمت فروش باشد."
+            },
+        )
 
 
 def _schedule_invalidation() -> None:
@@ -42,8 +100,10 @@ def create_category(*, data: dict[str, Any]) -> Category:
         raise SlugAlreadyExistsError()
 
     image = data.pop("image", None)
+    parent_id = data.pop("parent_id", None)
 
     category = Category(**data)
+    category.parent = _resolve_parent_category(parent_id=parent_id)
     if image:
         category.image = image
     category.save()
@@ -68,6 +128,13 @@ def update_category(*, category_id: int, data: dict[str, Any]) -> Category:
         if Category.objects.filter(slug=data["slug"]).exclude(pk=category.pk).exists():
             raise SlugAlreadyExistsError()
 
+    if "parent_id" in data:
+        parent_id = data.pop("parent_id")
+        category.parent = _resolve_parent_category(
+            parent_id=parent_id, category=category
+        )
+        data["parent"] = category.parent
+
     for field, value in data.items():
         setattr(category, field, value)
     if data:
@@ -91,6 +158,8 @@ def delete_category(*, category_id: int) -> None:
 
     if Product.objects.filter(category=category).exists():
         raise CategoryHasProductsError()
+    if Category.objects.filter(parent=category).exists():
+        raise CategoryHasChildrenError()
 
     category.soft_delete()
     _schedule_invalidation()
@@ -154,8 +223,6 @@ def _set_product_addons(
 
     addon_ids = [link["addon_id"] for link in addon_links]
     if len(set(addon_ids)) != len(addon_ids):
-        from common.exceptions import ValidationError
-
         raise ValidationError(
             message="افزودنی تکراری در لیست وجود دارد.",
             details={"addons": "هر افزودنی فقط یک بار مجاز است."},
@@ -190,6 +257,10 @@ def create_product(*, data: dict[str, Any]) -> Product:
     if Product.objects.filter(slug=data["slug"]).exists():
         raise SlugAlreadyExistsError()
 
+    _validate_pricing(
+        price=data["price"], compare_at_price=data.get("compare_at_price")
+    )
+
     product = Product(category=category, **data)
     if image:
         product.image = image
@@ -221,6 +292,11 @@ def update_product(*, product_id: int, data: dict[str, Any]) -> Product:
     if "slug" in data and data["slug"] != product.slug:
         if Product.objects.filter(slug=data["slug"]).exclude(pk=product.pk).exists():
             raise SlugAlreadyExistsError()
+
+    _validate_pricing(
+        price=data.get("price", product.price),
+        compare_at_price=data.get("compare_at_price", product.compare_at_price),
+    )
 
     if data:
         for field, value in data.items():

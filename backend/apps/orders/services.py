@@ -5,7 +5,9 @@ from datetime import timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
+from django.db.models import Max
 from django.utils import timezone
+from redis.exceptions import RedisError
 
 from apps.accounts.models import Customer, CustomerAddress
 from apps.catalog.models import Product, ProductAddOn
@@ -275,22 +277,63 @@ def create_order(
 # ---------------------------------------------------------------------------
 # Payment success (called by Phase 6 payment verification)
 # ---------------------------------------------------------------------------
+def _next_daily_number_from_db(today: Any) -> int:
+    """Database fallback used when Redis is unavailable (e.g. fresh dev box)."""
+    latest = Order.objects.filter(daily_number_date=today).aggregate(
+        latest=Max("daily_number")
+    )["latest"]
+    return (latest or 0) + 1
+
+
 def _assign_daily_number(order: Order) -> None:
+    """
+    Assign the per-day order number, tolerating a missing Redis instance.
+
+    Redis is preferred (atomic ``INCR``), but a payment must not roll back just
+    because the cache server is down: the database ``MAX(daily_number)`` is a
+    safe fallback for a single-location restaurant. Each save runs in its own
+    savepoint, so an ``IntegrityError`` from a concurrent duplicate does not
+    poison the outer transaction and the retry loop can actually retry.
+    """
     today = timezone.localdate()
     key = f"order_seq:{today.isoformat()}"
-    redis = get_redis()
+
+    try:
+        redis = get_redis()
+    except (RedisError, OSError, ValueError):
+        redis = None
+        logger.warning(
+            "Redis client unavailable; falling back to DB daily numbering.",
+            exc_info=True,
+        )
 
     for attempt in range(1, MAX_DAILY_NUMBER_RETRIES + 1):
-        number = int(redis.incr(key))
-        if number == 1:
-            redis.expire(key, 60 * 60 * 48)
+        if redis is not None:
+            try:
+                number = int(redis.incr(key))
+                if number == 1:
+                    redis.expire(key, 60 * 60 * 48)
+            except (RedisError, OSError, ValueError):
+                logger.warning(
+                    "Redis daily-number counter unavailable; using DB fallback.",
+                    exc_info=True,
+                )
+                redis = None
+                number = _next_daily_number_from_db(today)
+        else:
+            number = _next_daily_number_from_db(today)
 
         order.daily_number = number
         order.daily_number_date = today
         try:
-            order.save(
-                update_fields=["daily_number", "daily_number_date", "updated_at"]
-            )
+            with transaction.atomic():
+                order.save(
+                    update_fields=[
+                        "daily_number",
+                        "daily_number_date",
+                        "updated_at",
+                    ]
+                )
             return
         except IntegrityError:
             logger.warning(
