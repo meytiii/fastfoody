@@ -101,7 +101,7 @@ export const useMenuStore = defineStore('menu', {
       const items: MenuProductPublic[] = []
       for (const cat of state.menuCategories) {
         for (const p of cat.products) {
-          if (!p.is_main_dish && p.status === 'AVAILABLE' && p.is_in_stock) {
+          if (!p.is_main_dish && p.status === 'AVAILABLE') {
             items.push(p)
           }
         }
@@ -142,7 +142,7 @@ export const useMenuStore = defineStore('menu', {
           q: this.searchQuery.trim() || undefined,
           category: this.selectedCategory === 'all' ? undefined : this.selectedCategory,
           include_subcategories: this.includeSubcategories,
-          in_stock: this.onlyInStock ? true : undefined,
+          available: this.onlyInStock ? true : undefined,
           discount: this.onlyDiscounted ? true : undefined,
           is_main_dish: this.onlyMainDish ? true : undefined,
           min_price: this.minPrice,

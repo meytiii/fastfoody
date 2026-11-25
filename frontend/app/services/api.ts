@@ -67,10 +67,10 @@ import {
 import { resolveProductAddons, type MockOrderRecord } from './mockSeed'
 import {
   computeRelevanceScore,
+  iterIndexTokens,
   matchesSearchTerm,
   normalizeSearchQuery,
   suggestCorrectedTerm,
-  tokenizeSearchQuery,
 } from './searchEngine'
 
 function toCategoryPublic(cat: CategoryAdmin): CategoryPublic {
@@ -94,8 +94,6 @@ function toMenuProductPublic(p: ProductAdmin): MenuProductPublic {
     compare_at_price: p.compare_at_price,
     discount_percent: p.discount_percent,
     is_discounted: p.compare_at_price !== null && p.compare_at_price > p.price,
-    stock_quantity: p.stock_quantity,
-    is_in_stock: p.is_in_stock,
     status: p.status,
     is_main_dish: p.is_main_dish,
     prep_time_minutes: p.prep_time_minutes,
@@ -255,9 +253,6 @@ function buildPublicProductList(params: ProductSearchParams = {}): ProductAdmin[
       params.available ? p.status === 'AVAILABLE' : p.status === 'OUT_OF_STOCK'
     )
   }
-  if (params.in_stock !== undefined) {
-    items = items.filter(p => p.is_in_stock === params.in_stock)
-  }
   if (params.discount !== undefined) {
     items = items.filter(p => {
       const discounted = p.compare_at_price !== null && p.compare_at_price > p.price
@@ -362,9 +357,6 @@ function syncProductDerivedFields(product: ProductAdmin): ProductAdmin {
   product.discount_percent = isDiscounted
     ? Math.round(((product.compare_at_price! - product.price) * 100) / product.compare_at_price!)
     : 0
-  product.is_in_stock =
-    product.status === 'AVAILABLE' &&
-    (product.stock_quantity === null || product.stock_quantity > 0)
   return product
 }
 
@@ -612,7 +604,8 @@ export const storefrontApi = {
     async getProducts(params: ProductSearchParams = {}): Promise<PaginatedResponse<ProductSummaryPublic>> {
       await delayMock(80)
       const items = buildPublicProductList(params).map(toProductSummaryPublic)
-      return paginateSlice(items, params.limit ?? 20, params.offset ?? 0)
+      const limit = Math.min(params.limit ?? 20, 100)
+      return paginateSlice(items, limit, params.offset ?? 0)
     },
 
     async getSuggestions(q = '', limit = 5): Promise<ProductSuggestionsResponse> {
@@ -634,9 +627,9 @@ export const storefrontApi = {
       if (matches.length === 0) {
         const vocab = Array.from(
           new Set(
-            publicProducts.flatMap(p =>
-              tokenizeSearchQuery(normalizeSearchQuery(p.name))
-            )
+            publicProducts
+              .flatMap(p => iterIndexTokens(p.name))
+              .filter(word => word.length >= 3 && !/^\d+$/.test(word))
           )
         )
         const corrected = suggestCorrectedTerm(normalized, vocab)
@@ -656,7 +649,6 @@ export const storefrontApi = {
         price: p.price,
         compare_at_price: p.compare_at_price,
         discount_percent: p.discount_percent,
-        is_in_stock: p.is_in_stock,
         status: p.status,
         image_url: p.webp_image_url || p.image_url,
       }))
@@ -845,7 +837,7 @@ export const storefrontApi = {
             product_id: rawItem.product_id,
           })
         }
-        if (product.status !== 'AVAILABLE' || !product.is_in_stock) {
+        if (product.status !== 'AVAILABLE') {
           throw new MockApiError(
             422,
             'VALIDATION_ERROR',
@@ -1689,8 +1681,6 @@ export const backofficeApi = {
         price: Math.max(0, Math.round(payload.price)),
         compare_at_price: payload.compare_at_price ?? null,
         discount_percent: 0,
-        stock_quantity: payload.stock_quantity ?? null,
-        is_in_stock: true,
         status: payload.status ?? 'AVAILABLE',
         is_main_dish: payload.is_main_dish ?? true,
         prep_time_minutes: payload.prep_time_minutes ?? 0,
@@ -1752,7 +1742,6 @@ export const backofficeApi = {
       if (payload.description !== undefined) product.description = payload.description.trim()
       if (payload.price !== undefined) product.price = Math.max(0, Math.round(payload.price))
       if (payload.compare_at_price !== undefined) product.compare_at_price = payload.compare_at_price
-      if (payload.stock_quantity !== undefined) product.stock_quantity = payload.stock_quantity
       if (payload.status !== undefined) product.status = payload.status
       if (payload.is_main_dish !== undefined) product.is_main_dish = payload.is_main_dish
       if (payload.prep_time_minutes !== undefined) product.prep_time_minutes = payload.prep_time_minutes

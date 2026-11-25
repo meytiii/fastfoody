@@ -52,7 +52,6 @@ const productForm = reactive({
   description: '',
   price: 0,
   compare_at_price: '' as number | '',
-  stock_quantity: '' as number | '',
   status: 'AVAILABLE' as ProductStatus,
   is_main_dish: true,
   prep_time_minutes: 15,
@@ -166,7 +165,6 @@ function openCreateProduct() {
   productForm.description = ''
   productForm.price = 150000
   productForm.compare_at_price = ''
-  productForm.stock_quantity = ''
   productForm.status = 'AVAILABLE'
   productForm.is_main_dish = true
   productForm.prep_time_minutes = 15
@@ -187,7 +185,6 @@ async function openEditProduct(prod: ProductAdmin) {
     productForm.description = detail.description
     productForm.price = detail.price
     productForm.compare_at_price = detail.compare_at_price ?? ''
-    productForm.stock_quantity = detail.stock_quantity ?? ''
     productForm.status = detail.status
     productForm.is_main_dish = detail.is_main_dish
     productForm.prep_time_minutes = detail.prep_time_minutes
@@ -253,7 +250,6 @@ async function saveProduct() {
     description: productForm.description.trim(),
     price: Number(productForm.price),
     compare_at_price: productForm.compare_at_price === '' ? null : Number(productForm.compare_at_price),
-    stock_quantity: productForm.stock_quantity === '' ? null : Number(productForm.stock_quantity),
     status: productForm.status,
     is_main_dish: productForm.is_main_dish,
     prep_time_minutes: Number(productForm.prep_time_minutes) || 0,
@@ -449,8 +445,8 @@ useHead({
 <template>
   <div>
     <BackofficeShell
-      title="کاتالوگ، انبار و افزودنی‌ها"
-      subtitle="مدیریت محصولات، تخفیف‌ها، موجودی انبار و کلید توقف سریع افزودنی‌ها"
+      title="کاتالوگ و افزودنی‌ها"
+      subtitle="مدیریت محصولات، تخفیف‌ها، وضعیت موجودی و کلید توقف سریع افزودنی‌ها"
       @reset="loadAllCatalogData"
     >
       <div class="space-y-6">
@@ -571,7 +567,6 @@ useHead({
                     <th scope="col" class="px-3 py-3 text-start">محصول</th>
                     <th scope="col" class="px-3 py-3 text-start">دسته</th>
                     <th scope="col" class="px-3 py-3 text-start">قیمت</th>
-                    <th scope="col" class="px-3 py-3 text-start">موجودی</th>
                     <th scope="col" class="px-3 py-3 text-start">وضعیت</th>
                     <th scope="col" class="px-3 py-3 text-start">عملیات</th>
                   </tr>
@@ -600,9 +595,6 @@ useHead({
                       <p v-if="prod.compare_at_price" class="text-xs text-[#72756E] line-through">
                         {{ formatToman(prod.compare_at_price) }}
                       </p>
-                    </td>
-                    <td data-label="موجودی" class="px-3 py-3 text-xs font-semibold">
-                      {{ prod.stock_quantity === null ? 'نامحدود' : toPersianDigits(prod.stock_quantity) }}
                     </td>
                     <td data-label="وضعیت" class="px-3 py-3">
                       <span
@@ -831,10 +823,6 @@ useHead({
             <div>
               <label for="pf-compare" class="mb-1 block font-semibold">قیمت قبل از تخفیف (اختیاری)</label>
               <input id="pf-compare" v-model="productForm.compare_at_price" type="number" min="0" dir="ltr" class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5" />
-            </div>
-            <div>
-              <label for="pf-stock" class="mb-1 block font-semibold">موجودی انبار (خالی = نامحدود)</label>
-              <input id="pf-stock" v-model="productForm.stock_quantity" type="number" min="0" dir="ltr" class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5" />
             </div>
             <div>
               <label for="pf-prep" class="mb-1 block font-semibold">زمان آماده‌سازی (دقیقه)</label>
