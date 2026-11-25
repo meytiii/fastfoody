@@ -10,11 +10,13 @@ from .constants import (
     CACHE_KEY_LUCKY_WHEEL,
     CACHE_KEY_MENU,
     CACHE_KEY_SEARCH_VOCAB,
+    CACHE_KEY_UPSELL,
     CACHE_TIMEOUT_SECONDS,
 )
 from .exceptions import CategoryNotFoundError, ProductNotFoundError
 from .models import AddOn, Category, Product, ProductAddOn
 from .search import (
+    annotate_sales_count,
     apply_filters,
     apply_ordering,
     build_relevance_ordering,
@@ -91,7 +93,7 @@ def get_storefront_menu() -> dict[str, Any]:
                 ).order_by("display_order", "name"),
             )
         )
-        .order_by("display_order", "name")
+        .order_by("display_order", "id")
     )
 
     payload = {"categories": [_category_menu_dict(c) for c in categories_qs]}
@@ -136,6 +138,50 @@ def get_lucky_wheel_products(*, category_slug: str | None = None) -> dict[str, A
 
     payload = {"products": products}
     cache.set(cache_key, payload, timeout=CACHE_TIMEOUT_SECONDS)
+    return payload
+
+
+UPSELL_LIMIT = 8
+
+
+def get_upsell_products() -> dict[str, Any]:
+    """
+    Cached cart-upsell list: available sides and drinks, most ordered first.
+
+    Only products that are AVAILABLE, not main dishes, and in an active
+    category qualify. Ordering uses the paid-order quantity aggregated by
+    ``annotate_sales_count`` and then ``display_order``.
+    """
+    cached = cache.get(CACHE_KEY_UPSELL)
+    if cached is not None:
+        return cached
+
+    queryset = (
+        annotate_sales_count(get_public_product_queryset())
+        .filter(
+            status=Product.Status.AVAILABLE,
+            is_main_dish=False,
+        )
+        .order_by("-sales_count", "display_order", "name", "pk")[:UPSELL_LIMIT]
+    )
+
+    products = [
+        {
+            "id": product.pk,
+            "name": product.name,
+            "slug": product.slug,
+            "price": product.price,
+            "compare_at_price": product.compare_at_price,
+            "discount_percent": product.discount_percent,
+            "status": product.status,
+            "image_url": _image_url(product.image, product.webp_image),
+            "category_id": product.category_id,
+        }
+        for product in queryset
+    ]
+
+    payload = {"products": products}
+    cache.set(CACHE_KEY_UPSELL, payload, timeout=CACHE_TIMEOUT_SECONDS)
     return payload
 
 
@@ -192,38 +238,11 @@ def _get_public_category(
         raise CategoryNotFoundError()
 
 
-def _category_subtree_ids(root: Category) -> set[int]:
-    """
-    Return ``root`` plus all of its active descendants.
-
-    The category table is small, so one flat query + an in-memory traversal is
-    cheaper and more portable than a recursive CTE (works identically on SQLite
-    and PostgreSQL). Inactive children are excluded: filtering a parent must
-    never reveal products of a hidden category.
-    """
-    edges: dict[int | None, list[int]] = {}
-    for pk, parent_id in Category.objects.filter(is_active=True).values_list(
-        "id", "parent_id"
-    ):
-        edges.setdefault(parent_id, []).append(pk)
-
-    result: set[int] = set()
-    stack = [root.pk]
-    while stack:
-        current = stack.pop()
-        if current in result:
-            continue
-        result.add(current)
-        stack.extend(edges.get(current, ()))
-    return result
-
-
 def search_public_products(
     *,
     query: str | None = None,
     category_slug: str | None = None,
     category_id: int | None = None,
-    include_subcategories: bool = True,
     min_price: int | None = None,
     max_price: int | None = None,
     available: bool | None = None,
@@ -235,26 +254,22 @@ def search_public_products(
     Apply the public visibility rules, then search, filters and ordering.
 
     Shared by the storefront product listing (paginated) and the autocomplete
-    endpoint (limited), so both always agree on what is discoverable. Filtering
-    by a parent category includes its active descendants by default; pass
-    ``include_subcategories=False`` to address exactly one category.
+    endpoint (limited), so both always agree on what is discoverable.
+    Categories are flat, so filtering addresses exactly one category.
     """
-    category_ids: set[int] | None = None
     if category_slug or category_id is not None:
         category = _get_public_category(
             category_slug=category_slug, category_id=category_id
         )
-        category_ids = (
-            _category_subtree_ids(category)
-            if include_subcategories
-            else {category.pk}
-        )
+        category_id = category.pk
+        category_slug = None
 
     term = normalize_search_query(query)
     qs = get_public_product_queryset()
     qs = apply_filters(
         qs,
-        category_ids=category_ids,
+        category_slug=category_slug,
+        category_id=category_id,
         min_price=min_price,
         max_price=max_price,
         available=available,
@@ -370,7 +385,7 @@ def suggest_public_products_with_correction(
 def list_categories_backoffice(
     *, is_active: bool | None = None
 ) -> QuerySet[Category]:
-    qs = Category.objects.all().order_by("display_order", "name")
+    qs = Category.objects.all().order_by("display_order", "id")
     if is_active is not None:
         qs = qs.filter(is_active=is_active)
     return qs

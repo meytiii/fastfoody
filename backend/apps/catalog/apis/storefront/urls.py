@@ -8,6 +8,7 @@ from .views import (
     ProductDetailView,
     ProductListView,
     ProductSuggestionsView,
+    UpsellView,
 )
 
 urlpatterns = [
@@ -26,6 +27,11 @@ urlpatterns = [
         "suggestions/",
         ProductSuggestionsView.as_view(),
         name="storefront-catalog-suggestions",
+    ),
+    path(
+        "upsell/",
+        UpsellView.as_view(),
+        name="storefront-catalog-upsell",
     ),
     path(
         "products/<slug:slug>/",

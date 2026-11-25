@@ -14,12 +14,11 @@ from .constants import (
     CACHE_KEY_LUCKY_WHEEL,
     CACHE_KEY_MENU,
     CACHE_KEY_SEARCH_VOCAB,
+    CACHE_KEY_UPSELL,
 )
 from .exceptions import (
     AddOnNotFoundError,
-    CategoryHasChildrenError,
     CategoryHasProductsError,
-    CategoryHierarchyError,
     CategoryNotFoundError,
     ProductNotFoundError,
     SlugAlreadyExistsError,
@@ -37,6 +36,7 @@ def _invalidate_catalog_cache() -> None:
     cache.delete(CACHE_KEY_MENU)
     cache.delete(CACHE_KEY_LUCKY_WHEEL)
     cache.delete(CACHE_KEY_SEARCH_VOCAB)
+    cache.delete(CACHE_KEY_UPSELL)
     # ``get_lucky_wheel_products`` writes one key per category; those derived
     # keys must be cleared too or they stay stale until the timeout expires.
     for slug in Category.all_objects.values_list("slug", flat=True):
@@ -44,40 +44,6 @@ def _invalidate_catalog_cache() -> None:
     # Cached list/search pages include filters, sorting and pagination. Bumping
     # the generation is cheaper and safer than enumerating every key.
     bump_search_cache_version()
-
-
-def _resolve_parent_category(
-    *,
-    parent_id: int | None,
-    category: Category | None = None,
-) -> Category | None:
-    """Resolve and validate a parent category (exists, not self, no cycle)."""
-    if parent_id is None:
-        return None
-
-    try:
-        parent = Category.objects.get(pk=parent_id)
-    except Category.DoesNotExist:
-        raise CategoryNotFoundError()
-
-    if category is not None:
-        if parent.pk == category.pk:
-            raise CategoryHierarchyError(
-                message="یک دسته‌بندی نمی‌تواند والد خودش باشد.",
-                details={"parent_id": "دسته‌بندی نمی‌تواند والد خودش باشد."},
-            )
-        ancestor: Category | None = parent
-        seen: set[int] = set()
-        while ancestor is not None and ancestor.pk not in seen:
-            if ancestor.pk == category.pk:
-                raise CategoryHierarchyError(
-                    message="این جابه‌جایی یک حلقه در درخت دسته‌بندی ایجاد می‌کند.",
-                    details={"parent_id": "والد انتخابی زیرمجموعه همین دسته است."},
-                )
-            seen.add(ancestor.pk)
-            ancestor = ancestor.parent
-
-    return parent
 
 
 def _validate_pricing(*, price: int, compare_at_price: int | None) -> None:
@@ -105,10 +71,8 @@ def create_category(*, data: dict[str, Any]) -> Category:
         raise SlugAlreadyExistsError()
 
     image = data.pop("image", None)
-    parent_id = data.pop("parent_id", None)
 
     category = Category(**data)
-    category.parent = _resolve_parent_category(parent_id=parent_id)
     if image:
         category.image = image
     category.save()
@@ -136,13 +100,6 @@ def update_category(*, category_id: int, data: dict[str, Any]) -> Category:
     if "slug" in data and data["slug"] != category.slug:
         if Category.objects.filter(slug=data["slug"]).exclude(pk=category.pk).exists():
             raise SlugAlreadyExistsError()
-
-    if "parent_id" in data:
-        parent_id = data.pop("parent_id")
-        category.parent = _resolve_parent_category(
-            parent_id=parent_id, category=category
-        )
-        data["parent"] = category.parent
 
     for field, value in data.items():
         setattr(category, field, value)
@@ -173,8 +130,6 @@ def delete_category(*, category_id: int) -> None:
 
     if Product.objects.filter(category=category).exists():
         raise CategoryHasProductsError()
-    if Category.objects.filter(parent=category).exists():
-        raise CategoryHasChildrenError()
 
     category.soft_delete()
     _schedule_invalidation()

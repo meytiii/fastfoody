@@ -18,7 +18,6 @@ class CategoryReadSerializer(serializers.ModelSerializer):
         model = Category
         fields = (
             "id",
-            "parent_id",
             "name",
             "slug",
             "description",
@@ -40,9 +39,6 @@ class CategoryReadSerializer(serializers.ModelSerializer):
 class CategoryWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
     slug = serializers.SlugField(max_length=128)
-    parent_id = serializers.IntegerField(
-        required=False, allow_null=True, min_value=1
-    )
     description = serializers.CharField(
         required=False, allow_blank=True, default=""
     )
@@ -53,9 +49,6 @@ class CategoryWriteSerializer(serializers.Serializer):
 class CategoryUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128, required=False)
     slug = serializers.SlugField(max_length=128, required=False)
-    parent_id = serializers.IntegerField(
-        required=False, allow_null=True, min_value=1
-    )
     description = serializers.CharField(required=False, allow_blank=True)
     display_order = serializers.IntegerField(min_value=0, required=False)
     is_active = serializers.BooleanField(required=False)

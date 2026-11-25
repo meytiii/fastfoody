@@ -4,8 +4,20 @@ from typing import Any
 
 from django.db.models import Prefetch, Q, QuerySet
 
+from apps.accounts.models import CustomerNote
+
 from .exceptions import OrderNotFoundError
 from .models import Order, OrderItem, OrderItemAddOn
+
+
+def _customer_notes_prefetch() -> Prefetch:
+    """Prefetch CRM notes so the POS/receipt payload has no N+1 queries."""
+    return Prefetch(
+        "customer__notes",
+        queryset=CustomerNote.objects.select_related("author").order_by(
+            "-created_at"
+        ),
+    )
 
 
 def _with_details() -> QuerySet[Order]:
@@ -18,6 +30,7 @@ def _with_details() -> QuerySet[Order]:
                 Prefetch("addons", queryset=OrderItemAddOn.objects.all())
             ),
         ),
+        _customer_notes_prefetch(),
     )
 
 

@@ -69,7 +69,11 @@ def request_otp(*, phone: str) -> int:
 
 
 def verify_otp(*, phone: str, code: str) -> Customer:
-    """Validate OTP, get-or-create customer, block inactive/blocked accounts."""
+    """
+    Validate OTP, get-or-create customer, block inactive/blocked accounts.
+
+    No Django session is created: the caller issues JWTs only.
+    """
     normalized = normalize_phone(phone)
 
     stored = otp_service.get_otp_code(phone=normalized)
@@ -97,18 +101,75 @@ def verify_otp(*, phone: str, code: str) -> Customer:
 # ---------------------------------------------------------------------------
 # Customer addresses
 # ---------------------------------------------------------------------------
+MAX_CUSTOMER_ADDRESSES = 4
+
+ADDRESS_LIMIT_MESSAGE = (
+    "شما حداکثر می‌توانید ۴ آدرس ثبت کنید. برای افزودن آدرس جدید، ابتدا یکی "
+    "از آدرس‌های قبلی را ویرایش یا حذف کنید."
+)
+
+
+def _make_address_default(
+    *, customer: Customer, address: CustomerAddress
+) -> None:
+    """Make ``address`` the only default address of ``customer``."""
+    CustomerAddress.objects.filter(
+        customer=customer, is_default=True
+    ).exclude(pk=address.pk).update(
+        is_default=False, updated_at=timezone.now()
+    )
+    if not address.is_default:
+        address.is_default = True
+        address.save(update_fields=["is_default", "updated_at"])
+
+
 @transaction.atomic
 def create_address(
     *,
     customer: Customer,
     data: dict[str, Any],
+    replace_address_id: int | None = None,
 ) -> CustomerAddress:
-    if data.get("is_default"):
-        CustomerAddress.objects.filter(
-            customer=customer, is_default=True
-        ).update(is_default=False, updated_at=timezone.now())
+    """
+    Create an address, or replace an existing one when the limit is reached.
 
-    return CustomerAddress.objects.create(customer=customer, **data)
+    The most recently added address always becomes the customer's default.
+    If ``replace_address_id`` is provided, that address is atomically updated
+    with the new data instead of creating a fifth address.
+    """
+    if replace_address_id is not None:
+        try:
+            address = CustomerAddress.objects.select_for_update().get(
+                pk=replace_address_id, customer=customer
+            )
+        except CustomerAddress.DoesNotExist:
+            raise NotFoundError(
+                message="آدرس یافت نشد.",
+                code="ADDRESS_NOT_FOUND",
+            )
+
+        for field, value in data.items():
+            if field == "is_default":
+                continue
+            setattr(address, field, value)
+        address.save(update_fields=list(data.keys()) + ["updated_at"])
+        _make_address_default(customer=customer, address=address)
+        return address
+
+    if CustomerAddress.objects.filter(customer=customer).count() >= MAX_CUSTOMER_ADDRESSES:
+        raise ValidationError(
+            message=ADDRESS_LIMIT_MESSAGE,
+            code="ADDRESS_LIMIT_REACHED",
+            details={"addresses": ADDRESS_LIMIT_MESSAGE},
+        )
+
+    data = {k: v for k, v in data.items() if k != "is_default"}
+    CustomerAddress.objects.filter(customer=customer, is_default=True).update(
+        is_default=False, updated_at=timezone.now()
+    )
+    return CustomerAddress.objects.create(
+        customer=customer, is_default=True, **data
+    )
 
 
 @transaction.atomic
@@ -128,17 +189,35 @@ def update_address(
             code="ADDRESS_NOT_FOUND",
         )
 
+    data = {k: v for k, v in data.items() if k != "replace_address_id"}
     if data.get("is_default") is True:
-        CustomerAddress.objects.filter(
-            customer=customer, is_default=True
-        ).exclude(pk=address.pk).update(
-            is_default=False, updated_at=timezone.now()
+        _make_address_default(customer=customer, address=address)
+        data = {k: v for k, v in data.items() if k != "is_default"}
+
+    if data:
+        for field, value in data.items():
+            setattr(address, field, value)
+        address.save(update_fields=list(data.keys()) + ["updated_at"])
+
+    return address
+
+
+@transaction.atomic
+def set_default_address(
+    *, customer: Customer, address_id: int
+) -> CustomerAddress:
+    """Select an address as the customer's default (used by orders too)."""
+    try:
+        address = CustomerAddress.objects.select_for_update().get(
+            pk=address_id, customer=customer
+        )
+    except CustomerAddress.DoesNotExist:
+        raise NotFoundError(
+            message="آدرس یافت نشد.",
+            code="ADDRESS_NOT_FOUND",
         )
 
-    for field, value in data.items():
-        setattr(address, field, value)
-
-    address.save(update_fields=list(data.keys()) + ["updated_at"])
+    _make_address_default(customer=customer, address=address)
     return address
 
 

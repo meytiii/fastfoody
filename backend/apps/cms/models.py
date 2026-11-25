@@ -26,6 +26,8 @@ class RestaurantSettings(models.Model):
 
     in_zone_delivery_fee = models.PositiveIntegerField(default=50_000)
     out_zone_delivery_fee = models.PositiveIntegerField(default=100_000)
+    min_delivery_order_amount = models.PositiveIntegerField(default=0)
+    packaging_fee = models.PositiveIntegerField(default=0)
     prep_time_buffer_minutes = models.PositiveSmallIntegerField(default=5)
 
     created_at = models.DateTimeField(auto_now_add=True)

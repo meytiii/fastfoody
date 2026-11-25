@@ -83,7 +83,7 @@ class TestOTPEndpoints:
         assert response.status_code == 200
         assert response.json()["expires_in"] == 120
 
-    def test_verify_creates_session(self, api_client, db):
+    def test_verify_returns_jwt_without_session(self, api_client, db):
         from apps.accounts import otp as otp_service
 
         otp_service.store_otp(phone="09120000000", code="123456")
@@ -93,30 +93,99 @@ class TestOTPEndpoints:
             format="json",
         )
         assert response.status_code == 200
-        assert response.json()["user"]["phone"] == "09120000000"
+        body = response.json()
+        assert body["user"]["phone"] == "09120000000"
+        assert body["access"] and body["refresh"]
+        assert "_auth_user_id" not in api_client.session
 
 
 class TestAddresses:
-    def test_create(self, authed_client, customer):
+    def test_create_marks_new_address_default(self, authed_client, customer):
         response = authed_client.post(
             "/api/v1/storefront/auth/addresses/",
             {"address_text": "Tehran", "is_out_of_zone": False},
             format="json",
         )
         assert response.status_code == 201
+        assert response.json()["is_default"] is True
         assert CustomerAddress.objects.filter(customer=customer).count() == 1
 
-    def test_default_swap(self, authed_client, customer):
+    def test_new_address_becomes_default(self, authed_client, customer):
         a1 = CustomerAddress.objects.create(
             customer=customer, address_text="A1", is_default=True
         )
-        authed_client.post(
+        response = authed_client.post(
             "/api/v1/storefront/auth/addresses/",
-            {"address_text": "A2", "is_default": True},
+            {"address_text": "A2"},
             format="json",
         )
         a1.refresh_from_db()
         assert a1.is_default is False
+        assert response.json()["is_default"] is True
+
+    def test_fifth_address_rejected(self, customer):
+        for index in range(4):
+            services.create_address(
+                customer=customer, data={"address_text": f"A{index}"}
+            )
+
+        with pytest.raises(ValidationError) as exc_info:
+            services.create_address(customer=customer, data={"address_text": "A5"})
+
+        assert exc_info.value.code == "ADDRESS_LIMIT_REACHED"
+        assert CustomerAddress.objects.filter(customer=customer).count() == 4
+
+    def test_replace_address_at_limit(self, customer):
+        addresses = [
+            CustomerAddress.objects.create(
+                customer=customer,
+                address_text=f"A{index}",
+                is_default=index == 0,
+            )
+            for index in range(4)
+        ]
+
+        replaced = services.create_address(
+            customer=customer,
+            data={"address_text": "Replaced"},
+            replace_address_id=addresses[0].pk,
+        )
+
+        assert CustomerAddress.objects.filter(customer=customer).count() == 4
+        assert replaced.address_text == "Replaced"
+        assert replaced.is_default is True
+        addresses[1].refresh_from_db()
+        assert addresses[1].is_default is False
+
+    def test_set_default_endpoint(self, authed_client, customer):
+        first = CustomerAddress.objects.create(
+            customer=customer, address_text="A1", is_default=True
+        )
+        second = CustomerAddress.objects.create(
+            customer=customer, address_text="A2"
+        )
+
+        response = authed_client.post(
+            f"/api/v1/storefront/auth/addresses/{second.pk}/set-default/"
+        )
+
+        assert response.status_code == 200
+        assert response.json()["is_default"] is True
+        first.refresh_from_db()
+        assert first.is_default is False
+
+    def test_soft_deleted_address_frees_a_slot(self, customer):
+        for index in range(4):
+            services.create_address(
+                customer=customer, data={"address_text": f"A{index}"}
+            )
+        victim = CustomerAddress.objects.filter(customer=customer).first()
+        services.delete_address(customer=customer, address_id=victim.pk)
+
+        created = services.create_address(
+            customer=customer, data={"address_text": "New"}
+        )
+        assert created.pk is not None
 
 
 class TestStaffLogin:

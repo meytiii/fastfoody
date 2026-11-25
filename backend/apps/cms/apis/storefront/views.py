@@ -5,7 +5,6 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.cms.apis.serializers import (
     SiteSectionMapResponseSerializer,
@@ -18,6 +17,7 @@ from apps.cms.selectors import (
     list_media_assets,
 )
 from common.serializers import ErrorEnvelopeSerializer
+from common.views import StorefrontAPIView
 
 from .serializers import (
     MediaAssetPublicSerializer,
@@ -25,7 +25,7 @@ from .serializers import (
 )
 
 
-class RestaurantStatusView(APIView):
+class RestaurantStatusView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -39,7 +39,7 @@ class RestaurantStatusView(APIView):
         return Response(serializer.data)
 
 
-class SiteSectionListView(APIView):
+class SiteSectionListView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -52,7 +52,7 @@ class SiteSectionListView(APIView):
         return Response(get_all_site_sections())
 
 
-class SiteSectionDetailView(APIView):
+class SiteSectionDetailView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -70,7 +70,7 @@ class SiteSectionDetailView(APIView):
         return Response(serializer.data)
 
 
-class MediaAssetListView(APIView):
+class MediaAssetListView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(

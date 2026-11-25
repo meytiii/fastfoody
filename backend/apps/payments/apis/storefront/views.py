@@ -4,15 +4,15 @@ from django.http import HttpResponseRedirect
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.orders.selectors import get_order_for_customer
 from apps.payments import services
 from apps.payments.selectors import get_payment_by_authority
 from common.serializers import ErrorEnvelopeSerializer
+from common.views import StorefrontAPIView
 
 from .serializers import (
     PaymentPublicSerializer,
@@ -21,8 +21,7 @@ from .serializers import (
 )
 
 
-class StartPaymentView(APIView):
-    permission_classes = [IsAuthenticated]
+class StartPaymentView(StorefrontAPIView):
 
     @extend_schema(
         tags=["Storefront — Payments"],
@@ -49,8 +48,7 @@ class StartPaymentView(APIView):
         return Response(payload, status=status.HTTP_201_CREATED)
 
 
-class RetryPaymentView(APIView):
-    permission_classes = [IsAuthenticated]
+class RetryPaymentView(StorefrontAPIView):
 
     @extend_schema(
         tags=["Storefront — Payments"],
@@ -77,7 +75,7 @@ class RetryPaymentView(APIView):
         return Response(payload, status=status.HTTP_201_CREATED)
 
 
-class ZarinpalCallbackView(APIView):
+class ZarinpalCallbackView(StorefrontAPIView):
     """
     Public endpoint Zarinpal redirects to.
 
@@ -86,7 +84,6 @@ class ZarinpalCallbackView(APIView):
     """
 
     permission_classes = [AllowAny]
-    authentication_classes: list = []
 
     @extend_schema(
         tags=["Storefront — Payments"],
@@ -156,8 +153,7 @@ class ZarinpalCallbackView(APIView):
         return Response(PaymentPublicSerializer(payment).data)
 
 
-class PaymentStatusView(APIView):
-    permission_classes = [IsAuthenticated]
+class PaymentStatusView(StorefrontAPIView):
 
     @extend_schema(
         tags=["Storefront — Payments"],

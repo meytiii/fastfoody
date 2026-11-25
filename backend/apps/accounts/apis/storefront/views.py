@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from django.contrib.auth import login, logout
-from django.middleware.csrf import get_token
-from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import (
     OpenApiResponse,
     extend_schema,
     extend_schema_view,
 )
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,7 +15,8 @@ from rest_framework_simplejwt.views import TokenRefreshView as _SimpleJWTRefresh
 
 from apps.accounts import services, selectors, tokens
 from apps.accounts.throttles import OTPRequestThrottle, OTPVerifyThrottle
-from common.serializers import CSRFResponseSerializer, ErrorEnvelopeSerializer
+from common.serializers import ErrorEnvelopeSerializer
+from common.views import StorefrontAPIView
 
 from .serializers import (
     CustomerAddressSerializer,
@@ -33,26 +31,7 @@ from .serializers import (
 )
 
 
-class CSRFTokenView(APIView):
-    authentication_classes: list = []
-    permission_classes = [AllowAny]
-
-    @extend_schema(
-        tags=["Storefront — Auth"],
-        operation_id="storefront_auth_csrf",
-        summary="Return a CSRF token and set the cookie",
-        responses={200: CSRFResponseSerializer},
-    )
-    def get(self, request: Request) -> Response:
-        return Response({"csrf_token": get_token(request)})
-
-
-# Keep the response decorator on the resolved view so the cookie is always set.
-csrf_token_view = ensure_csrf_cookie(CSRFTokenView.as_view())
-
-
-class OTPRequestView(APIView):
-    authentication_classes: list = []
+class OTPRequestView(StorefrontAPIView):
     permission_classes = [AllowAny]
     throttle_classes = [OTPRequestThrottle]
 
@@ -77,15 +56,14 @@ class OTPRequestView(APIView):
         )
 
 
-class OTPVerifyView(APIView):
-    authentication_classes: list = []
+class OTPVerifyView(StorefrontAPIView):
     permission_classes = [AllowAny]
     throttle_classes = [OTPVerifyThrottle]
 
     @extend_schema(
         tags=["Storefront — Auth"],
         operation_id="storefront_auth_otp_verify",
-        summary="Verify an OTP and start a session / issue JWTs",
+        summary="Verify an OTP and issue JWTs",
         request=OTPVerifySerializer,
         responses={
             200: OTPVerifyResponseSerializer,
@@ -102,14 +80,7 @@ class OTPVerifyView(APIView):
             code=serializer.validated_data["code"],
         )
 
-        # Session (backward compatibility + browser flows)
-        login(
-            request._request,
-            customer,
-            backend="django.contrib.auth.backends.ModelBackend",
-        )
-
-        # JWT (for SPA / mobile)
+        # Customer login is JWT-only: no Django session is created here.
         token_pair = tokens.issue_tokens_for_customer(customer)
 
         return Response(
@@ -121,28 +92,7 @@ class OTPVerifyView(APIView):
         )
 
 
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        tags=["Storefront — Auth"],
-        operation_id="storefront_auth_session_logout",
-        summary="End the browser session",
-        request=None,
-        responses={
-            204: OpenApiResponse(description="Session cleared."),
-            401: ErrorEnvelopeSerializer,
-            403: ErrorEnvelopeSerializer,
-        },
-    )
-    def post(self, request: Request) -> Response:
-        logout(request._request)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class MeView(APIView):
-    permission_classes = [IsAuthenticated]
-
+class MeView(StorefrontAPIView):
     @extend_schema(
         tags=["Storefront — Auth"],
         operation_id="storefront_auth_me",
@@ -157,9 +107,7 @@ class MeView(APIView):
         return Response(CustomerProfileSerializer(request.user).data)
 
 
-class AddressListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
+class AddressListCreateView(StorefrontAPIView):
     @extend_schema(
         tags=["Storefront — Addresses"],
         operation_id="storefront_addresses_list",
@@ -188,9 +136,12 @@ class AddressListCreateView(APIView):
     def post(self, request: Request) -> Response:
         serializer = CustomerAddressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        replace_address_id = data.pop("replace_address_id", None)
         address = services.create_address(
             customer=request.user,
-            data=dict(serializer.validated_data),
+            data=data,
+            replace_address_id=replace_address_id,
         )
         return Response(
             CustomerAddressSerializer(address).data,
@@ -198,9 +149,7 @@ class AddressListCreateView(APIView):
         )
 
 
-class AddressDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
+class AddressDetailView(StorefrontAPIView):
     @extend_schema(
         tags=["Storefront — Addresses"],
         operation_id="storefront_address_detail",
@@ -253,6 +202,23 @@ class AddressDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class SetDefaultAddressView(StorefrontAPIView):
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_address_set_default",
+        summary="Select an address as the default",
+        request=None,
+        responses={
+            200: CustomerAddressSerializer,
+            401: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+        },
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        address = services.set_default_address(
+            customer=request.user, address_id=pk
+        )
+        return Response(CustomerAddressSerializer(address).data)
 
 
 @extend_schema_view(
@@ -276,12 +242,7 @@ class TokenRefreshView(_SimpleJWTRefreshView):
 
 
 class TokenLogoutView(APIView):
-    """
-    Public: blacklist the provided refresh token.
-
-    Also clears an active session if one exists, so the same endpoint can be
-    used by both JWT and Session clients.
-    """
+    """Public: blacklist the provided refresh token."""
 
     authentication_classes: list = []
     permission_classes = [AllowAny]
@@ -301,9 +262,4 @@ class TokenLogoutView(APIView):
         serializer = TokenLogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         tokens.blacklist_refresh_token(serializer.validated_data["refresh"])
-
-        # Best-effort session cleanup (no error if not authenticated)
-        if request.user and request.user.is_authenticated:
-            logout(request._request)
-
         return Response(status=status.HTTP_204_NO_CONTENT)

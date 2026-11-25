@@ -36,6 +36,12 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
 
 
 class CustomerAddressSerializer(serializers.ModelSerializer):
+    #: Optional: when the customer already has the maximum number of addresses,
+    #: replace this existing address instead of failing.
+    replace_address_id = serializers.IntegerField(
+        required=False, write_only=True, min_value=1
+    )
+
     class Meta:
         model = CustomerAddress
         fields = (
@@ -46,6 +52,7 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
             "recipient_phone",
             "is_out_of_zone",
             "is_default",
+            "replace_address_id",
             "created_at",
             "updated_at",
         )

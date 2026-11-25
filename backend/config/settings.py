@@ -167,11 +167,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 20,
 
-    # جدید: JWT اول، Session به‌عنوان fallback
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-    ],
+    # Intentionally no DEFAULT_AUTHENTICATION_CLASSES.
+    #
+    # Authentication is chosen explicitly per surface:
+    #   * Storefront views use JWTAuthentication only (common.views.StorefrontAPIView).
+    #   * Backoffice views use SessionAuthentication only (common.views.BackofficeAPIView).
+    # This keeps DRF from running CSRF checks on JWT endpoints and keeps a
+    # customer JWT from ever authenticating a staff endpoint.
 
     "DEFAULT_THROTTLE_RATES": {
         "otp_request": "5/hour",
@@ -196,7 +198,7 @@ SIMPLE_JWT = {
 
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": False,   # login() این کار را می‌کند
+    "UPDATE_LAST_LOGIN": False,   # staff login records last_login explicitly
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),

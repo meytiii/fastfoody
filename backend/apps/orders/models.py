@@ -56,6 +56,7 @@ class Order(BaseModel):
 
     subtotal = models.PositiveIntegerField(default=0)
     delivery_fee = models.PositiveIntegerField(default=0)
+    packaging_fee = models.PositiveIntegerField(default=0)
     total_amount = models.PositiveIntegerField(default=0)
 
     prep_time_minutes = models.PositiveSmallIntegerField(default=0)
@@ -74,6 +75,9 @@ class Order(BaseModel):
 
     canceled_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.TextField(blank=True)
+    cancellation_requested = models.BooleanField(default=False, db_index=True)
+    cancellation_request_reason = models.TextField(blank=True)
+    cancellation_requested_at = models.DateTimeField(null=True, blank=True)
     canceled_by = models.ForeignKey(
         "accounts.Customer",
         on_delete=models.SET_NULL,

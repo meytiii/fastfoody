@@ -55,6 +55,7 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "delivery_recipient_phone",
             "subtotal",
             "delivery_fee",
+            "packaging_fee",
             "total_amount",
             "prep_time_minutes",
             "expected_ready_at",
@@ -63,6 +64,9 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "expires_at",
             "canceled_at",
             "cancellation_reason",
+            "cancellation_requested",
+            "cancellation_request_reason",
+            "cancellation_requested_at",
             "created_at",
             "items",
         )
@@ -88,6 +92,10 @@ class OrderListResponseSerializer(serializers.Serializer):
     next = serializers.CharField(allow_null=True)
     previous = serializers.CharField(allow_null=True)
     results = OrderReadSerializer(many=True)
+
+
+class CancellationRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OrderCreateSerializer(serializers.Serializer):

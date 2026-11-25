@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import difflib
 from functools import lru_cache
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 from django.conf import settings
 from django.db.models import (
@@ -243,7 +243,6 @@ def apply_filters(
     *,
     category_slug: str | None = None,
     category_id: int | None = None,
-    category_ids: Iterable[int] | None = None,
     min_price: int | None = None,
     max_price: int | None = None,
     available: bool | None = None,
@@ -256,16 +255,12 @@ def apply_filters(
     - ``available`` is the manual status flag (``True`` → AVAILABLE,
       ``False`` → OUT_OF_STOCK).
     - ``discount`` is derived from ``compare_at_price > price``.
-    - ``category_ids`` is the resolved hierarchy (parent + descendants);
-      ``category_slug``/``category_id`` remain supported for direct callers.
+    - Categories are flat, so filtering is by one slug or one id.
     """
-    if category_ids is not None:
-        queryset = queryset.filter(category_id__in=list(category_ids))
-    else:
-        if category_slug:
-            queryset = queryset.filter(category__slug=category_slug)
-        if category_id is not None:
-            queryset = queryset.filter(category_id=category_id)
+    if category_slug:
+        queryset = queryset.filter(category__slug=category_slug)
+    if category_id is not None:
+        queryset = queryset.filter(category_id=category_id)
 
     if min_price is not None:
         queryset = queryset.filter(price__gte=min_price)

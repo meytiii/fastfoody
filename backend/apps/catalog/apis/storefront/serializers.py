@@ -11,9 +11,7 @@ class CategoryPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        # ``parent_id`` lets the frontend rebuild the category tree without
-        # exposing the whole parent object in every product row.
-        fields = ("id", "name", "slug", "description", "parent_id", "image_url")
+        fields = ("id", "name", "slug", "description", "image_url")
 
     def get_image_url(self, obj: Category) -> str | None:
         if obj.webp_image:
@@ -154,7 +152,6 @@ class ProductSearchQuerySerializer(serializers.Serializer):
     )
     available = serializers.BooleanField(required=False)
     discount = serializers.BooleanField(required=False)
-    include_subcategories = serializers.BooleanField(required=False, default=True)
     is_main_dish = serializers.BooleanField(required=False)
     sort = serializers.ChoiceField(choices=SORT_CHOICES, required=False)
 
@@ -238,3 +235,19 @@ class LuckyWheelProductSerializer(serializers.Serializer):
 
 class LuckyWheelResponseSerializer(serializers.Serializer):
     products = LuckyWheelProductSerializer(many=True)
+
+
+class UpsellProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+    price = serializers.IntegerField()
+    compare_at_price = serializers.IntegerField(allow_null=True)
+    discount_percent = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=Product.Status.choices)
+    image_url = serializers.CharField(allow_null=True)
+    category_id = serializers.IntegerField()
+
+
+class UpsellResponseSerializer(serializers.Serializer):
+    products = UpsellProductSerializer(many=True)

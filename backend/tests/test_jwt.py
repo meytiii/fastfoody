@@ -25,11 +25,16 @@ class TestOTPVerify:
         assert "user" in body
         assert body["user"]["phone"] == "09120000000"
 
-    def test_session_also_set(self, api_client, db):
-        _get_tokens(api_client)
-        # Session works: /me without Authorization header
+    def test_no_session_is_created(self, api_client, db):
+        body = _get_tokens(api_client)
+        assert body["access"]
+        # No browser session: /me without an Authorization header is rejected.
         response = api_client.get("/api/v1/storefront/auth/me/")
-        assert response.status_code == 200
+        assert response.status_code == 401
+
+    def test_storefront_session_routes_removed(self, api_client, db):
+        assert api_client.get("/api/v1/storefront/auth/csrf/").status_code == 404
+        assert api_client.post("/api/v1/storefront/auth/logout/").status_code == 404
 
 
 class TestJWTAccess:
@@ -50,6 +55,22 @@ class TestJWTAccess:
     def test_missing_auth_rejected(self, api_client, db):
         response = api_client.get("/api/v1/storefront/auth/me/")
         assert response.status_code in (401, 403)
+
+    def test_session_cookie_is_rejected(self, api_client, db, customer):
+        api_client.force_login(customer)
+        response = api_client.get("/api/v1/storefront/auth/me/")
+        assert response.status_code == 401
+
+    def test_blocked_customer_token_rejected(self, api_client, db):
+        from apps.accounts.models import Customer
+
+        body = _get_tokens(api_client)
+        customer = Customer.objects.get(phone="09120000000")
+        customer.is_blocked = True
+        customer.save(update_fields=["is_blocked"])
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {body['access']}")
+        response = api_client.get("/api/v1/storefront/auth/me/")
+        assert response.status_code == 403
 
 
 class TestRefresh:
@@ -110,17 +131,14 @@ class TestLogout:
         )
         assert response.status_code == 401
 
-    def test_logout_clears_session(self, api_client, db):
-        _get_tokens(api_client)
-        assert api_client.get("/api/v1/storefront/auth/me/").status_code == 200
-        # Session logout via JWT-logout with empty refresh
+    def test_logout_is_public_and_does_not_need_a_session(self, api_client, db):
+        body = _get_tokens(api_client)
         response = api_client.post(
             "/api/v1/storefront/auth/token/logout/",
-            {"refresh": ""},
+            {"refresh": body["refresh"]},
             format="json",
         )
-        # 400 (validation) is acceptable — session remains intact.
-        assert response.status_code in (204, 400)
+        assert response.status_code == 204
 
 
 class TestBackofficeIsolation:

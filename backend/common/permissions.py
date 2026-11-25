@@ -17,3 +17,18 @@ class IsStaffUser(BasePermission):
             and user.is_authenticated
             and getattr(user, "is_staff", False)
         )
+
+
+class IsActiveCustomer(BasePermission):
+    """Allow only authenticated, active, non-blocked Storefront customers."""
+
+    message = "حساب کاربری شما فعال نیست."
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_active
+            and not getattr(user, "is_blocked", False)
+        )

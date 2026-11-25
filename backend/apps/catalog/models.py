@@ -6,15 +6,6 @@ from common.models import BaseModel
 
 
 class Category(BaseModel):
-    parent = models.ForeignKey(
-        "self",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="children",
-        help_text="Optional parent category; the catalog supports one nesting level "
-        "for navigation but the model allows any depth.",
-    )
     name = models.CharField(max_length=128)
     slug = models.SlugField(max_length=128, db_index=True)
     description = models.TextField(blank=True)
@@ -26,18 +17,12 @@ class Category(BaseModel):
     is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta(BaseModel.Meta):
-        ordering = ("display_order", "name")
+        ordering = ("display_order", "id")
         constraints = [
             models.UniqueConstraint(
                 fields=["slug"],
                 condition=models.Q(deleted_at__isnull=True),
                 name="unique_alive_category_slug",
-            ),
-            # A category can never be its own parent. Deeper cycles are rejected
-            # by catalog.services (the check needs an ancestor walk).
-            models.CheckConstraint(
-                check=~models.Q(pk=models.F("parent_id")),
-                name="category_parent_not_self",
             ),
         ]
         verbose_name = "Category"

@@ -26,6 +26,8 @@ class RestaurantSettingsSerializer(serializers.ModelSerializer):
             "is_temporarily_closed",
             "in_zone_delivery_fee",
             "out_zone_delivery_fee",
+            "min_delivery_order_amount",
+            "packaging_fee",
             "prep_time_buffer_minutes",
             "updated_at",
         )

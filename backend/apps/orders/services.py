@@ -10,6 +10,7 @@ from django.utils import timezone
 from redis.exceptions import RedisError
 
 from apps.accounts.models import Customer, CustomerAddress
+from apps.accounts.services import set_default_address
 from apps.catalog.models import Product, ProductAddOn
 from apps.cms.selectors import get_restaurant_settings
 from common.exceptions import NotFoundError, ValidationError
@@ -234,8 +235,12 @@ def create_order(
             if address.is_out_of_zone
             else settings_obj.in_zone_delivery_fee
         )
+        # Selecting an address for an order makes it the customer's default.
+        set_default_address(customer=customer, address_id=address.pk)
     else:
         delivery_fee = 0
+
+    packaging_fee = settings_obj.packaging_fee
 
     product_by_id = {
         p.pk: p
@@ -252,6 +257,7 @@ def create_order(
         delivery_recipient_name=(address.recipient_name if address else ""),
         delivery_recipient_phone=(address.recipient_phone if address else ""),
         delivery_fee=delivery_fee,
+        packaging_fee=packaging_fee,
         notes_to_kitchen=notes_to_kitchen or "",
         prep_time_minutes=prep_time,
         status=Order.Status.PENDING_PAYMENT,
@@ -260,9 +266,29 @@ def create_order(
     )
 
     subtotal = _build_order_items(order, items)
+
+    min_delivery_amount = settings_obj.min_delivery_order_amount
+    if (
+        delivery_type == Order.DeliveryType.DELIVERY
+        and subtotal < min_delivery_amount
+    ):
+        raise ValidationError(
+            message=(
+                "حداقل مبلغ سفارش برای ارسال "
+                f"{min_delivery_amount} تومان است."
+            ),
+            code="MIN_DELIVERY_ORDER_AMOUNT",
+            details={
+                "min_delivery_order_amount": min_delivery_amount,
+                "subtotal": subtotal,
+            },
+        )
+
     order.subtotal = subtotal
-    order.total_amount = subtotal + delivery_fee
-    order.save(update_fields=["subtotal", "total_amount", "updated_at"])
+    order.total_amount = subtotal + delivery_fee + packaging_fee
+    order.save(
+        update_fields=["subtotal", "total_amount", "updated_at"]
+    )
 
     logger.info(
         "Order %s created (customer=%s total=%s prep=%s)",
@@ -503,6 +529,59 @@ def cancel_order_by_manager(
             "canceled_by",
             "cancellation_reason",
             "payment_status",
+            "updated_at",
+        ]
+    )
+    return order
+
+
+@transaction.atomic
+def request_cancellation(
+    *,
+    customer: Customer,
+    order_id: int,
+    reason: str = "",
+) -> Order:
+    """
+    Let a customer ask the manager to cancel their own paid order.
+
+    Only PAID orders that are still PROCESSING or READY are eligible, and a
+    request can be recorded once. The manager still performs the actual
+    cancellation (and any manual refund).
+    """
+    from common.exceptions import OrderStateError
+
+    try:
+        order = Order.objects.select_for_update().get(
+            pk=order_id, customer=customer
+        )
+    except Order.DoesNotExist:
+        raise OrderNotFoundError()
+
+    if order.payment_status != Order.PaymentStatus.PAID:
+        raise OrderStateError(
+            message="فقط سفارش‌های پرداخت‌شده قابل درخواست لغو هستند.",
+            details={"payment_status": order.payment_status},
+        )
+    if order.status not in {Order.Status.PROCESSING, Order.Status.READY}:
+        raise OrderStateError(
+            message="در وضعیت فعلی سفارش امکان درخواست لغو وجود ندارد.",
+            details={"status": order.status},
+        )
+    if order.cancellation_requested:
+        raise OrderStateError(
+            message="درخواست لغو این سفارش قبلاً ثبت شده است.",
+            details={"order_id": order.pk},
+        )
+
+    order.cancellation_requested = True
+    order.cancellation_request_reason = (reason or "").strip()
+    order.cancellation_requested_at = timezone.now()
+    order.save(
+        update_fields=[
+            "cancellation_requested",
+            "cancellation_request_reason",
+            "cancellation_requested_at",
             "updated_at",
         ]
     )

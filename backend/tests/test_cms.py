@@ -45,6 +45,18 @@ class TestRestaurantSettings:
         s.save()
         assert s.is_open() is False
 
+    def test_storefront_status_exposes_operational_fees(self, api_client, db):
+        s = RestaurantSettings.objects.get(pk=1)
+        s.min_delivery_order_amount = 250_000
+        s.packaging_fee = 15_000
+        s.save()
+
+        response = api_client.get("/api/v1/storefront/cms/restaurant-status/")
+
+        assert response.status_code == 200
+        assert response.json()["min_delivery_order_amount"] == 250_000
+        assert response.json()["packaging_fee"] == 15_000
+
 
 class TestSiteSections:
     def test_default_content(self, api_client, db):
@@ -106,3 +118,16 @@ class TestBackofficeCMS:
             format="json",
         )
         assert response.status_code == 403
+
+    def test_staff_can_update_delivery_minimum_and_packaging(
+        self, staff_client, db
+    ):
+        response = staff_client.patch(
+            "/api/v1/backoffice/cms/restaurant-settings/",
+            {"min_delivery_order_amount": 180_000, "packaging_fee": 12_000},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["min_delivery_order_amount"] == 180_000
+        assert response.json()["packaging_fee"] == 12_000

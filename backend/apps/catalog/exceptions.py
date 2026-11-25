@@ -26,15 +26,3 @@ class SlugAlreadyExistsError(ValidationError):
 class CategoryHasProductsError(ValidationError):
     default_code = "CATEGORY_HAS_PRODUCTS"
     default_message = "این دسته‌بندی دارای محصول فعال است و قابل حذف نیست."
-
-
-class CategoryHasChildrenError(ValidationError):
-    default_code = "CATEGORY_HAS_CHILDREN"
-    default_message = (
-        "این دسته‌بندی دارای زیردسته فعال است؛ ابتدا زیردسته‌ها را حذف یا جابه‌جا کنید."
-    )
-
-
-class CategoryHierarchyError(ValidationError):
-    default_code = "INVALID_CATEGORY_HIERARCHY"
-    default_message = "ساختار دسته‌بندی نامعتبر است."

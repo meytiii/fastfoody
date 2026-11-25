@@ -3,25 +3,23 @@ from __future__ import annotations
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.orders import selectors, services
 from common.openapi import pagination_parameters
 from common.serializers import ErrorEnvelopeSerializer
+from common.views import StorefrontAPIView
 
 from .serializers import (
+    CancellationRequestSerializer,
     OrderCreateSerializer,
     OrderListResponseSerializer,
     OrderReadSerializer,
 )
 
 
-class OrderListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
+class OrderListCreateView(StorefrontAPIView):
     @extend_schema(
         tags=["Storefront — Orders"],
         operation_id="storefront_orders_list",
@@ -71,9 +69,7 @@ class OrderListCreateView(APIView):
         )
 
 
-class OrderDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
+class OrderDetailView(StorefrontAPIView):
     @extend_schema(
         tags=["Storefront — Orders"],
         operation_id="storefront_orders_detail",
@@ -85,5 +81,32 @@ class OrderDetailView(APIView):
         },
     )
     def get(self, request: Request, pk: int) -> Response:
+        order = selectors.get_order_for_customer(pk, request.user.pk)
+        return Response(OrderReadSerializer(order).data)
+
+
+class OrderRequestCancellationView(StorefrontAPIView):
+    @extend_schema(
+        tags=["Storefront — Orders"],
+        operation_id="storefront_orders_request_cancellation",
+        summary="Ask the restaurant to cancel a paid order",
+        request=CancellationRequestSerializer,
+        responses={
+            200: OrderReadSerializer,
+            400: ErrorEnvelopeSerializer,
+            401: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+            409: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+        },
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        serializer = CancellationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.request_cancellation(
+            customer=request.user,
+            order_id=pk,
+            reason=serializer.validated_data.get("reason", ""),
+        )
         order = selectors.get_order_for_customer(pk, request.user.pk)
         return Response(OrderReadSerializer(order).data)

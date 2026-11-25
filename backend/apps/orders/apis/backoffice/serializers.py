@@ -2,7 +2,22 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.accounts.models import CustomerNote
 from apps.orders.models import Order, OrderItem, OrderItemAddOn
+
+
+class CustomerNoteSnapshotSerializer(serializers.ModelSerializer):
+    author_phone = serializers.CharField(
+        source="author.phone", allow_null=True, required=False
+    )
+    author_name = serializers.CharField(
+        source="author.full_name", allow_null=True, required=False
+    )
+
+    class Meta:
+        model = CustomerNote
+        fields = ("text", "author_phone", "author_name", "created_at")
+        read_only_fields = fields
 
 
 class CustomerSnapshotSerializer(serializers.Serializer):
@@ -72,6 +87,9 @@ class OrderListBackofficeSerializer(serializers.ModelSerializer):
 class OrderDetailBackofficeSerializer(serializers.ModelSerializer):
     customer = CustomerSnapshotSerializer()
     items = OrderItemBackofficeSerializer(many=True)
+    customer_notes = CustomerNoteSnapshotSerializer(
+        source="customer.notes", many=True, read_only=True
+    )
 
     class Meta:
         model = Order
@@ -88,6 +106,7 @@ class OrderDetailBackofficeSerializer(serializers.ModelSerializer):
             "customer",
             "subtotal",
             "delivery_fee",
+            "packaging_fee",
             "total_amount",
             "prep_time_minutes",
             "expected_ready_at",
@@ -99,11 +118,15 @@ class OrderDetailBackofficeSerializer(serializers.ModelSerializer):
             "canceled_at",
             "canceled_by_id",
             "cancellation_reason",
+            "cancellation_requested",
+            "cancellation_request_reason",
+            "cancellation_requested_at",
             "refund_card_number",
             "refund_tracking_code",
             "refunded_at",
             "created_at",
             "items",
+            "customer_notes",
         )
         read_only_fields = fields
 
@@ -111,6 +134,9 @@ class OrderDetailBackofficeSerializer(serializers.ModelSerializer):
 class LiveOrderSerializer(serializers.ModelSerializer):
     customer_phone = serializers.CharField(source="customer.phone")
     items = OrderItemBackofficeSerializer(many=True)
+    customer_notes = CustomerNoteSnapshotSerializer(
+        source="customer.notes", many=True, read_only=True
+    )
 
     class Meta:
         model = Order
@@ -128,8 +154,12 @@ class LiveOrderSerializer(serializers.ModelSerializer):
             "is_printed",
             "printed_at",
             "notes_to_kitchen",
+            "cancellation_requested",
+            "cancellation_request_reason",
+            "cancellation_requested_at",
             "created_at",
             "items",
+            "customer_notes",
         )
         read_only_fields = fields
 

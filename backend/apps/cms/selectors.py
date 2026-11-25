@@ -47,6 +47,8 @@ def get_restaurant_status() -> dict[str, Any]:
         "close_time": settings.close_time.strftime("%H:%M"),
         "in_zone_delivery_fee": settings.in_zone_delivery_fee,
         "out_zone_delivery_fee": settings.out_zone_delivery_fee,
+        "min_delivery_order_amount": settings.min_delivery_order_amount,
+        "packaging_fee": settings.packaging_fee,
         "prep_time_buffer_minutes": settings.prep_time_buffer_minutes,
     }
 

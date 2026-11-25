@@ -12,6 +12,8 @@ class RestaurantStatusSerializer(serializers.Serializer):
     close_time = serializers.CharField()
     in_zone_delivery_fee = serializers.IntegerField()
     out_zone_delivery_fee = serializers.IntegerField()
+    min_delivery_order_amount = serializers.IntegerField()
+    packaging_fee = serializers.IntegerField()
     prep_time_buffer_minutes = serializers.IntegerField()
 
 

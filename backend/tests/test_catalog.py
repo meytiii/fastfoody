@@ -45,6 +45,146 @@ class TestServices:
         assert link.max_quantity == 3
 
 
+class TestFlatCategories:
+    def test_categories_are_ordered_by_display_order_then_id(self, db):
+        first = Category.objects.create(
+            name="First", slug="first", display_order=1
+        )
+        second = Category.objects.create(
+            name="Second", slug="second", display_order=0
+        )
+        third = Category.objects.create(
+            name="Third", slug="third", display_order=1
+        )
+
+        ids = list(Category.objects.values_list("id", flat=True))
+
+        assert ids == [second.pk, first.pk, third.pk]
+
+    def test_public_category_payload_has_no_parent(self, api_client, db, category, product):
+        response = api_client.get("/api/v1/storefront/catalog/products/")
+
+        assert response.status_code == 200
+        assert "parent_id" not in response.json()["results"][0]["category"]
+
+    def test_search_by_category_addresses_exactly_one_category(self, db):
+        pizzas = Category.objects.create(name="Pizzas", slug="pizzas")
+        drinks = Category.objects.create(name="Drinks", slug="drinks")
+        pizza = Product.objects.create(
+            category=pizzas, name="Pizza", slug="pizza", price=100_000
+        )
+        Product.objects.create(
+            category=drinks, name="Cola", slug="cola", price=20_000
+        )
+
+        result = list(selectors.search_public_products(category_slug="pizzas"))
+
+        assert result == [pizza]
+
+
+class TestUpsell:
+    def test_returns_only_available_non_main_dishes(
+        self, api_client, db, category, product
+    ):
+        side = Product.objects.create(
+            category=category,
+            name="Fries",
+            slug="fries",
+            price=40_000,
+            is_main_dish=False,
+            status=Product.Status.AVAILABLE,
+        )
+        Product.objects.create(
+            category=category,
+            name="Sold out tea",
+            slug="tea",
+            price=10_000,
+            is_main_dish=False,
+            status=Product.Status.OUT_OF_STOCK,
+        )
+
+        response = api_client.get("/api/v1/storefront/catalog/upsell/")
+
+        assert response.status_code == 200
+        slugs = [item["slug"] for item in response.json()["products"]]
+        assert slugs == [side.slug]
+
+    def test_limit_is_eight(self, api_client, db, category):
+        for index in range(10):
+            Product.objects.create(
+                category=category,
+                name=f"Side {index}",
+                slug=f"side-{index}",
+                price=10_000,
+                is_main_dish=False,
+            )
+
+        response = api_client.get("/api/v1/storefront/catalog/upsell/")
+
+        assert len(response.json()["products"]) == 8
+
+    def test_paid_sales_rank_first(
+        self,
+        api_client,
+        db,
+        category,
+        customer,
+        restaurant_settings,
+    ):
+        from apps.orders import services as order_services
+
+        popular = Product.objects.create(
+            category=category,
+            name="Popular side",
+            slug="popular-side",
+            price=30_000,
+            is_main_dish=False,
+        )
+        Product.objects.create(
+            category=category,
+            name="Unpopular side",
+            slug="unpopular-side",
+            price=30_000,
+            is_main_dish=False,
+        )
+        order = order_services.create_order(
+            customer=customer,
+            delivery_type="PICKUP",
+            address_id=None,
+            items=[
+                {
+                    "product_id": popular.pk,
+                    "quantity": 3,
+                    "addons": [],
+                }
+            ],
+        )
+        order_services.mark_order_paid(order_id=order.pk)
+
+        response = api_client.get("/api/v1/storefront/catalog/upsell/")
+
+        assert response.json()["products"][0]["id"] == popular.pk
+
+    def test_cache_invalidated_on_catalog_update(
+        self, db, category, product, django_capture_on_commit_callbacks
+    ):
+        selectors.get_upsell_products()
+        Product.objects.create(
+            category=category,
+            name="New side",
+            slug="new-side",
+            price=25_000,
+            is_main_dish=False,
+        )
+
+        assert selectors.get_upsell_products()["products"] == []
+
+        with django_capture_on_commit_callbacks(execute=True):
+            services.update_product(product_id=product.pk, data={"price": 1})
+
+        assert len(selectors.get_upsell_products()["products"]) == 1
+
+
 class TestMenuCache:
     def test_menu_is_cached(self, db, category, product):
         original = product.name

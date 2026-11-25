@@ -24,6 +24,10 @@ class TestFullFlow:
             format="json",
         )
         assert response.status_code == 200
+        tokens = response.json()
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}"
+        )
 
         # 2) Create order
         response = api_client.post(

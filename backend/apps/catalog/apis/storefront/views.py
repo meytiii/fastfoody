@@ -7,7 +7,6 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.catalog import selectors
 from apps.catalog.cache import (
@@ -24,6 +23,7 @@ from apps.catalog.search import (
 from apps.catalog.throttles import ProductSearchThrottle, ProductSuggestionThrottle
 
 from common.serializers import ErrorEnvelopeSerializer
+from common.views import StorefrontAPIView
 
 from .serializers import (
     LuckyWheelResponseSerializer,
@@ -35,6 +35,7 @@ from .serializers import (
     ProductSuggestionPublicSerializer,
     ProductSuggestionQuerySerializer,
     ProductSummaryPublicSerializer,
+    UpsellResponseSerializer,
 )
 
 class CatalogPagination(LimitOffsetPagination):
@@ -62,14 +63,6 @@ _SEARCH_PARAMETERS = [
         "category_id",
         OpenApiTypes.INT,
         description="Category id; unknown or inactive → 404 CATEGORY_NOT_FOUND.",
-    ),
-    OpenApiParameter(
-        "include_subcategories",
-        OpenApiTypes.BOOL,
-        description=(
-            "Default true: filtering a parent category also returns products of "
-            "its active descendants."
-        ),
     ),
     OpenApiParameter(
         "min_price",
@@ -125,7 +118,7 @@ _SEARCH_PARAMETERS = [
 ]
 
 
-class MenuView(APIView):
+class MenuView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -138,7 +131,7 @@ class MenuView(APIView):
         return Response(selectors.get_storefront_menu())
 
 
-class LuckyWheelView(APIView):
+class LuckyWheelView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -164,7 +157,20 @@ class LuckyWheelView(APIView):
         )
 
 
-class ProductListView(APIView):
+class UpsellView(StorefrontAPIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_upsell",
+        summary="Suggested sides and drinks for the cart",
+        responses={200: UpsellResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        return Response(selectors.get_upsell_products())
+
+
+class ProductListView(StorefrontAPIView):
     """
     Public product discovery: search, filters and sorting in one pipeline.
 
@@ -217,9 +223,6 @@ class ProductListView(APIView):
                     "q": normalize_search_query(params.get("q")),
                     "category": params.get("category"),
                     "category_id": params.get("category_id"),
-                    "include_subcategories": params.get(
-                        "include_subcategories", True
-                    ),
                     "min_price": params.get("min_price"),
                     "max_price": params.get("max_price"),
                     "available": params.get("available"),
@@ -240,7 +243,6 @@ class ProductListView(APIView):
             query=params.get("q"),
             category_slug=params.get("category"),
             category_id=params.get("category_id"),
-            include_subcategories=params.get("include_subcategories", True),
             min_price=params.get("min_price"),
             max_price=params.get("max_price"),
             available=params.get("available"),
@@ -260,7 +262,7 @@ class ProductListView(APIView):
         return Response(payload)
 
 
-class ProductSuggestionsView(APIView):
+class ProductSuggestionsView(StorefrontAPIView):
     """
     Autocomplete backend. Reuses the same search pipeline as ProductListView.
 
@@ -345,7 +347,7 @@ class ProductSuggestionsView(APIView):
         return Response(payload)
 
 
-class ProductDetailView(APIView):
+class ProductDetailView(StorefrontAPIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
