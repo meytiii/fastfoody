@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RotateCw } from 'lucide-vue-next'
 import { storefrontApi } from '~/services/api'
 import { useCmsStore } from '~/stores/cms'
 import { useMenuStore } from '~/stores/menu'
 import type { LuckyWheelProduct } from '~/types'
+import {
+  WHEEL_SPIN_CONFIG,
+  computePointerDeflection,
+  createSpinPlan,
+  easeOutQuart,
+  resolveSliceIndexAtRotation,
+  sampleSpinPlan,
+  stepPointerSpring,
+  type PointerSpringState,
+} from '~/utils/wheelPhysics'
 
 const cmsStore = useCmsStore()
 const menuStore = useMenuStore()
@@ -17,8 +27,17 @@ const errorMessage = ref('')
 
 const isSpinning = ref(false)
 const rotationDeg = ref(0)
+const pointerAngleDeg = ref(0)
+const speedGlowOpacity = ref(0)
+const winningSliceIndex = ref<number | null>(null)
+const showWinnerPulse = ref(false)
 const winner = ref<LuckyWheelProduct | null>(null)
 const reducedMotion = ref(false)
+
+let rafId: number | null = null
+let winnerPulseTimeoutId: number | null = null
+let lastOffsetRatio: number | null = null
+let pointerSpring: PointerSpringState = { angleDeg: 0, velocityDegPerSec: 0 }
 
 const visibleSlices = computed(() => products.value.slice(0, 12))
 
@@ -131,17 +150,43 @@ const sliceGeometry = computed(() => {
   })
 })
 
+const winningSlicePath = computed(() => {
+  if (winningSliceIndex.value === null) return ''
+  return sliceGeometry.value[winningSliceIndex.value]?.path ?? ''
+})
+
 const wheelStyle = computed(() => ({
   transform: `rotate(${rotationDeg.value}deg)`,
-  transition: reducedMotion.value
-    ? 'transform 120ms linear'
-    : 'transform 4200ms cubic-bezier(0.16, 1, 0.3, 1)',
+  willChange: isSpinning.value ? 'transform' : 'auto',
 }))
+
+const pointerStyle = computed(() => ({
+  transform: `rotate(${pointerAngleDeg.value}deg)`,
+  transformOrigin: '50% 10px',
+  willChange: isSpinning.value ? 'transform' : 'auto',
+}))
+
+const rimGlowStyle = computed(() => ({
+  opacity: speedGlowOpacity.value,
+}))
+
+function cancelActiveAnimations() {
+  if (rafId !== null) {
+    window.cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  if (winnerPulseTimeoutId !== null) {
+    window.clearTimeout(winnerPulseTimeoutId)
+    winnerPulseTimeoutId = null
+  }
+}
 
 async function loadWheelProducts(slug = '') {
   loading.value = true
   errorMessage.value = ''
   winner.value = null
+  winningSliceIndex.value = null
+  showWinnerPulse.value = false
   try {
     const res = await storefrontApi.catalog.getLuckyWheel(slug || undefined)
     products.value = res.products
@@ -158,45 +203,119 @@ function selectCategory(slug: string) {
   loadWheelProducts(slug)
 }
 
+function finalizeSpin(expectedIndex: number, chosen: LuckyWheelProduct) {
+  isSpinning.value = false
+  speedGlowOpacity.value = 0
+  pointerAngleDeg.value = 0
+  pointerSpring = { angleDeg: 0, velocityDegPerSec: 0 }
+  rafId = null
+
+  const landedIndex = resolveSliceIndexAtRotation(rotationDeg.value, visibleSlices.value.length)
+  const resolvedProduct = visibleSlices.value[landedIndex] ?? chosen
+  winningSliceIndex.value = landedIndex >= 0 ? landedIndex : expectedIndex
+  winner.value = resolvedProduct
+
+  if (!reducedMotion.value) {
+    showWinnerPulse.value = true
+    winnerPulseTimeoutId = window.setTimeout(() => {
+      showWinnerPulse.value = false
+      winnerPulseTimeoutId = null
+    }, 900)
+  }
+}
+
 function spinWheel() {
   if (isSpinning.value || visibleSlices.value.length === 0) return
 
+  isSpinning.value = true
+  cancelActiveAnimations()
   winner.value = null
+  winningSliceIndex.value = null
+  showWinnerPulse.value = false
+  pointerSpring = { angleDeg: 0, velocityDegPerSec: 0 }
+  pointerAngleDeg.value = 0
+  speedGlowOpacity.value = 0
+
   const count = visibleSlices.value.length
   const winningIndex = Math.floor(Math.random() * count)
   const chosen = visibleSlices.value[winningIndex]
-  if (!chosen) return
-  const step = 360 / count
-  const targetMidAngle = winningIndex * step + step / 2
-  const desiredMod = (360 - (targetMidAngle % 360)) % 360
-
-  if (reducedMotion.value) {
-    const base = Math.floor(rotationDeg.value / 360) * 360
-    rotationDeg.value = base + desiredMod
-    isSpinning.value = true
-    window.setTimeout(() => {
-      isSpinning.value = false
-      winner.value = chosen
-    }, 150)
+  if (!chosen) {
+    isSpinning.value = false
     return
   }
 
-  const currentMod = ((rotationDeg.value % 360) + 360) % 360
-  const deltaMod = (desiredMod - currentMod + 360) % 360
-  const extraSpins = 5 * 360
-  rotationDeg.value += extraSpins + deltaMod
-  isSpinning.value = true
+  const plan = createSpinPlan(rotationDeg.value, count, winningIndex, lastOffsetRatio)
+  lastOffsetRatio = plan.offsetRatio
 
-  window.setTimeout(() => {
-    isSpinning.value = false
-    winner.value = chosen
-  }, 4300)
+  if (reducedMotion.value) {
+    const startRot = rotationDeg.value
+    const targetRot = plan.finalRotation
+    const duration = WHEEL_SPIN_CONFIG.reducedMotionMs
+    const startTime = performance.now()
+
+    const tickReduced = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration)
+      rotationDeg.value = startRot + (targetRot - startRot) * easeOutQuart(progress)
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(tickReduced)
+      } else {
+        rotationDeg.value = targetRot
+        finalizeSpin(winningIndex, chosen)
+      }
+    }
+
+    rafId = window.requestAnimationFrame(tickReduced)
+    return
+  }
+
+  const stepDeg = 360 / count
+  const startTime = performance.now()
+  let lastFrameTime = startTime
+  let lastDividerCount = Math.floor(rotationDeg.value / stepDeg)
+
+  const tick = (now: number) => {
+    const elapsed = now - startTime
+    const frameDelta = now - lastFrameTime
+    lastFrameTime = now
+
+    const sample = sampleSpinPlan(plan, elapsed)
+    rotationDeg.value = sample.rotationDeg
+    speedGlowOpacity.value = sample.speedRatio > 0.35 ? (sample.speedRatio - 0.35) * 0.7 : 0
+
+    const dividerCount = Math.floor(sample.rotationDeg / stepDeg)
+    if (dividerCount > lastDividerCount && count > 1) {
+      lastDividerCount = dividerCount
+      const impulseAngle = computePointerDeflection(sample.speedRatio)
+      pointerSpring = {
+        angleDeg: Math.min(pointerSpring.angleDeg, impulseAngle),
+        velocityDegPerSec: Math.min(pointerSpring.velocityDegPerSec, impulseAngle * 14),
+      }
+    } else if (dividerCount < lastDividerCount) {
+      lastDividerCount = dividerCount
+    }
+
+    pointerSpring = stepPointerSpring(pointerSpring, frameDelta)
+    pointerAngleDeg.value = pointerSpring.angleDeg
+
+    if (!sample.finished) {
+      rafId = window.requestAnimationFrame(tick)
+    } else {
+      rotationDeg.value = plan.finalRotation
+      finalizeSpin(winningIndex, chosen)
+    }
+  }
+
+  rafId = window.requestAnimationFrame(tick)
 }
 
 function openWinnerModal() {
   if (!winner.value) return
   menuStore.openProductModal(winner.value.slug)
 }
+
+onBeforeUnmount(() => {
+  cancelActiveAnimations()
+})
 
 onMounted(async () => {
   reducedMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -329,7 +448,13 @@ useHead({
             <div class="relative flex max-w-full items-center justify-center">
               <div
                 aria-hidden="true"
+                class="pointer-events-none absolute -inset-2 rounded-full border-2 border-[#D6A84B]/55 transition-opacity duration-200"
+                :style="rimGlowStyle"
+              />
+              <div
+                aria-hidden="true"
                 class="absolute inset-x-0 -top-4 z-20 mx-auto w-fit drop-shadow-md"
+                :style="pointerStyle"
               >
                 <svg width="34" height="40" viewBox="0 0 34 40" fill="none">
                   <path
@@ -388,6 +513,12 @@ useHead({
                       </text>
                     </g>
                   </g>
+                  <path
+                    v-if="showWinnerPulse && winningSlicePath"
+                    :d="winningSlicePath"
+                    fill="#D6A84B"
+                    class="wheel-winner-pulse pointer-events-none"
+                  />
                   <circle cx="220" cy="220" r="28" fill="#FFFFFF" stroke="#D6A84B" stroke-width="5" />
                   <circle cx="220" cy="220" r="6" fill="#183A2D" />
                 </svg>
@@ -479,3 +610,28 @@ useHead({
     </div>
   </main>
 </template>
+
+<style scoped>
+@keyframes wheelWinnerPulse {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.34;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.wheel-winner-pulse {
+  animation: wheelWinnerPulse 850ms var(--ease-out) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-winner-pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
+</style>
