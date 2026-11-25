@@ -27,9 +27,13 @@ const DIGIT_MAP: Record<string, string> = {
 }
 
 const INVISIBLE_CHARS = /[\u200c\u200d\u200e\u200f\u0640]/g
+const EDGE_PUNCTUATION = /^[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~،؛؟»«…ـ]+|[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~،؛؟»«…ـ]+$/g
 
 export const MAX_SEARCH_LENGTH = 100
 export const MAX_SEARCH_TOKENS = 8
+export const TOKEN_MIN_PREFIX_LENGTH = 2
+export const TOKEN_MAX_PREFIX_LENGTH = 24
+export const TOKEN_MAX_LENGTH = 48
 
 export const SYNONYM_GROUPS: readonly (readonly string[])[] = [
   ['برگر', 'همبرگر'],
@@ -51,12 +55,34 @@ export function normalizeSearchQuery(raw: string | undefined | null): string {
   return text.slice(0, MAX_SEARCH_LENGTH)
 }
 
+function cleanWord(word: string): string {
+  return word.replace(EDGE_PUNCTUATION, '').toLowerCase()
+}
+
 export function tokenizeSearchQuery(term: string): string[] {
   return term
     .split(' ')
-    .map(t => t.trim())
+    .map(cleanWord)
     .filter(Boolean)
     .slice(0, MAX_SEARCH_TOKENS)
+}
+
+export function iterIndexTokens(text: string): string[] {
+  return normalizeSearchQuery(text)
+    .split(' ')
+    .map(cleanWord)
+    .filter(Boolean)
+    .map(word => word.slice(0, TOKEN_MAX_LENGTH))
+}
+
+function withPrefixes(word: string): string[] {
+  const truncated = word.slice(0, TOKEN_MAX_LENGTH)
+  const candidates = new Set<string>([truncated])
+  const upper = Math.min(truncated.length, TOKEN_MAX_PREFIX_LENGTH)
+  for (let len = TOKEN_MIN_PREFIX_LENGTH; len < upper; len++) {
+    candidates.add(truncated.slice(0, len))
+  }
+  return Array.from(candidates)
 }
 
 export function searchVariants(term: string): string[] {
@@ -118,24 +144,35 @@ export interface SearchableProductRecord {
   categoryName: string
 }
 
+function buildProductTokenSet(record: SearchableProductRecord): Set<string> {
+  const tokens = new Set<string>()
+  for (const word of iterIndexTokens(record.name)) {
+    for (const candidate of withPrefixes(word)) {
+      tokens.add(candidate)
+    }
+  }
+  for (const word of iterIndexTokens(record.categoryName)) {
+    for (const candidate of withPrefixes(word)) {
+      tokens.add(candidate)
+    }
+  }
+  for (const word of iterIndexTokens(record.slug.replace(/[-_]/g, ' '))) {
+    tokens.add(word)
+  }
+  for (const word of iterIndexTokens(record.description)) {
+    tokens.add(word)
+  }
+  return tokens
+}
+
 export function matchesSearchTerm(record: SearchableProductRecord, term: string): boolean {
   const tokens = tokenizeSearchQuery(term)
   if (tokens.length === 0) return true
 
-  const haystack = [
-    record.name,
-    record.slug,
-    record.description,
-    record.categoryName,
-  ].map(s => normalizeSearchQuery(s).toLowerCase())
-
-  return tokens.every(token => {
-    const candidates = expandToken(token)
-    return candidates.some(candidate => {
-      const needle = candidate.toLowerCase()
-      return haystack.some(field => field.includes(needle))
-    })
-  })
+  const productTokens = buildProductTokenSet(record)
+  return tokens.every(token =>
+    expandToken(token).some(candidate => productTokens.has(candidate.toLowerCase()))
+  )
 }
 
 export function computeRelevanceScore(record: SearchableProductRecord, term: string): number {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Plus, Clock, AlertCircle } from 'lucide-vue-next'
+import { Plus, Clock } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import type { ProductSummaryPublic } from '~/types'
 import { useMenuStore } from '~/stores/menu'
@@ -18,7 +18,7 @@ const cartStore = useCartStore()
 const { toPersianDigits, formatToman } = usePersian()
 
 const isAvailable = computed(() => {
-  return props.product.status === 'AVAILABLE' && props.product.is_in_stock
+  return props.product.status === 'AVAILABLE'
 })
 
 const hasDiscount = computed(() => {
@@ -26,14 +26,6 @@ const hasDiscount = computed(() => {
     props.product.is_discounted &&
     props.product.compare_at_price !== null &&
     props.product.compare_at_price > props.product.price
-  )
-})
-
-const isLowStock = computed(() => {
-  return (
-    isAvailable.value &&
-    props.product.stock_quantity !== null &&
-    props.product.stock_quantity <= 5
   )
 })
 
@@ -92,14 +84,6 @@ const handleQuickAdd = async (e: MouseEvent) => {
           class="text-[11px] text-[var(--color-text-secondary)] font-medium truncate"
         >
           {{ product.category.name }}
-        </span>
-
-        <span
-          v-if="isLowStock"
-          class="inline-flex items-center gap-1 rounded-full bg-[var(--color-warning-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-warning)] shrink-0"
-        >
-          <AlertCircle :size="11" aria-hidden="true" />
-          <span>تنها {{ toPersianDigits(product.stock_quantity) }} عدد</span>
         </span>
       </div>
 

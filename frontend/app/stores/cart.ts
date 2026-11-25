@@ -11,6 +11,7 @@ import type {
 import { useCmsStore } from './cms'
 
 const CART_STORAGE_KEY = 'fastfoody_cart_v2'
+const MAX_CART_ITEM_QUANTITY = 99
 
 function isValidCartItem(raw: unknown): raw is CartItem {
   if (!raw || typeof raw !== 'object') return false
@@ -103,7 +104,7 @@ export const useCartStore = defineStore('cart', {
       quantity = 1,
       addons: CartItemAddOn[] = []
     ) {
-      if (product.status !== 'AVAILABLE' || !product.is_in_stock) {
+      if (product.status !== 'AVAILABLE') {
         return
       }
 
@@ -129,8 +130,6 @@ export const useCartStore = defineStore('cart', {
         prep_time_minutes: product.prep_time_minutes,
         image_url: product.image_url,
         status: product.status,
-        stock_quantity: product.stock_quantity,
-        is_in_stock: product.is_in_stock,
         category_id: categoryId,
       }
 
@@ -142,20 +141,13 @@ export const useCartStore = defineStore('cart', {
 
       if (existing) {
         const nextQty = existing.quantity + quantity
-        const cappedQty =
-          snapshot.stock_quantity !== null
-            ? Math.min(nextQty, snapshot.stock_quantity)
-            : nextQty
-        existing.quantity = Math.max(1, cappedQty)
+        existing.quantity = Math.max(1, Math.min(nextQty, MAX_CART_ITEM_QUANTITY))
         existing.product = snapshot
         existing.unitPrice = snapshot.price
         existing.addonsTotal = addonsTotal
         existing.totalPrice = existing.unitPrice * existing.quantity + addonsTotal
       } else {
-        const safeQty =
-          snapshot.stock_quantity !== null
-            ? Math.min(quantity, snapshot.stock_quantity)
-            : quantity
+        const safeQty = Math.min(quantity, MAX_CART_ITEM_QUANTITY)
         if (safeQty <= 0) return
         this.items.push({
           id: itemId,
@@ -182,10 +174,7 @@ export const useCartStore = defineStore('cart', {
         return
       }
 
-      if (
-        item.product.stock_quantity !== null &&
-        newQty > item.product.stock_quantity
-      ) {
+      if (newQty > MAX_CART_ITEM_QUANTITY) {
         return
       }
 

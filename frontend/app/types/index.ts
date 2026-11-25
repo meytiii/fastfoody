@@ -264,8 +264,6 @@ export interface MenuProductPublic {
   compare_at_price: number | null
   discount_percent: number
   is_discounted: boolean
-  stock_quantity: number | null
-  is_in_stock: boolean
   status: ProductStatus
   is_main_dish: boolean
   prep_time_minutes: number
@@ -303,8 +301,6 @@ export interface ProductSummaryPublic {
   compare_at_price: number | null
   discount_percent: number
   is_discounted: boolean
-  stock_quantity: number | null
-  is_in_stock: boolean
   status: ProductStatus
   is_main_dish: boolean
   prep_time_minutes: number
@@ -323,7 +319,6 @@ export interface ProductSuggestionPublic {
   price: number
   compare_at_price: number | null
   discount_percent: number
-  is_in_stock: boolean
   status: ProductStatus
   image_url: string | null
 }
@@ -363,7 +358,6 @@ export interface ProductSearchParams {
   min_price?: number
   max_price?: number
   available?: boolean
-  in_stock?: boolean
   discount?: boolean
   is_main_dish?: boolean
   sort?: ProductSortChoice
@@ -435,8 +429,6 @@ export interface ProductAdmin {
   price: number
   compare_at_price: number | null
   discount_percent: number
-  stock_quantity: number | null
-  is_in_stock: boolean
   status: ProductStatus
   is_main_dish: boolean
   prep_time_minutes: number
@@ -456,7 +448,6 @@ export interface ProductWritePayload {
   description?: string
   price: number
   compare_at_price?: number | null
-  stock_quantity?: number | null
   status?: ProductStatus
   is_main_dish?: boolean
   prep_time_minutes?: number
@@ -677,8 +668,6 @@ export interface CartProductSnapshot {
   prep_time_minutes: number
   image_url: string | null
   status: ProductStatus
-  stock_quantity: number | null
-  is_in_stock: boolean
   category_id: number
 }
 

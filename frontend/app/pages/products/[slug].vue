@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ArrowRight, Plus, Minus, Clock, AlertCircle } from 'lucide-vue-next'
+import { ArrowRight, Plus, Minus, Clock } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { storefrontApi } from '~/services/api'
 import { useCartStore } from '~/stores/cart'
@@ -39,13 +39,10 @@ const loadProduct = async () => {
 
 onMounted(loadProduct)
 
-const isAvailable = computed(() => {
-  return Boolean(product.value && product.value.status === 'AVAILABLE' && product.value.is_in_stock)
-})
+const maxQty = 99
 
-const maxQty = computed(() => {
-  if (!product.value) return 1
-  return product.value.stock_quantity !== null ? product.value.stock_quantity : 99
+const isAvailable = computed(() => {
+  return Boolean(product.value && product.value.status === 'AVAILABLE')
 })
 
 const setAddonQty = (addon: ProductAddOnPublic, delta: number) => {
@@ -187,13 +184,6 @@ useHead(() => ({
               <span class="inline-flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)]">
                 <Clock :size="15" aria-hidden="true" class="text-[var(--color-brand-forest)]" />
                 <span>زمان آماده‌سازی: {{ toPersianDigits(product.prep_time_minutes) }} دقیقه</span>
-              </span>
-              <span
-                v-if="product.stock_quantity !== null"
-                class="inline-flex items-center gap-1.5 font-semibold"
-              >
-                <AlertCircle :size="15" aria-hidden="true" />
-                <span>موجودی انبار: {{ toPersianDigits(product.stock_quantity) }} عدد</span>
               </span>
             </div>
 

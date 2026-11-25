@@ -175,7 +175,7 @@ const submitFullSearch = async () => {
                 {{ toPersianDigits(dish.discount_percent) }}٪ تخفیف
               </span>
               <span
-                v-if="!dish.is_in_stock || dish.status !== 'AVAILABLE'"
+                v-if="dish.status !== 'AVAILABLE'"
                 class="rounded-full bg-[var(--color-danger-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-danger)]"
               >
                 ناموجود

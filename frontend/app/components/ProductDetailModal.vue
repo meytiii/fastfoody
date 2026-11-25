@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { X, Plus, Minus, Clock, AlertCircle, ExternalLink } from 'lucide-vue-next'
+import { X, Plus, Minus, Clock, ExternalLink } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useMenuStore } from '~/stores/menu'
 import { useCartStore } from '~/stores/cart'
@@ -45,14 +45,11 @@ watch(
   }
 )
 
+const maxProductQty = 99
+
 const isAvailable = computed(() => {
   if (!product.value) return false
-  return product.value.status === 'AVAILABLE' && product.value.is_in_stock
-})
-
-const maxProductQty = computed(() => {
-  if (!product.value) return 1
-  return product.value.stock_quantity !== null ? product.value.stock_quantity : 99
+  return product.value.status === 'AVAILABLE'
 })
 
 const setAddonQty = (addon: ProductAddOnPublic, delta: number) => {
@@ -180,18 +177,6 @@ const handleAddToCart = async () => {
               <div class="inline-flex items-center gap-1 font-semibold text-[var(--color-text-primary)]">
                 <Clock :size="14" aria-hidden="true" class="text-[var(--color-brand-forest)]" />
                 <span>{{ toPersianDigits(product.prep_time_minutes) }} دقیقه آماده‌سازی</span>
-              </div>
-
-              <div
-                v-if="product.stock_quantity !== null"
-                class="inline-flex items-center gap-1 font-semibold"
-                :class="product.stock_quantity > 0 ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-danger)]'"
-              >
-                <AlertCircle :size="14" aria-hidden="true" />
-                <span v-if="product.stock_quantity > 0">
-                  موجودی: {{ toPersianDigits(product.stock_quantity) }} عدد
-                </span>
-                <span v-else>اتمام موجودی</span>
               </div>
             </div>
 
