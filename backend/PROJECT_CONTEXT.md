@@ -180,20 +180,20 @@ CMS: `GET cms/restaurant-status/`, `GET cms/site-sections/`,
 Docs: `/api/v1/storefront/schema/` + `/docs/` public;
 `/api/v1/backoffice/schema/` + `/docs/` require a staff session.
 
-## 7. Backoffice API — paths currently differ from the README
+## 7. Backoffice API — resolved routes
 
-Actual resolved paths (walked from `get_resolver()`):
+Paths are now canonical and were verified by walking `get_resolver()`:
 
-- CMS: `/api/v1/backoffice/cms/...` ✔
-- Catalog: `/api/v1/backoffice/catalog/{categories,addons,products}/...` ✔
-- Payments: `/api/v1/backoffice/payments/orders/<order_id>/payments/` ✔
-- **Auth is at `/api/v1/backoffice/crm/auth/{csrf,login,logout,me}/`** — the auth
-  routes live in `apps/accounts/apis/backoffice/urls.py`, which
-  `config/api_urls_backoffice.py` mounts under `crm/`. The documented
-  `/api/v1/backoffice/auth/login/` (README + tests) **does not exist**.
-- **Orders are at `/api/v1/backoffice/orders/orders/...`** — the module is mounted
-  at `orders/` and its own patterns already start with `orders/`, producing a
-  doubled segment. `/api/v1/backoffice/orders/` and `/orders/live/` 404.
+- Auth: `/api/v1/backoffice/auth/{csrf,login,logout,me}/`
+- CRM: `/api/v1/backoffice/crm/customers/...`
+- CMS: `/api/v1/backoffice/cms/...`
+- Catalog: `/api/v1/backoffice/catalog/{categories,addons,products}/...`
+- Orders: `/api/v1/backoffice/orders/`, `/orders/live/`, `/orders/<id>/...`
+- Payment history: `/api/v1/backoffice/orders/<order_id>/payments/`
+
+The previous doubled segments (`/crm/auth/...`, `/orders/orders/...`) and the
+nested payments mount (`/payments/orders/...`) were removed; the app urlconfs
+now own only the segments below their mount point.
 
 Operations exposed: customer list/detail/patch + notes CRUD; category / add-on /
 product CRUD, image upload, product add-on PUT; order list (status, payment_status,
@@ -441,10 +441,10 @@ currently work and must not be run. Historical pass/fail numbers are unverified.
 
 ### High
 
-3. **Backoffice routing is broken** (§7): auth under `/backoffice/crm/auth/...` and
-   orders under `/backoffice/orders/orders/...`, while the README, frontend contract,
-   and tests use `/backoffice/auth/login/`, `/backoffice/orders/`,
-   `/backoffice/orders/live/`.
+3. **Backoffice routing** — **fixed** (§7). Auth is now at
+   `/backoffice/auth/...`, orders at `/backoffice/orders/...`, and payment
+   history at `/backoffice/orders/<id>/payments/`; the URLconf no longer
+   duplicates prefixes.
 4. **Daily-number retry loop cannot work.** `_assign_daily_number` catches
    `IntegrityError` and continues **inside** the outer transaction of
    `mark_order_paid`; Django marks the connection as needing rollback, so the next
@@ -514,8 +514,8 @@ currently work and must not be run. Historical pass/fail numbers are unverified.
 | `config/settings_sqlite.py` exists; dev uses `--settings=config.settings_sqlite` | Resolved: README now documents `DB_ENGINE` in `config/settings.py`; no separate settings module |
 | `CELERY_TASK_ALWAYS_EAGER` only in the sqlite profile | Resolved: base setting, defaults to `DEBUG` |
 | `0002_seed_restaurant_settings` seeds pk=1 | Resolved: the migration now exists and seeds the row |
-| Backoffice auth at `/api/v1/backoffice/auth/login/` | Served at `/api/v1/backoffice/crm/auth/login/` |
-| Backoffice orders at `/api/v1/backoffice/orders/…` | Served at `/api/v1/backoffice/orders/orders/…` |
+| Backoffice auth at `/api/v1/backoffice/auth/login/` | Resolved: served at that path (routing fixed) |
+| Backoffice orders at `/api/v1/backoffice/orders/…` | Resolved: served at that path (routing fixed) |
 | `DEBUG` from env | Resolved: `DEBUG=config("DEBUG", default=True, cast=bool)` |
 | 15-min payment timeout, state diagram | Implemented as described |
 | Refunds, prep-time override, snapshots, idempotent verify, daily number | Implemented as described |
@@ -548,31 +548,43 @@ view (validate params)  →  selectors.search_public_products()
                               └─ same pipeline + one fuzzy fallback
 ```
 
-- `apps/catalog/search.py` — the single search implementation: normalization,
-  Arabic/Persian variants, `Q` construction, relevance ranking, allowlisted
-  ordering. No ORM writes, no view logic.
+- `apps/catalog/search.py` — query construction: indexed token subqueries,
+  synonym expansion, relevance ranking, allowlisted ordering. No ORM writes.
+- `apps/catalog/search_index.py` — pure normalization/tokenization shared by the
+  query path and the index backfill (no Django imports).
+- `apps/catalog/indexing.py` — writes/rebuilds `ProductSearchToken` rows.
+- `apps/catalog/cache.py` — versioned search cache keys and generation bump.
 - `apps/catalog/selectors.py` — `get_public_product_queryset`,
   `search_public_products`, `suggest_public_products`.
 - `apps/catalog/apis/storefront/{serializers,views,urls}.py` — request validation,
-  pagination and response shaping only.
+  pagination, caching and response shaping only.
 - `apps/catalog/throttles.py` — per-IP throttles for both endpoints.
 
-### Data model additions (`catalog.0002_category_parent_product_compare_at_price_and_more`)
+### Data model additions
+
+`catalog.0002_category_parent_product_compare_at_price_and_more` (discount and
+`Category.parent`) and `catalog.0003_remove_stock_add_search_index`
+(`ProductSearchToken`; the interim numeric stock field was removed because
+availability is manual).
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `Product.compare_at_price` | positive int, null | original/pre-discount price; null = not discounted; DB check `> price` |
-| `Product.stock_quantity` | positive int, null | counted stock; null = untracked |
 | `Category.parent` | FK self, null, `PROTECT` | optional hierarchy; `related_name="children"` |
+| `ProductSearchToken` | product FK, token (≤48), weight | inverted-index row; `unique(product, token)`, index on `token` |
 
 Indexes: `catalog_product_price_idx` (price sorting/filtering) and
 `catalog_product_cat_status_idx` (category + visibility). Constraints:
 `product_compare_at_price_gt_price`, `category_parent_not_self`. Derived
-read-only fields exposed by the storefront: `discount_percent`, `is_discounted`,
-`is_in_stock`; `Category` also exposes `parent_id`. The backoffice product
-write/update serializers accept `compare_at_price` and `stock_quantity`, and
-category write/update serializers accept `parent_id` (cycle/self-parent rejected
-by `catalog.services`).
+read-only fields exposed by the storefront: `discount_percent`, `is_discounted`;
+`Category` also exposes `parent_id`. The backoffice product write/update
+serializers accept `compare_at_price`, and category write/update serializers
+accept `parent_id` (cycle/self-parent rejected by `catalog.services`).
+
+**Availability is manual.** There is no numeric stock field and no automatic
+deduction/reservation: the manager sets `Product.status` (`AVAILABLE`,
+`OUT_OF_STOCK`, `HIDDEN`) each day. Race conditions are handled operationally
+(a phone call), not in the schema.
 
 ### Visibility rules (single source of truth)
 
@@ -586,24 +598,31 @@ includes its children unless `include_subcategories=false` is sent.
 
 ### Searchable fields and normalization
 
-Fields: `name`, `slug`, `description`, `category__name`. Matching is
-`icontains` (case-insensitive for ASCII on SQLite; Persian is caseless).
+Indexed fields: `name` (weight 3), `category.name` (weight 2), `slug` and
+`description` (weight 1). Matching no longer uses leading-wildcard `icontains`
+on `catalog_product`.
 
-The query (never the stored data) is normalized: Arabic Yeh `ي` → Persian `ی`,
-Arabic Kaf `ك` → Persian `ک`, Arabic-Indic (`٠١٢…`) and Persian (`۰۱۲…`) digits →
-ASCII, zero-width/non-joiner/tatweel characters removed, whitespace collapsed and
-trimmed, truncated to 100 chars. Because stored rows are not rewritten, the
-normalized term is expanded to up to 4 letter variants (Persian and/or Arabic
-Yeh/Kaf) and every variant is OR-ed across the four fields.
+`apps/catalog/search_index.py` normalizes text and builds tokens: Arabic Yeh
+`ي` → Persian `ی`, Arabic Kaf `ك` → Persian `ک`, Arabic-Indic (`٠١٢…`) and
+Persian (`۰۱۲…`) digits → ASCII, zero-width/non-joiner/tatweel characters
+removed, whitespace collapsed, edge punctuation trimmed. Name and category words
+are stored **with every prefix from 2 to 24 characters**, so a query like
+"پیتز" matches "پیتزا" through an indexed exact token lookup. Slug/description
+contribute full words only.
 
-Search is **word-based**: the query is split into at most 8 words and every word
-must match at least one field (AND across words, OR across fields). This lets
-"پیتزا مخصوص" match "پیتزا مخصوص فرنگی" and lets different words match the name,
-description and category independently. Each word is also expanded with the
-built-in Persian food synonym groups in `search.SYNONYM_GROUPS` (e.g.
-برگر/همبرگر, مرغ/چیکن/جوجه, نوشابه/نوشیدنی/کوکاکولا, سیب‌زمینی/فرای) plus the
-optional `settings.CATALOG_SEARCH_SYNONYMS` override. Empty/blank queries apply
-no search filter.
+Rows live in `ProductSearchToken` and are refreshed synchronously by
+`catalog.services` (product create/update, category rename) and backfilled by
+`catalog.0003`; `python manage.py rebuild_search_index` rebuilds them after bulk
+imports. Each query word becomes a `pk__in` subquery over the token index (one
+indexed lookup per word, max 8) and the word subqueries are AND-ed, so the
+planner reads only matching products rather than scanning the product table.
+
+Search is **word-based**: every query word must match at least one indexed token
+(AND across words). Words are expanded with the built-in Persian food synonym
+groups in `search.SYNONYM_GROUPS` (e.g. برگر/همبرگر, مرغ/چیکن/جوجه,
+نوشابه/نوشیدنی/کوکاکولا, سیب‌زمینی/فرای) plus the optional
+`settings.CATALOG_SEARCH_SYNONYMS` override. Empty/blank queries apply no search
+filter.
 
 Ranking (`build_relevance_ordering`): exact name (5) > name prefix (4) > name
 substring (3) > slug/category-name/description substring (2) > 0, then
@@ -627,8 +646,7 @@ not silently broaden results this way.
 | `include_subcategories` | bool, default true | false → only products directly in the selected category |
 | `min_price` | int 0…1e9 | inclusive `price >=` |
 | `max_price` | int 0…1e9 | inclusive `price <=`; `min > max` → 400 |
-| `available` | bool | raw flag: `1` → `status=AVAILABLE`; `0` → `status=OUT_OF_STOCK`; omitted → both |
-| `in_stock` | bool | effective: AVAILABLE **and** (stock not tracked or `stock_quantity > 0`) |
+| `available` | bool | manual availability flag: `1` → `status=AVAILABLE`; `0` → `status=OUT_OF_STOCK`; omitted → both |
 | `discount` | bool | `1` → `compare_at_price > price`; `0` → not discounted; omitted → both |
 | `is_main_dish` | bool | real `Product.is_main_dish` field |
 
@@ -649,10 +667,10 @@ and is only applied when requested.
 
 ### Pagination
 
-Existing `LimitOffsetPagination` (`PAGE_SIZE=20`) only. `limit`/`offset` are
-validated by the paginator; `next`/`previous` are rebuilt from the request, so all
-filter and sort parameters survive paging. Ordering always has a unique
-tie-breaker, so pages never overlap.
+Existing `LimitOffsetPagination` (`PAGE_SIZE=20`) only; the discovery endpoint
+clamps `limit` to 100 (`CatalogPagination`). `next`/`previous` are rebuilt from
+the request, so all filter and sort parameters survive paging. Ordering always
+has a unique tie-breaker, so pages never overlap.
 
 ### Response shapes
 
@@ -663,8 +681,7 @@ List (`200`):
   "results": [
     {"id": 1, "name": "Burger", "slug": "burger", "description": "",
      "price": 180000, "compare_at_price": 220000, "discount_percent": 18,
-     "is_discounted": true, "stock_quantity": 25, "is_in_stock": true,
-     "status": "AVAILABLE", "is_main_dish": true,
+     "is_discounted": true, "status": "AVAILABLE", "is_main_dish": true,
      "prep_time_minutes": 10, "image_url": null,
      "category": {"id": 1, "name": "Pizzas", "slug": "pizzas",
                   "parent_id": null, "description": "", "image_url": null}}
@@ -674,10 +691,10 @@ List (`200`):
 
 `price` remains the effective selling price (and the value orders snapshot);
 `compare_at_price` is the optional pre-discount price; `discount_percent` is
-derived. `stock_quantity = null` means stock is not tracked.
+derived. Availability is expressed only through `status`.
 
 Suggestions (`200`) —
-`{"results": [{id, name, slug, price, compare_at_price, discount_percent, is_in_stock, status, image_url}], "did_you_mean": null|string}`,
+`{"results": [{id, name, slug, price, compare_at_price, discount_percent, status, image_url}], "did_you_mean": null|string}`,
 at most `PRODUCT_SUGGESTIONS_MAX_LIMIT` (10) rows; blank `q` → `{"results": [], "did_you_mean": null}`.
 The frontend builds the detail URL from `slug` (`/catalog/products/<slug>/`).
 
@@ -686,19 +703,29 @@ validation, `404 CATEGORY_NOT_FOUND` for unknown/inactive categories).
 
 ### Performance
 
-- Base queryset uses `select_related("category")`; the search join is
-  many-to-one, so no `distinct()` and no row duplication.
+- Base queryset uses `select_related("category")`; each query word adds one
+  `pk__in (SELECT DISTINCT product_id FROM token WHERE token IN …)` subquery, so
+  SQLite/PostgreSQL drive the scan from `catalog_search_token_idx` and then
+  read the matching products by primary key.
 - List: 2 queries (count + page) on the normal path; `sort=popularity` adds one
-  LEFT JOIN + GROUP BY instead of a per-row query.
+  LEFT JOIN + GROUP BY instead of a per-row query. Search adds one indexed
+  subquery per query word (max 8).
 - Suggestions: 1 query on the normal path; `.select_related(None).only(...)` loads
-  only the returned columns (`.only()` cannot coexist with `select_related`). A
-  zero-result query may add one `exists()` check plus, when fuzzy is enabled, one
-  cached vocabulary read and one corrected query.
-- Indexes added in `catalog.0002`: `price` and `(category, status)`. SQLite cannot
-  use a B-tree index for leading-wildcard `icontains`, so search itself still
-  scans; scale guidance (PostgreSQL FTS/pg_trgm) remains a recommendation.
-- No caching is applied to search results (combinatorial key space); only the
-  autocomplete vocabulary is cached (1 h, invalidated with the catalog cache).
+  only the returned columns. A zero-result query may add one `exists()` check
+  plus, when fuzzy is enabled, one cached vocabulary read and one corrected query.
+- `ProductSearchToken` has an index on `token` plus `unique(product, token)`;
+  `catalog.0002` adds `price` and `(category, status)`.
+- **Search responses are cached** (`apps/catalog/cache.py`): list keys include
+  the normalized `q`, every filter, `sort` and the effective `limit`/`offset`
+  (plus scheme/host, because DRF builds absolute links) and a global catalog
+  generation.
+  Suggestion keys include `q` + `limit`. TTLs: 60 s list, 120 s autocomplete
+  (`CATALOG_SEARCH_CACHE_*` / `CATALOG_SUGGEST_CACHE_*`).
+- **Invalidation:** every catalog write goes through `catalog.services` and, on
+  commit, bumps the search generation and clears the menu/lucky-wheel/vocabulary
+  keys. Price, discount, status, category and product text changes therefore make
+  old pages unreachable; they expire by TTL. Direct ORM/admin edits bypass this —
+  use the services or `rebuild_search_index` + cache clear.
 
 ### Decisions and limitations
 
@@ -706,10 +733,10 @@ validation, `404 CATEGORY_NOT_FOUND` for unknown/inactive categories).
   effective selling price, so existing order snapshots and totals do not change.
   The DB constraint `product_compare_at_price_gt_price` and the backoffice
   services reject `compare_at_price <= price`; refund/order logic is untouched.
-- **Stock is counted but not decremented at checkout.** `stock_quantity` (null =
-  untracked) drives the `in_stock` filter/flag; order creation still relies on
-  `status`, so reserving/decrementing stock and oversell protection are a later
-  order-domain change (needs reservation + cancellation restore).
+- **Availability is manual, with no stock accounting.** There is no numeric
+  stock, deduction or reservation. A product is orderable when the manager sets
+  `status=AVAILABLE`; race conditions are handled operationally. This is a
+  deliberate business decision, not a missing feature.
 - **No variant model.** Product variants are not part of the current order model
   (`OrderItem` references a single `Product` and snapshots its price); adding
   variants only to the catalog would let customers choose an option the order
@@ -730,10 +757,11 @@ validation, `404 CATEGORY_NOT_FOUND` for unknown/inactive categories).
   match stored text that uses one, and vice versa (data is never rewritten).
   Word-based AND matching mitigates this ("سیب زمینی" matches "سیب‌زمینی").
 - `tests/test_product_discovery.py` predates these additions: it still expects
-  `discount=1` to be rejected and has no coverage for `in_stock`,
-  `include_subcategories`, `popularity` or `did_you_mean`. It was intentionally
-  **not** modified or executed in this phase; it must be updated when the test
-  infrastructure is revived.
+  `discount=1` to be rejected, tests the old `icontains` search implementation and
+  has no coverage for the token index, cache invalidation, `include_subcategories`,
+  `popularity` or `did_you_mean`. It was intentionally **not** modified or
+  executed in this phase; it must be updated when the test infrastructure is
+  revived.
 
 ## 17. Rules for future work on this repo
 

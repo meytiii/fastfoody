@@ -10,10 +10,24 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog import selectors
-from apps.catalog.search import MAX_PRICE_FILTER, MAX_SEARCH_LENGTH, SORT_CHOICES
+from apps.catalog.cache import (
+    build_search_cache_key,
+    get_cached_response,
+    set_cached_response,
+)
+from apps.catalog.search import (
+    MAX_PRICE_FILTER,
+    MAX_SEARCH_LENGTH,
+    SORT_CHOICES,
+    normalize_search_query,
+)
 from apps.catalog.throttles import ProductSearchThrottle, ProductSuggestionThrottle
 
+from common.serializers import ErrorEnvelopeSerializer
+
 from .serializers import (
+    LuckyWheelResponseSerializer,
+    MenuResponseSerializer,
     ProductDetailPublicSerializer,
     ProductListResponseSerializer,
     ProductSearchQuerySerializer,
@@ -22,6 +36,12 @@ from .serializers import (
     ProductSuggestionQuerySerializer,
     ProductSummaryPublicSerializer,
 )
+
+class CatalogPagination(LimitOffsetPagination):
+    """Bound page size so a single request cannot materialize the whole catalog."""
+
+    max_limit = 100
+
 
 _SEARCH_PARAMETERS = [
     OpenApiParameter(
@@ -73,14 +93,6 @@ _SEARCH_PARAMETERS = [
         ),
     ),
     OpenApiParameter(
-        "in_stock",
-        OpenApiTypes.BOOL,
-        description=(
-            "Effective purchasability: AVAILABLE and (stock not tracked or "
-            "stock_quantity > 0)."
-        ),
-    ),
-    OpenApiParameter(
         "discount",
         OpenApiTypes.BOOL,
         description=(
@@ -103,7 +115,9 @@ _SEARCH_PARAMETERS = [
         ),
     ),
     OpenApiParameter(
-        "limit", OpenApiTypes.INT, description="Page size (LimitOffsetPagination)."
+        "limit",
+        OpenApiTypes.INT,
+        description="Page size (default 20, clamped to 100).",
     ),
     OpenApiParameter(
         "offset", OpenApiTypes.INT, description="Page offset (LimitOffsetPagination)."
@@ -114,6 +128,12 @@ _SEARCH_PARAMETERS = [
 class MenuView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_menu",
+        summary="Return the cached storefront menu",
+        responses={200: MenuResponseSerializer},
+    )
     def get(self, request: Request) -> Response:
         return Response(selectors.get_storefront_menu())
 
@@ -121,6 +141,22 @@ class MenuView(APIView):
 class LuckyWheelView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_lucky_wheel",
+        summary="Return products for the lucky wheel",
+        parameters=[
+            OpenApiParameter(
+                "category",
+                OpenApiTypes.STR,
+                description="Optional category slug; unknown/inactive → 404.",
+            )
+        ],
+        responses={
+            200: LuckyWheelResponseSerializer,
+            404: ErrorEnvelopeSerializer,
+        },
+    )
     def get(self, request: Request) -> Response:
         category_slug = request.query_params.get("category")
         return Response(
@@ -141,17 +177,25 @@ class ProductListView(APIView):
     throttle_classes = [ProductSearchThrottle]
 
     @extend_schema(
-        tags=["storefront-catalog"],
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_products_list",
         summary="Search and filter public products",
         description=(
             "Returns paginated, publicly visible products (not HIDDEN, active "
-            "category). Search words are AND-ed across name, slug, description "
-            "and category name; Persian/Arabic letter variants and synonym "
-            "groups are applied server-side. Invalid parameters return 400 with "
-            "the standard error envelope."
+            "category). Search words are AND-ed over an indexed token list built "
+            "from name, slug, description and category name; Persian/Arabic "
+            "letter variants and synonym groups are applied server-side. "
+            "Responses are cached per query/filter/sort/page and invalidated by "
+            "catalog writes. Invalid parameters return 400 with the standard "
+            "error envelope."
         ),
         parameters=_SEARCH_PARAMETERS,
-        responses={200: ProductListResponseSerializer},
+        responses={
+            200: ProductListResponseSerializer,
+            400: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+            429: ErrorEnvelopeSerializer,
+        },
     )
     def get(self, request: Request) -> Response:
         # A plain dict (not QueryDict) keeps DRF from applying HTML-form
@@ -159,6 +203,38 @@ class ProductListView(APIView):
         serializer = ProductSearchQuerySerializer(data=request.query_params.dict())
         serializer.is_valid(raise_exception=True)
         params = serializer.validated_data
+
+        paginator = CatalogPagination()
+        ttl = getattr(settings, "CATALOG_SEARCH_CACHE_TTL", 60)
+        cache_enabled = (
+            getattr(settings, "CATALOG_SEARCH_CACHE_ENABLED", True) and ttl > 0
+        )
+        cache_key = None
+        if cache_enabled:
+            cache_key = build_search_cache_key(
+                "products",
+                {
+                    "q": normalize_search_query(params.get("q")),
+                    "category": params.get("category"),
+                    "category_id": params.get("category_id"),
+                    "include_subcategories": params.get(
+                        "include_subcategories", True
+                    ),
+                    "min_price": params.get("min_price"),
+                    "max_price": params.get("max_price"),
+                    "available": params.get("available"),
+                    "discount": params.get("discount"),
+                    "is_main_dish": params.get("is_main_dish"),
+                    "sort": params.get("sort"),
+                    "limit": paginator.get_limit(request),
+                    "offset": paginator.get_offset(request),
+                    "host": request.get_host(),
+                    "scheme": request.scheme,
+                },
+            )
+            cached = get_cached_response(cache_key)
+            if cached is not None:
+                return Response(cached)
 
         queryset = selectors.search_public_products(
             query=params.get("q"),
@@ -168,17 +244,20 @@ class ProductListView(APIView):
             min_price=params.get("min_price"),
             max_price=params.get("max_price"),
             available=params.get("available"),
-            in_stock=params.get("in_stock"),
             discount=params.get("discount"),
             is_main_dish=params.get("is_main_dish"),
             sort=params.get("sort"),
         )
 
-        paginator = LimitOffsetPagination()
         page = paginator.paginate_queryset(queryset, request)
-        return paginator.get_paginated_response(
-            ProductSummaryPublicSerializer(page, many=True).data
+        payload = dict(
+            paginator.get_paginated_response(
+                ProductSummaryPublicSerializer(page, many=True).data
+            ).data
         )
+        if cache_enabled and cache_key:
+            set_cached_response(cache_key, payload, timeout=ttl)
+        return Response(payload)
 
 
 class ProductSuggestionsView(APIView):
@@ -195,7 +274,8 @@ class ProductSuggestionsView(APIView):
     throttle_classes = [ProductSuggestionThrottle]
 
     @extend_schema(
-        tags=["storefront-catalog"],
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_suggestions",
         summary="Autocomplete product suggestions",
         description=(
             "Minimal product rows ordered by relevance. Blank q returns an "
@@ -218,7 +298,11 @@ class ProductSuggestionsView(APIView):
                 ),
             ),
         ],
-        responses={200: ProductSuggestionListResponseSerializer},
+        responses={
+            200: ProductSuggestionListResponseSerializer,
+            400: ErrorEnvelopeSerializer,
+            429: ErrorEnvelopeSerializer,
+        },
     )
     def get(self, request: Request) -> Response:
         serializer = ProductSuggestionQuerySerializer(
@@ -229,28 +313,49 @@ class ProductSuggestionsView(APIView):
         max_limit = getattr(settings, "PRODUCT_SUGGESTIONS_MAX_LIMIT", 10)
         default_limit = getattr(settings, "PRODUCT_SUGGESTIONS_DEFAULT_LIMIT", 5)
         limit = min(serializer.validated_data.get("limit", default_limit), max_limit)
+        query = serializer.validated_data.get("q")
+
+        ttl = getattr(settings, "CATALOG_SUGGEST_CACHE_TTL", 120)
+        cache_enabled = (
+            getattr(settings, "CATALOG_SUGGEST_CACHE_ENABLED", True) and ttl > 0
+        )
+        cache_key = None
+        if cache_enabled:
+            cache_key = build_search_cache_key(
+                "suggestions",
+                {
+                    "q": normalize_search_query(query),
+                    "limit": limit,
+                },
+            )
+            cached = get_cached_response(cache_key)
+            if cached is not None:
+                return Response(cached)
 
         queryset, did_you_mean = selectors.suggest_public_products_with_correction(
-            query=serializer.validated_data.get("q"),
+            query=query,
             limit=limit,
         )
-        return Response(
-            {
-                "results": ProductSuggestionPublicSerializer(
-                    queryset, many=True
-                ).data,
-                "did_you_mean": did_you_mean,
-            }
-        )
+        payload = {
+            "results": ProductSuggestionPublicSerializer(queryset, many=True).data,
+            "did_you_mean": did_you_mean,
+        }
+        if cache_enabled and cache_key:
+            set_cached_response(cache_key, payload, timeout=ttl)
+        return Response(payload)
 
 
 class ProductDetailView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
-        tags=["storefront-catalog"],
+        tags=["Storefront — Catalog"],
+        operation_id="storefront_catalog_product_detail",
         summary="Retrieve a public product by slug",
-        responses={200: ProductDetailPublicSerializer},
+        responses={
+            200: ProductDetailPublicSerializer,
+            404: ErrorEnvelopeSerializer,
+        },
     )
     def get(self, request: Request, slug: str) -> Response:
         product = selectors.get_storefront_product(slug)

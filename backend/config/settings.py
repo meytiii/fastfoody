@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from decouple import config
@@ -223,6 +224,15 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    # Stable enum component names; several models define a nested ``Status``
+    # choice class, which would otherwise collide in the generated schema.
+    "ENUM_NAME_OVERRIDES": {
+        "ProductStatusEnum": "apps.catalog.models.Product.Status",
+        "OrderStatusEnum": "apps.orders.models.Order.Status",
+        "OrderPaymentStatusEnum": "apps.orders.models.Order.PaymentStatus",
+        "OrderDeliveryTypeEnum": "apps.orders.models.Order.DeliveryType",
+        "PaymentStatusEnum": "apps.payments.models.Payment.Status",
+    },
 }
 
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/1")
@@ -281,7 +291,12 @@ PRODUCT_SUGGESTIONS_MAX_LIMIT = 10
 # Extra synonym pairs/groups, merged with the built-in Persian food synonyms:
 #   CATALOG_SEARCH_SYNONYMS={"برگر": ["همبرگر"], "نوشابه": ["کوکاکولا"]}
 # Values are read once at startup (apps/catalog/search.py).
-CATALOG_SEARCH_SYNONYMS: dict[str, list[str]] = {}
+_raw_synonyms = config("CATALOG_SEARCH_SYNONYMS", default="").strip()
+CATALOG_SEARCH_SYNONYMS: dict[str, list[str]] = (
+    json.loads(_raw_synonyms) if _raw_synonyms else {}
+)
+if not isinstance(CATALOG_SEARCH_SYNONYMS, dict):
+    raise ValueError("CATALOG_SEARCH_SYNONYMS must be a JSON object.")
 
 # Bounded typo tolerance for autocomplete: only used when a search returns no
 # rows. Correction compares query words with product-name words (Levenshtein via
@@ -296,6 +311,18 @@ CATALOG_SEARCH_FUZZY_CUTOFF = config(
 CATALOG_SEARCH_VOCAB_LIMIT = config(
     "CATALOG_SEARCH_VOCAB_LIMIT", default=2000, cast=int
 )
+
+# Cached search/autocomplete responses. Keys include the normalized query, all
+# filters, sorting and pagination, plus a catalog generation that is bumped by
+# every catalog write (see apps/catalog/cache.py).
+CATALOG_SEARCH_CACHE_ENABLED = config(
+    "CATALOG_SEARCH_CACHE_ENABLED", default=True, cast=bool
+)
+CATALOG_SEARCH_CACHE_TTL = config("CATALOG_SEARCH_CACHE_TTL", default=60, cast=int)
+CATALOG_SUGGEST_CACHE_ENABLED = config(
+    "CATALOG_SUGGEST_CACHE_ENABLED", default=True, cast=bool
+)
+CATALOG_SUGGEST_CACHE_TTL = config("CATALOG_SUGGEST_CACHE_TTL", default=120, cast=int)
 
 
 

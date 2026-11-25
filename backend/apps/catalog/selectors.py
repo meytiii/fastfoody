@@ -22,6 +22,7 @@ from .search import (
     correct_search_term,
     normalize_search_query,
 )
+from .search_index import iter_index_tokens
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +227,6 @@ def search_public_products(
     min_price: int | None = None,
     max_price: int | None = None,
     available: bool | None = None,
-    in_stock: bool | None = None,
     discount: bool | None = None,
     is_main_dish: bool | None = None,
     sort: str | None = None,
@@ -258,7 +258,6 @@ def search_public_products(
         min_price=min_price,
         max_price=max_price,
         available=available,
-        in_stock=in_stock,
         discount=discount,
         is_main_dish=is_main_dish,
     )
@@ -282,9 +281,9 @@ def get_search_vocabulary() -> list[str]:
     names = get_public_product_queryset().values_list("name", flat=True)[:limit]
     vocabulary = sorted(
         {
-            word.lower()
+            word
             for name in names
-            for word in normalize_search_query(name).split()
+            for word in iter_index_tokens(name)
             if len(word) >= 3 and not word.isdigit()
         }
     )
@@ -308,7 +307,6 @@ def _suggestion_queryset(term: str, limit: int) -> QuerySet[Product]:
         "slug",
         "price",
         "compare_at_price",
-        "stock_quantity",
         "status",
         "image",
         "webp_image",

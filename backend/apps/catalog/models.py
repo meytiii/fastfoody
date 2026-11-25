@@ -90,13 +90,8 @@ class Product(BaseModel):
         blank=True,
         help_text="Original price before discount; leave empty when not discounted.",
     )
-    #: Optional stock count. ``None`` means stock is not tracked and availability
-    #: is governed by ``status`` only (the historical behaviour).
-    stock_quantity = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="Units left in stock; leave empty when stock is not tracked.",
-    )
+    #: Availability is a manual, binary decision by the restaurant manager.
+    #: The project intentionally does NOT track numeric stock quantities.
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
@@ -155,17 +150,45 @@ class Product(BaseModel):
         assert self.compare_at_price is not None
         return round((self.compare_at_price - self.price) * 100 / self.compare_at_price)
 
-    @property
-    def is_in_stock(self) -> bool:
-        """
-        Purchasability derived from both the status flag and counted stock.
 
-        ``OUT_OF_STOCK``/``HIDDEN`` are never in stock. When ``stock_quantity`` is
-        ``None`` the product is treated as unlimited (backward compatible).
-        """
-        if self.status != self.Status.AVAILABLE:
-            return False
-        return self.stock_quantity is None or self.stock_quantity > 0
+class ProductSearchToken(models.Model):
+    """
+    Inverted-index entry powering catalog search.
+
+    Each row maps one normalized word (or one of its prefixes) to a product.
+    Querying through this table uses an index on ``token`` instead of scanning
+    every product row with ``icontains``, which is what makes a large catalog
+    (tens of thousands of products) practical on both SQLite and PostgreSQL.
+
+    Rows are maintained by ``apps.catalog.indexing`` from the catalog services;
+    ``rebuild_search_index`` rebuilds them after bulk imports.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="search_tokens",
+    )
+    token = models.CharField(max_length=48)
+    #: 3 = product name, 2 = category name, 1 = slug/description. Reserved for
+    #: future weighted ranking; ordering is currently done on the product query.
+    weight = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "token"],
+                name="unique_product_search_token",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["token"], name="catalog_search_token_idx"),
+        ]
+        verbose_name = "Product search token"
+        verbose_name_plural = "Product search tokens"
+
+    def __str__(self) -> str:
+        return f"{self.token} -> {self.product_id}"
 
 
 class ProductAddOn(BaseModel):

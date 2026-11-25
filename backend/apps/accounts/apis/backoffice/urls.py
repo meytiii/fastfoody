@@ -20,20 +20,24 @@ urlpatterns = [
     path("auth/logout/", StaffLogoutView.as_view(), name="backoffice-auth-logout"),
     path("auth/me/", StaffMeView.as_view(), name="backoffice-auth-me"),
 
-    # CRM
-    path("customers/", CustomerListView.as_view(), name="backoffice-customers"),
+    # CRM (mounted at /api/v1/backoffice/ — see config/api_urls_backoffice.py)
     path(
-        "customers/<int:pk>/",
+        "crm/customers/",
+        CustomerListView.as_view(),
+        name="backoffice-customers",
+    ),
+    path(
+        "crm/customers/<int:pk>/",
         CustomerDetailView.as_view(),
         name="backoffice-customer-detail",
     ),
     path(
-        "customers/<int:pk>/notes/",
+        "crm/customers/<int:pk>/notes/",
         CustomerNoteListCreateView.as_view(),
         name="backoffice-customer-notes",
     ),
     path(
-        "customers/<int:pk>/notes/<int:note_id>/",
+        "crm/customers/<int:pk>/notes/<int:note_id>/",
         CustomerNoteDetailView.as_view(),
         name="backoffice-customer-note-detail",
     ),

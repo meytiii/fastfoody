@@ -9,6 +9,12 @@ class PaymentRequestSerializer(serializers.Serializer):
     order_id = serializers.IntegerField()
 
 
+class PaymentStartResponseSerializer(serializers.Serializer):
+    payment_url = serializers.CharField()
+    authority = serializers.CharField()
+    amount = serializers.IntegerField()
+
+
 class PaymentPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment

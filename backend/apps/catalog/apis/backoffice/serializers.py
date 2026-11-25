@@ -117,8 +117,6 @@ class ProductReadSerializer(serializers.ModelSerializer):
             "price",
             "compare_at_price",
             "discount_percent",
-            "stock_quantity",
-            "is_in_stock",
             "status",
             "is_main_dish",
             "prep_time_minutes",
@@ -126,7 +124,7 @@ class ProductReadSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("discount_percent", "is_in_stock")
+        read_only_fields = ("discount_percent",)
 
     def get_image_url(self, obj: Product) -> str | None:
         return obj.image.url if obj.image else None
@@ -190,9 +188,6 @@ class ProductWriteSerializer(serializers.Serializer):
     compare_at_price = serializers.IntegerField(
         required=False, allow_null=True, min_value=0
     )
-    stock_quantity = serializers.IntegerField(
-        required=False, allow_null=True, min_value=0
-    )
     status = serializers.ChoiceField(
         choices=Product.Status.choices, default=Product.Status.AVAILABLE
     )
@@ -212,9 +207,6 @@ class ProductUpdateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     price = serializers.IntegerField(min_value=0, required=False)
     compare_at_price = serializers.IntegerField(
-        required=False, allow_null=True, min_value=0
-    )
-    stock_quantity = serializers.IntegerField(
         required=False, allow_null=True, min_value=0
     )
     status = serializers.ChoiceField(choices=Product.Status.choices, required=False)
@@ -239,3 +231,27 @@ class ImageUploadSerializer(serializers.Serializer):
 
 class AddonLinksWriteSerializer(serializers.Serializer):
     addons = AddonLinkSerializer(many=True)
+
+
+# ---------------------------------------------------------------------------
+# Paginated response envelopes (documentation only)
+# ---------------------------------------------------------------------------
+class CategoryListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = CategoryReadSerializer(many=True)
+
+
+class AddOnListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = AddOnSerializer(many=True)
+
+
+class BackofficeProductListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = ProductReadSerializer(many=True)

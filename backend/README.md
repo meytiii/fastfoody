@@ -261,6 +261,10 @@ devpy runserver
 | DB_ENGINE | — | sqlite | `sqlite` (dev) or `postgres` |
 | SQLITE_PATH | — | BASE_DIR/db.sqlite3 | SQLite file path |
 | CACHE_BACKEND | — | locmem | `locmem` or `redis` |
+| CATALOG_SEARCH_CACHE_ENABLED | — | True | cache product list/search responses |
+| CATALOG_SEARCH_CACHE_TTL | — | 60 | list cache TTL (seconds) |
+| CATALOG_SUGGEST_CACHE_ENABLED | — | True | cache autocomplete responses |
+| CATALOG_SUGGEST_CACHE_TTL | — | 120 | autocomplete TTL (seconds) |
 | REDIS_URL | prod (redis cache) | redis://127.0.0.1:6379/0 | cache/Redis client |
 | CELERY_BROKER_URL | ✅ | redis://.../1 | task queue |
 | CELERY_RESULT_BACKEND | — | redis://.../2 | task results |
@@ -1275,9 +1279,22 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 | --- | --- | --- | --- |
 | GET | /catalog/menu/ | — | — |
 | GET | /catalog/lucky-wheel/ | — | ?category=slug |
-| GET | /catalog/products/ | — | `?q=&category=&category_id=&include_subcategories=&min_price=&max_price=&available=&in_stock=&discount=&is_main_dish=&sort=&limit=&offset=` (see `PROJECT_CONTEXT.md` §16) |
+| GET | /catalog/products/ | — | `?q=&category=&category_id=&include_subcategories=&min_price=&max_price=&available=&discount=&is_main_dish=&sort=&limit=&offset=` (see `PROJECT_CONTEXT.md` §16) |
 | GET | /catalog/suggestions/ | — | `?q=&limit=` (autocomplete, max 10 results, `did_you_mean` on typo) |
 | GET | /catalog/products/<slug>/ | — | — |
+
+Search is served from an inverted token index (`ProductSearchToken`), maintained
+automatically by the catalog services and backfilled by migration `catalog.0003`.
+After a bulk import/edit that bypasses those services, rebuild it with:
+
+```powershell
+python manage.py rebuild_search_index
+```
+
+Search and autocomplete responses are cached per normalized query, filters,
+sorting and pagination; catalog writes bump a cache generation on commit, so
+price/availability/category changes never serve stale pages. Tune with
+`CATALOG_SEARCH_CACHE_*` / `CATALOG_SUGGEST_CACHE_*`.
 
 #### Orders
 
@@ -1335,7 +1352,7 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 | POST | /catalog/categories/<id>/image/ | multipart image |
 | GET/POST | /catalog/addons/ | {name, price, is_available?} |
 | GET/PATCH/DELETE | /catalog/addons/<id>/ | — |
-| GET/POST | /catalog/products/?category_id=&status=&is_main_dish=&search= | {name, slug, category_id, price, compare_at_price?, stock_quantity?, status?, is_main_dish?, prep_time_minutes?, display_order?, addons?} |
+| GET/POST | /catalog/products/?category_id=&status=&is_main_dish=&search= | {name, slug, category_id, price, compare_at_price?, status?, is_main_dish?, prep_time_minutes?, display_order?, addons?} |
 | GET/PATCH/DELETE | /catalog/products/<id>/ | — |
 | POST | /catalog/products/<id>/image/ | multipart image |
 | GET/PUT | /catalog/products/<id>/addons/ | {addons: [{addon_id, min_quantity, max_quantity}]} |
@@ -1358,7 +1375,7 @@ Why? CSRF attacks occur by auto-sending cookies. JWT sits in a manual header, so
 
 | Method | Path |
 | --- | --- |
-| GET | /payments/orders/<order_id>/payments/ |
+| GET | /orders/<order_id>/payments/ |
 
 #### CMS
 

@@ -11,6 +11,11 @@ class OTPRequestSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
 
 
+class OTPRequestResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    expires_in = serializers.IntegerField(help_text="OTP lifetime in seconds.")
+
+
 class OTPVerifySerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     code = serializers.CharField(max_length=8)
@@ -62,4 +67,13 @@ class OTPVerifyResponseSerializer(serializers.Serializer):
 
 
 class TokenLogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
+class TokenRefreshRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
+class TokenRefreshResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
     refresh = serializers.CharField()

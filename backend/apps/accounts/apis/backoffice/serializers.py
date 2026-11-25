@@ -95,3 +95,15 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             "date_joined",
         )
         read_only_fields = fields
+
+
+class StaffLoginResponseSerializer(serializers.Serializer):
+    user = StaffProfileSerializer()
+    csrf_token = serializers.CharField()
+
+
+class CustomerListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = CustomerListSerializer(many=True)

@@ -11,8 +11,10 @@ Data model notes (verified against ``apps/catalog/models.py``):
 - ``Product.price`` is the effective selling price (integer toman) and is the
   value orders snapshot. ``Product.compare_at_price`` is the optional original
   price, so a discount never changes historical order totals.
-- ``Product.stock_quantity`` is optional: ``None`` means stock is not tracked and
-  ``status`` alone governs availability.
+- Availability is manual: ``Product.status`` is the only source of truth and
+  the project intentionally does not track numeric stock quantities.
+- Search matching goes through ``ProductSearchToken`` (an indexed inverted
+  index) rather than leading-wildcard ``icontains`` scans.
 - There are no variant, SKU, tag or ingredient fields. Filters that would need
   them are not offered here.
 """
@@ -20,7 +22,6 @@ Data model notes (verified against ``apps/catalog/models.py``):
 from __future__ import annotations
 
 import difflib
-import re
 from functools import lru_cache
 from typing import Any, Iterable, Sequence
 
@@ -37,44 +38,20 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from .models import Product
-
-# ---------------------------------------------------------------------------
-# Normalization constants
-# ---------------------------------------------------------------------------
-PERSIAN_YEH = "\u06cc"  # ی
-ARABIC_YEH = "\u064a"  # ي
-PERSIAN_KAF = "\u06a9"  # ک
-ARABIC_KAF = "\u0643"  # ك
-
-_ARABIC_INDIC_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669"
-_EXTENDED_ARABIC_INDIC_DIGITS = (
-    "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9"
-)
-_ASCII_DIGITS = "0123456789"
-_DIGIT_TRANSLATION = str.maketrans(
-    _ARABIC_INDIC_DIGITS + _EXTENDED_ARABIC_INDIC_DIGITS,
-    _ASCII_DIGITS + _ASCII_DIGITS,
+from .models import Product, ProductSearchToken
+from .search_index import (
+    ARABIC_KAF,
+    ARABIC_YEH,
+    MAX_SEARCH_LENGTH,
+    MAX_SEARCH_TOKENS,
+    PERSIAN_KAF,
+    PERSIAN_YEH,
+    TOKEN_MAX_LENGTH,
+    normalize_search_query,
+    tokenize_search_query,
 )
 
-# Zero-width / directional marks that never carry meaning for matching.
-_INVISIBLE_CHARS = (
-    "\u200c",  # zero-width non-joiner (Persian half-space)
-    "\u200d",  # zero-width joiner
-    "\u200e",  # left-to-right mark
-    "\u200f",  # right-to-left mark
-    "\u0640",  # tatweel / kashida
-)
-
-_WHITESPACE_RE = re.compile(r"\s+")
-
-MAX_SEARCH_LENGTH = 100
-MAX_SEARCH_TOKENS = 8
 MAX_PRICE_FILTER = 1_000_000_000  # 1e9 toman; guards SQLite integer overflow
-
-#: Fields matched by free-text search. ``category__name`` is a many-to-one join,
-#: so it cannot duplicate product rows and ``distinct()`` is unnecessary.
-SEARCH_FIELDS = ("name", "slug", "description", "category__name")
 
 #: Default catalog order, mirroring ``Product.Meta.ordering`` plus a deterministic
 #: tie-breaker so pagination is stable.
@@ -117,33 +94,18 @@ FUZZY_MIN_TOKEN_LENGTH = 3
 
 
 # ---------------------------------------------------------------------------
-# Normalization
+# Normalization (re-exported for callers/tests that import it from here)
 # ---------------------------------------------------------------------------
-def normalize_search_query(raw: Any) -> str:
-    """
-    Normalize a user-supplied search term without touching stored data.
-
-    - Arabic Yeh/Kaf are folded to their Persian forms.
-    - Arabic-Indic and Persian digits become ASCII digits.
-    - Zero-width/invisible characters are removed and whitespace is collapsed.
-    - The result is trimmed and truncated to ``MAX_SEARCH_LENGTH``.
-
-    Case is intentionally left as-is: matching uses case-insensitive lookups.
-    """
-    if raw is None:
-        return ""
-
-    text = str(raw).translate(_DIGIT_TRANSLATION)
-    text = text.replace(ARABIC_YEH, PERSIAN_YEH).replace(ARABIC_KAF, PERSIAN_KAF)
-    for char in _INVISIBLE_CHARS:
-        text = text.replace(char, "")
-    text = _WHITESPACE_RE.sub(" ", text).strip()
-    return text[:MAX_SEARCH_LENGTH]
-
-
-def tokenize_search_query(term: str) -> list[str]:
-    """Split a normalized term into at most ``MAX_SEARCH_TOKENS`` words."""
-    return [token for token in term.split(" ") if token][:MAX_SEARCH_TOKENS]
+__all__ = [
+    "MAX_PRICE_FILTER",
+    "MAX_SEARCH_LENGTH",
+    "SORT_CHOICES",
+    "build_relevance_ordering",
+    "build_search_filter",
+    "normalize_search_query",
+    "search_variants",
+    "tokenize_search_query",
+]
 
 
 def search_variants(term: str) -> list[str]:
@@ -189,7 +151,7 @@ def _synonym_map() -> dict[str, tuple[str, ...]]:
 
 
 def _expand_token(token: str) -> list[str]:
-    """All spellings/synonyms of a single word, capped to bound the Q object."""
+    """All spellings/synonyms of a single word, capped to bound the lookup."""
     expanded: list[str] = []
     for variant in search_variants(token):
         expanded.append(variant)
@@ -199,6 +161,7 @@ def _expand_token(token: str) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
     for candidate in expanded:
+        candidate = candidate.lower()[:TOKEN_MAX_LENGTH]
         if candidate and candidate not in seen:
             seen.add(candidate)
             result.append(candidate)
@@ -210,12 +173,16 @@ def _expand_token(token: str) -> list[str]:
 # ---------------------------------------------------------------------------
 def build_search_filter(term: str) -> Q:
     """
-    Build a token-AND / field-OR search filter.
+    Build a token-AND search filter backed by ``ProductSearchToken``.
 
-    Every query word must match at least one searchable field (or a synonym of
-    that word). This makes "پیتزا مخصوص" match a product called "پیتزا مخصوص
-    فرنگی", and lets words be spread across name/description/category. A query
-    without words produces an empty ``Q`` (no filtering).
+    Every query word must match at least one indexed token (or a synonym of
+    that word). Each word becomes a ``pk__in`` subquery over the token index, so
+    the planner starts from ``catalog_search_token_idx`` and reads only the
+    matching products instead of scanning the product table with
+    ``LIKE '%...%'``. Word subqueries are AND-ed; the inner ``DISTINCT`` keeps
+    the id lists duplicate-free.
+
+    A query without words produces an empty ``Q`` (no filtering).
     """
     tokens = tokenize_search_query(term)
     if not tokens:
@@ -223,11 +190,15 @@ def build_search_filter(term: str) -> Q:
 
     combined = Q()
     for token in tokens:
-        token_condition = Q()
-        for candidate in _expand_token(token):
-            for field in SEARCH_FIELDS:
-                token_condition |= Q(**{f"{field}__icontains": candidate})
-        combined &= token_condition
+        # Drive the query from the token index (indexed ``token`` lookups) and
+        # intersect the resulting product ids, instead of scanning products and
+        # probing the index once per row.
+        matches = (
+            ProductSearchToken.objects.filter(token__in=_expand_token(token))
+            .values("product_id")
+            .distinct()
+        )
+        combined &= Q(pk__in=matches)
     return combined
 
 
@@ -276,17 +247,14 @@ def apply_filters(
     min_price: int | None = None,
     max_price: int | None = None,
     available: bool | None = None,
-    in_stock: bool | None = None,
     discount: bool | None = None,
     is_main_dish: bool | None = None,
 ) -> QuerySet[Product]:
     """
     Apply the supported catalog filters.
 
-    - ``available`` is the raw status flag (``True`` → AVAILABLE, ``False`` →
-      OUT_OF_STOCK) kept for backward compatibility.
-    - ``in_stock`` is the effective purchasability: AVAILABLE **and**
-      (stock not tracked or stock > 0).
+    - ``available`` is the manual status flag (``True`` → AVAILABLE,
+      ``False`` → OUT_OF_STOCK).
     - ``discount`` is derived from ``compare_at_price > price``.
     - ``category_ids`` is the resolved hierarchy (parent + descendants);
       ``category_slug``/``category_id`` remain supported for direct callers.
@@ -308,14 +276,6 @@ def apply_filters(
         queryset = queryset.filter(status=Product.Status.AVAILABLE)
     elif available is False:
         queryset = queryset.filter(status=Product.Status.OUT_OF_STOCK)
-
-    if in_stock is not None:
-        purchasable = Q(status=Product.Status.AVAILABLE) & (
-            Q(stock_quantity__isnull=True) | Q(stock_quantity__gt=0)
-        )
-        queryset = (
-            queryset.filter(purchasable) if in_stock else queryset.exclude(purchasable)
-        )
 
     if discount is True:
         queryset = queryset.filter(compare_at_price__gt=F("price"))

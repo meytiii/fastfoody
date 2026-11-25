@@ -39,7 +39,6 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
     addons = ProductAddOnPublicSerializer(source="addon_links", many=True)
     discount_percent = serializers.IntegerField(read_only=True)
     is_discounted = serializers.BooleanField(read_only=True)
-    is_in_stock = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
@@ -52,8 +51,6 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
             "compare_at_price",
             "discount_percent",
             "is_discounted",
-            "stock_quantity",
-            "is_in_stock",
             "status",
             "is_main_dish",
             "prep_time_minutes",
@@ -80,7 +77,6 @@ class ProductSummaryPublicSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     discount_percent = serializers.IntegerField(read_only=True)
     is_discounted = serializers.BooleanField(read_only=True)
-    is_in_stock = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
@@ -93,8 +89,6 @@ class ProductSummaryPublicSerializer(serializers.ModelSerializer):
             "compare_at_price",
             "discount_percent",
             "is_discounted",
-            "stock_quantity",
-            "is_in_stock",
             "status",
             "is_main_dish",
             "prep_time_minutes",
@@ -116,7 +110,6 @@ class ProductSuggestionPublicSerializer(serializers.ModelSerializer):
 
     image_url = serializers.SerializerMethodField()
     discount_percent = serializers.IntegerField(read_only=True)
-    is_in_stock = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
@@ -127,7 +120,6 @@ class ProductSuggestionPublicSerializer(serializers.ModelSerializer):
             "price",
             "compare_at_price",
             "discount_percent",
-            "is_in_stock",
             "status",
             "image_url",
         )
@@ -161,7 +153,6 @@ class ProductSearchQuerySerializer(serializers.Serializer):
         required=False, min_value=0, max_value=MAX_PRICE_FILTER
     )
     available = serializers.BooleanField(required=False)
-    in_stock = serializers.BooleanField(required=False)
     discount = serializers.BooleanField(required=False)
     include_subcategories = serializers.BooleanField(required=False, default=True)
     is_main_dish = serializers.BooleanField(required=False)
@@ -206,3 +197,44 @@ class ProductListResponseSerializer(serializers.Serializer):
 class ProductSuggestionListResponseSerializer(serializers.Serializer):
     results = ProductSuggestionPublicSerializer(many=True)
     did_you_mean = serializers.CharField(allow_null=True, required=False)
+
+
+# ---------------------------------------------------------------------------
+# Menu / lucky wheel (documentation of cached dict payloads)
+# ---------------------------------------------------------------------------
+class MenuProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+    description = serializers.CharField()
+    price = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=Product.Status.choices)
+    is_main_dish = serializers.BooleanField()
+    prep_time_minutes = serializers.IntegerField()
+    image_url = serializers.CharField(allow_null=True)
+
+
+class MenuCategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+    description = serializers.CharField()
+    image_url = serializers.CharField(allow_null=True)
+    products = MenuProductSerializer(many=True)
+
+
+class MenuResponseSerializer(serializers.Serializer):
+    categories = MenuCategorySerializer(many=True)
+
+
+class LuckyWheelProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+    price = serializers.IntegerField()
+    category_id = serializers.IntegerField()
+    image_url = serializers.CharField(allow_null=True)
+
+
+class LuckyWheelResponseSerializer(serializers.Serializer):
+    products = LuckyWheelProductSerializer(many=True)

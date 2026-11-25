@@ -83,6 +83,13 @@ class OrderItemWriteSerializer(serializers.Serializer):
     addons = OrderItemAddOnWriteSerializer(many=True, required=False, default=list)
 
 
+class OrderListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = OrderReadSerializer(many=True)
+
+
 class OrderCreateSerializer(serializers.Serializer):
     delivery_type = serializers.ChoiceField(choices=Order.DeliveryType.choices)
     address_id = serializers.IntegerField(required=False, allow_null=True)

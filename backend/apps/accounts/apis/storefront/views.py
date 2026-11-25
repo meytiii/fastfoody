@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from django.contrib.auth import login, logout
 from django.middleware.csrf import get_token
-from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
+from drf_spectacular.utils import (
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -14,20 +18,37 @@ from rest_framework_simplejwt.views import TokenRefreshView as _SimpleJWTRefresh
 
 from apps.accounts import services, selectors, tokens
 from apps.accounts.throttles import OTPRequestThrottle, OTPVerifyThrottle
+from common.serializers import CSRFResponseSerializer, ErrorEnvelopeSerializer
 
 from .serializers import (
     CustomerAddressSerializer,
     CustomerProfileSerializer,
+    OTPRequestResponseSerializer,
     OTPRequestSerializer,
+    OTPVerifyResponseSerializer,
     OTPVerifySerializer,
     TokenLogoutSerializer,
+    TokenRefreshRequestSerializer,
+    TokenRefreshResponseSerializer,
 )
 
 
-# Django view (not DRF) so @ensure_csrf_cookie actually sets the cookie.
-@ensure_csrf_cookie
-def csrf_token_view(request: HttpRequest) -> JsonResponse:
-    return JsonResponse({"csrf_token": get_token(request)})
+class CSRFTokenView(APIView):
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_csrf",
+        summary="Return a CSRF token and set the cookie",
+        responses={200: CSRFResponseSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        return Response({"csrf_token": get_token(request)})
+
+
+# Keep the response decorator on the resolved view so the cookie is always set.
+csrf_token_view = ensure_csrf_cookie(CSRFTokenView.as_view())
 
 
 class OTPRequestView(APIView):
@@ -35,6 +56,18 @@ class OTPRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [OTPRequestThrottle]
 
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_otp_request",
+        summary="Request an OTP code",
+        request=OTPRequestSerializer,
+        responses={
+            200: OTPRequestResponseSerializer,
+            400: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+            429: ErrorEnvelopeSerializer,
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = OTPRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -49,6 +82,18 @@ class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [OTPVerifyThrottle]
 
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_otp_verify",
+        summary="Verify an OTP and start a session / issue JWTs",
+        request=OTPVerifySerializer,
+        responses={
+            200: OTPVerifyResponseSerializer,
+            400: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+            429: ErrorEnvelopeSerializer,
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = OTPVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -79,6 +124,17 @@ class OTPVerifyView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_session_logout",
+        summary="End the browser session",
+        request=None,
+        responses={
+            204: OpenApiResponse(description="Session cleared."),
+            401: ErrorEnvelopeSerializer,
+            403: ErrorEnvelopeSerializer,
+        },
+    )
     def post(self, request: Request) -> Response:
         logout(request._request)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -87,6 +143,16 @@ class LogoutView(APIView):
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_me",
+        summary="Return the authenticated customer profile",
+        responses={
+            200: CustomerProfileSerializer,
+            401: ErrorEnvelopeSerializer,
+            403: ErrorEnvelopeSerializer,
+        },
+    )
     def get(self, request: Request) -> Response:
         return Response(CustomerProfileSerializer(request.user).data)
 
@@ -94,10 +160,31 @@ class MeView(APIView):
 class AddressListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_addresses_list",
+        summary="List the customer's addresses",
+        responses={
+            200: CustomerAddressSerializer(many=True),
+            401: ErrorEnvelopeSerializer,
+        },
+    )
     def get(self, request: Request) -> Response:
         addresses = selectors.list_addresses_for_customer(request.user)
         return Response(CustomerAddressSerializer(addresses, many=True).data)
 
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_addresses_create",
+        summary="Create an address",
+        request=CustomerAddressSerializer,
+        responses={
+            201: CustomerAddressSerializer,
+            400: ErrorEnvelopeSerializer,
+            401: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = CustomerAddressSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -114,10 +201,33 @@ class AddressListCreateView(APIView):
 class AddressDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_address_detail",
+        summary="Retrieve one address",
+        responses={
+            200: CustomerAddressSerializer,
+            401: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+        },
+    )
     def get(self, request: Request, pk: int) -> Response:
         address = selectors.get_address_for_customer(request.user, pk)
         return Response(CustomerAddressSerializer(address).data)
 
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_address_update",
+        summary="Partially update one address",
+        request=CustomerAddressSerializer,
+        responses={
+            200: CustomerAddressSerializer,
+            400: ErrorEnvelopeSerializer,
+            401: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+        },
+    )
     def patch(self, request: Request, pk: int) -> Response:
         serializer = CustomerAddressSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -128,6 +238,16 @@ class AddressDetailView(APIView):
         )
         return Response(CustomerAddressSerializer(address).data)
 
+    @extend_schema(
+        tags=["Storefront — Addresses"],
+        operation_id="storefront_address_delete",
+        summary="Delete one address",
+        responses={
+            204: OpenApiResponse(description="Address deleted."),
+            401: ErrorEnvelopeSerializer,
+            404: ErrorEnvelopeSerializer,
+        },
+    )
     def delete(self, request: Request, pk: int) -> Response:
         services.delete_address(customer=request.user, address_id=pk)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -135,6 +255,19 @@ class AddressDetailView(APIView):
 
 
 
+@extend_schema_view(
+    post=extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_token_refresh",
+        summary="Exchange a refresh token for a new access token",
+        request=TokenRefreshRequestSerializer,
+        responses={
+            200: TokenRefreshResponseSerializer,
+            401: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+        },
+    )
+)
 class TokenRefreshView(_SimpleJWTRefreshView):
     """Public: exchange a refresh token for a fresh access (and rotated refresh)."""
 
@@ -153,6 +286,17 @@ class TokenLogoutView(APIView):
     authentication_classes: list = []
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        tags=["Storefront — Auth"],
+        operation_id="storefront_auth_token_logout",
+        summary="Blacklist a refresh token",
+        request=TokenLogoutSerializer,
+        responses={
+            204: OpenApiResponse(description="Token blacklisted."),
+            400: ErrorEnvelopeSerializer,
+            422: ErrorEnvelopeSerializer,
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = TokenLogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -134,6 +134,13 @@ class LiveOrderSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class BackofficeOrderListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = OrderListBackofficeSerializer(many=True)
+
+
 class PrepTimeUpdateSerializer(serializers.Serializer):
     prep_time_minutes = serializers.IntegerField(min_value=1)
 
