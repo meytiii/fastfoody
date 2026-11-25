@@ -3,7 +3,6 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from
 import {
   Search,
   Menu as MenuIcon,
-  UtensilsCrossed,
   ChefHat,
   ReceiptText,
   User,
@@ -32,7 +31,7 @@ interface NavLinkItem {
 
 const navLinks: NavLinkItem[] = [
   { label: 'صفحه اصلی', href: '/', id: 'home', svg: '/svg/home.svg' },
-  { label: 'منوی غذا', href: '/menu', id: 'menu', icon: UtensilsCrossed },
+  { label: 'منوی غذا', href: '/menu', id: 'menu', svg: '/svg/knife_fork.svg' },
   { label: 'گردونه شانس', href: '/lucky-wheel', id: 'lucky-wheel', svg: '/svg/lucky_wheel.svg' },
   { label: 'سفارش‌ها', href: '/orders', id: 'orders', icon: ReceiptText },
   { label: 'درباره ما', href: '/about', id: 'about', icon: ChefHat },

@@ -13,7 +13,8 @@ description: Quality hygiene, anti-slop filters, human copywriting, and token ef
 - **Tone:** Strip corporate buzzwords and formulaic AI writing patterns (*additionally, testament, pivotal, delve, landscape, tapestry, vibrant, nestled within*).
 - **Customer Copy:** Direct, authentic, warm, and clear Persian/English restaurant copy. State facts and food descriptions plainly and enticingly without hyperbolic fluff.
 
-## 3. Communication Efficiency (`caveman`)
-- **Dense Technical Clarity:** Deliver precise, actionable analysis. Eliminate boilerplate intros, gratuitous summaries, and verbose repetition.
-- **Direct Action:** State what changed, why, and where to inspect.
+## 3. Communication Efficiency (`caveman` — Mandatory Always-On)
+- **Active at All Times:** `/caveman` (`.agents/skills/caveman/SKILL.md`, default `full` intensity) is permanently active for every response, task, and session in this repository unless explicitly turned off by the user.
+- **Terse Compression:** Drop articles, filler, pleasantries, hedging, tool-call narration, and boilerplate intros. Keep full technical accuracy, exact symbol/file names, and clear ordering.
+- **Boundaries:** Code, commit messages, and documentation files remain clean standard prose/code; zero comments in code.
 

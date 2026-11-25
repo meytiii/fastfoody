@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RotateCw, UtensilsCrossed } from 'lucide-vue-next'
+import { RotateCw } from 'lucide-vue-next'
 import { storefrontApi } from '~/services/api'
 import { useCmsStore } from '~/stores/cms'
 import { useMenuStore } from '~/stores/menu'
@@ -257,7 +257,7 @@ useHead({
           v-else-if="visibleSlices.length === 0"
           class="mx-auto max-w-xl rounded-3xl border border-[#E8E5DC] bg-white p-10 text-center shadow-sm"
         >
-          <UtensilsCrossed class="mx-auto mb-3 h-10 w-10 text-[#5A5D56]" />
+          <img src="/svg/knife_fork.svg" alt="" width="40" height="40" aria-hidden="true" class="mx-auto mb-3 h-10 w-10 object-contain" />
           <h2 class="text-lg font-bold text-[#292B27]">غذای آماده‌ای در این دسته یافت نشد</h2>
           <p class="mt-2 text-sm text-[#5A5D56]">
             دسته‌بندی دیگری را انتخاب کنید یا به منوی کامل سر بزنید.
@@ -344,8 +344,8 @@ useHead({
                     :alt="winner.name"
                     class="aspect-video w-full object-cover"
                   />
-                  <div v-else class="flex aspect-video items-center justify-center text-[#5A5D56]">
-                    <UtensilsCrossed class="h-10 w-10" />
+                  <div v-else class="flex aspect-video items-center justify-center">
+                    <img src="/svg/knife_fork.svg" alt="" width="40" height="40" aria-hidden="true" class="h-10 w-10 object-contain" />
                   </div>
                 </div>
                 <h2 class="mt-4 text-2xl font-extrabold text-[#292B27]">

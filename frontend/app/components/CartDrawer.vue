@@ -6,7 +6,6 @@ import {
   Minus,
   Trash2,
   ArrowLeft,
-  UtensilsCrossed,
   Clock,
   AlertTriangle,
 } from 'lucide-vue-next'
@@ -139,7 +138,7 @@ const goToCheckout = () => {
             class="mt-6"
             @click="() => { cartStore.closeCart(); navigateTo('/menu') }"
           >
-            <UtensilsCrossed :size="16" aria-hidden="true" />
+            <img src="/svg/knife_fork.svg" alt="" width="18" height="18" aria-hidden="true" class="h-4.5 w-4.5 object-contain" />
             <span>مشاهده منوی غذاها</span>
           </GooeyButton>
         </div>

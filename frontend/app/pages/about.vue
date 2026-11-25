@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { Clock, MapPin, Phone, Truck, UtensilsCrossed } from 'lucide-vue-next'
+import { Clock, MapPin, Phone, Truck } from 'lucide-vue-next'
 import { useCmsStore } from '~/stores/cms'
 
 const cmsStore = useCmsStore()
@@ -61,8 +61,8 @@ useHead({
               :alt="cmsStore.aboutUsSection.title || 'درباره فست‌فودی'"
               class="aspect-4/3 w-full object-cover"
             />
-            <div v-else class="flex aspect-4/3 items-center justify-center text-[#5A5D56]">
-              <UtensilsCrossed class="h-12 w-12" />
+            <div v-else class="flex aspect-4/3 items-center justify-center">
+              <img src="/svg/knife_fork.svg" alt="" width="48" height="48" aria-hidden="true" class="h-12 w-12 object-contain" />
             </div>
           </div>
         </div>

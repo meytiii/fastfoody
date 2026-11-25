@@ -19,3 +19,4 @@ Operating rules and directives for Gemini-based agents working in `fastfoody`.
 - **Modern Nuxt 4 Architecture:** Nuxt 4 Composition API, Tailwind CSS 4 `@theme`, Pinia state management.
 - **RTL & Persian Typography:** Native RTL layouts with logical CSS properties and Persian numerals (`۰-۹`).
 - **Automated Commit & Push:** Commit with Conventional Commits format and push directly to `main`.
+- **Mandatory `/caveman` Mode:** `.agents/skills/caveman/SKILL.md` (`full` intensity) is permanently active for all tasks and responses in this repository (excluding code, commits, and docs).

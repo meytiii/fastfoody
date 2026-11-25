@@ -37,3 +37,10 @@ Upon completing any discrete task, feature implementation, bug fix, or refactori
 1. Compose a Conventional Commits message (`<type>: <summary>` and detailed body).
 2. Stage and commit changes.
 3. Push directly to `main` branch (`git push origin main`).
+
+---
+
+## 4. Mandatory Caveman Communication Mode
+
+- **`/caveman` Always On:** `.agents/skills/caveman/SKILL.md` (`full` intensity default) is permanently active across all tasks and responses in this project.
+- **Scope:** Chat responses stay terse and compressed with full technical substance; code, commit messages, and documentation keep standard formatting (with zero comments in code).

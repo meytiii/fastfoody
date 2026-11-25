@@ -8,7 +8,6 @@ import {
   Settings,
   ShoppingBag,
   Users,
-  Utensils,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { resetMockEnvironment } from '~/services/mockDatabase'
@@ -36,10 +35,10 @@ const { toPersianDigits } = usePersian()
 
 const resetting = ref(false)
 
-const navItems = [
+const navItems: Array<{ to: string; label: string; icon?: any; svg?: string }> = [
   { to: '/backoffice', label: 'POS زنده آشپزخانه', icon: ChefHat },
   { to: '/backoffice/orders', label: 'سفارش‌ها و عودت', icon: ShoppingBag },
-  { to: '/backoffice/catalog', label: 'کاتالوگ و موجودی', icon: Utensils },
+  { to: '/backoffice/catalog', label: 'کاتالوگ و موجودی', svg: '/svg/knife_fork.svg' },
   { to: '/backoffice/customers', label: 'مشتریان (CRM)', icon: Users },
   { to: '/backoffice/cms', label: 'تنظیمات و CMS', icon: Settings },
 ]
@@ -162,7 +161,16 @@ onMounted(async () => {
                 : 'text-[#5A5D56] hover:bg-[#F4EFE3] hover:text-[#292B27]'
             "
           >
-            <component :is="item.icon" class="h-4 w-4" />
+            <img
+              v-if="item.svg"
+              :src="item.svg"
+              alt=""
+              width="16"
+              height="16"
+              aria-hidden="true"
+              class="h-4 w-4 shrink-0 object-contain"
+            />
+            <component :is="item.icon" v-else-if="item.icon" class="h-4 w-4" />
             <span>{{ item.label }}</span>
           </NuxtLink>
         </nav>
