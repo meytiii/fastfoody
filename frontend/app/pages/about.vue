@@ -1,73 +1,162 @@
 <script setup lang="ts">
-import { ArrowLeft, Sparkles } from 'lucide-vue-next'
-import GooeyButton from '~/components/ui/GooeyButton.vue'
+import { computed, onMounted } from 'vue'
+import { Clock, MapPin, Phone, Truck, UtensilsCrossed } from 'lucide-vue-next'
+import { useCmsStore } from '~/stores/cms'
+
+const cmsStore = useCmsStore()
+const { formatToman, formatTime, toPersianDigits } = usePersian()
+
+const aboutParagraphs = computed(() => {
+  const body = cmsStore.aboutUsSection?.body ?? ''
+  return body
+    .split(/\n+/)
+    .map(p => p.trim())
+    .filter(Boolean)
+})
+
+const galleryAssets = computed(() =>
+  cmsStore.mediaAssets.filter(asset => asset.kind === 'gallery' && asset.url)
+)
+
+onMounted(() => {
+  cmsStore.fetchAll()
+})
 
 useHead({
   title: 'درباره ما | فست‌فودی',
-  meta: [
-    {
-      name: 'description',
-      content: 'آشنایی با فلسفه پخت، مواد اولیه تازه و دست‌ساز رستوران فست‌فودی',
-    },
-  ],
 })
-
-const navigateToMenu = () => {
-  navigateTo('/menu')
-}
 </script>
 
 <template>
-  <main class="min-h-screen pt-12 pb-24 px-4 sm:px-6 lg:px-8">
-    <div class="mx-auto max-w-4xl">
-      <div class="text-center mb-12">
-        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--color-brand-forest)] tracking-tight">
-          درباره رستوران فست‌فودی
-        </h1>
-
-        <p class="mt-4 text-sm sm:text-base text-[var(--color-text-secondary)] max-w-xl mx-auto leading-relaxed">
-          داستان ما از یک باور ساده آغاز شد: فست‌فود می‌تواند سالم، دست‌ساز و سرشار از طعم‌های اصیل باشد.
-        </p>
-      </div>
-
-      <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 sm:p-14 shadow-[var(--shadow-md)] text-center relative overflow-hidden">
-        <div class="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-[var(--color-accent-gold)]/10 blur-3xl pointer-events-none" />
-        <div class="absolute -bottom-24 -left-24 w-48 h-48 rounded-full bg-[var(--color-brand-forest)]/10 blur-3xl pointer-events-none" />
-
-        <div class="relative z-10 max-w-md mx-auto space-y-6">
-          <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--color-surface-ivory)] text-[var(--color-brand-forest)] shadow-xs">
-            <Sparkles :size="36" class="text-[var(--color-accent-gold)]" />
-          </div>
-
-          <div class="space-y-2">
-            <h2 class="text-xl font-bold text-[var(--color-text-primary)]">
-              داستان ما به زودی کامل می‌شود
-            </h2>
-            <p class="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
-              این صفحه به معرفی فلسفه پخت، انتخاب خمیرهای ناپلی با تخمیر ۴۸ ساعته و تیم سرآشپزان فست‌فودی اختصاص دارد و هم‌اکنون در حال آماده‌سازی نهایی است.
+  <main class="min-h-screen bg-[#FAF7F2] py-12 sm:py-16">
+    <div class="container mx-auto max-w-6xl space-y-12 px-4">
+      <section class="grid items-center gap-8 rounded-3xl border border-[#E8E5DC] bg-white p-6 shadow-sm sm:p-10 lg:grid-cols-12">
+        <div class="space-y-5 lg:col-span-6">
+          <h1 class="text-3xl font-extrabold text-[#292B27] sm:text-4xl">
+            {{ cmsStore.aboutUsSection?.title || 'داستان آشپزخانه فست‌فودی' }}
+          </h1>
+          <div class="space-y-4 text-base leading-8 text-[#5A5D56]">
+            <p v-for="(paragraph, idx) in aboutParagraphs" :key="idx">
+              {{ paragraph }}
+            </p>
+            <p v-if="aboutParagraphs.length === 0">
+              آشپزخانه فست‌فودی با تمرکز بر مواد اولیه تازه، پخت روزانه نان و سس‌های دست‌ساز آماده پذیرایی از سفارش‌های شماست.
             </p>
           </div>
-
-          <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <GooeyButton
-              variant="primary"
-              size="md"
-              aria-label="مشاهده منوی غذاها"
-              @click="navigateToMenu"
-            >
-              <span>مشاهده منوی غذاها</span>
-              <ArrowLeft :size="16" class="icon-directional" />
-            </GooeyButton>
-
+          <div class="pt-2">
             <NuxtLink
-              to="/"
-              class="touch-target inline-flex items-center justify-center px-6 py-3 rounded-full text-xs font-bold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] transition-colors"
+              to="/menu"
+              class="touch-target inline-flex items-center justify-center rounded-full bg-[#183A2D] px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-[#12251D]"
             >
-              بازگشت به صفحه اصلی
+              مشاهده منوی غذاها
             </NuxtLink>
           </div>
         </div>
-      </div>
+
+        <div class="lg:col-span-6">
+          <div class="overflow-hidden rounded-2xl border border-[#E8E5DC] bg-[#F4EFE3]">
+            <img
+              v-if="cmsStore.aboutUsSection?.image_url"
+              :src="cmsStore.aboutUsSection.image_url"
+              :alt="cmsStore.aboutUsSection.title || 'درباره فست‌فودی'"
+              class="aspect-4/3 w-full object-cover"
+            />
+            <div v-else class="flex aspect-4/3 items-center justify-center text-[#5A5D56]">
+              <UtensilsCrossed class="h-12 w-12" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="branch-info-heading">
+        <h2 id="branch-info-heading" class="mb-6 text-2xl font-extrabold text-[#292B27]">
+          ساعات کاری، ارسال و اطلاعات تماس
+        </h2>
+        <div class="grid gap-5 md:grid-cols-3">
+          <div class="rounded-2xl border border-[#E8E5DC] bg-white p-6 shadow-sm">
+            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F4EFE3] text-[#183A2D]">
+              <Clock class="h-5 w-5" />
+            </div>
+            <h3 class="text-base font-bold text-[#292B27]">ساعات سرویس‌دهی</h3>
+            <p class="mt-2 text-sm text-[#5A5D56]">
+              {{ cmsStore.footerSection?.working_hours_text || 'همه‌روزه از ۱۱:۰۰ تا ۲۳:۳۰' }}
+            </p>
+            <p v-if="cmsStore.restaurantStatus" class="mt-2 text-xs font-semibold text-[#183A2D]">
+              ساعت کاری سامانه: {{ formatTime(cmsStore.restaurantStatus.open_time) }} تا {{ formatTime(cmsStore.restaurantStatus.close_time) }}
+            </p>
+            <span
+              class="mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold"
+              :class="cmsStore.isOpen ? 'bg-[#EDF7ED] text-[#1E5E22]' : 'bg-[#FDE8E8] text-[#A61B1B]'"
+            >
+              {{ cmsStore.isOpen ? 'هم‌اکنون در حال پذیرش سفارش' : 'در حال حاضر بسته است' }}
+            </span>
+          </div>
+
+          <div class="rounded-2xl border border-[#E8E5DC] bg-white p-6 shadow-sm">
+            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F4EFE3] text-[#183A2D]">
+              <Truck class="h-5 w-5" />
+            </div>
+            <h3 class="text-base font-bold text-[#292B27]">تعرفه ارسال و زمان آماده‌سازی</h3>
+            <dl class="mt-2 space-y-1.5 text-sm text-[#5A5D56]">
+              <div class="flex items-center justify-between gap-2">
+                <dt>محدوده اصلی:</dt>
+                <dd class="font-bold text-[#292B27]">{{ formatToman(cmsStore.inZoneFee) }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <dt>خارج از محدوده:</dt>
+                <dd class="font-bold text-[#292B27]">{{ formatToman(cmsStore.outZoneFee) }}</dd>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <dt>بافر آماده‌سازی:</dt>
+                <dd class="font-bold text-[#292B27]">
+                  {{ toPersianDigits(cmsStore.restaurantStatus?.prep_time_buffer_minutes ?? 10) }} دقیقه
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="rounded-2xl border border-[#E8E5DC] bg-white p-6 shadow-sm">
+            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F4EFE3] text-[#183A2D]">
+              <MapPin class="h-5 w-5" />
+            </div>
+            <h3 class="text-base font-bold text-[#292B27]">نشانی و تلفن</h3>
+            <p class="mt-2 text-sm leading-6 text-[#5A5D56]">
+              {{ cmsStore.footerSection?.address || 'تهران، خیابان ولیعصر، نبش خیابان فرشته' }}
+            </p>
+            <a
+              v-if="cmsStore.footerSection?.phone"
+              :href="`tel:${cmsStore.footerSection.phone}`"
+              dir="ltr"
+              class="touch-target mt-3 inline-flex items-center gap-2 text-sm font-bold text-[#183A2D] hover:underline"
+            >
+              <Phone class="h-4 w-4" />
+              <span>{{ toPersianDigits(cmsStore.footerSection.phone) }}</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="galleryAssets.length > 0" aria-labelledby="gallery-heading">
+        <h2 id="gallery-heading" class="mb-6 text-2xl font-extrabold text-[#292B27]">
+          نگارخانه فضا و آشپزخانه
+        </h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <figure
+            v-for="(asset, idx) in galleryAssets"
+            :key="`${asset.title}-${idx}`"
+            class="overflow-hidden rounded-2xl border border-[#E8E5DC] bg-white shadow-sm"
+          >
+            <img
+              :src="asset.url || ''"
+              :alt="asset.alt_text || asset.title"
+              class="aspect-4/3 w-full object-cover"
+            />
+            <figcaption v-if="asset.title" class="px-4 py-3 text-sm font-semibold text-[#292B27]">
+              {{ asset.title }}
+            </figcaption>
+          </figure>
+        </div>
+      </section>
     </div>
   </main>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MenuPage from './menu.vue'
+import MenuPage from '../menu.vue'
 
 useHead({
   title: 'محصولات و غذاها | فست‌فودی',

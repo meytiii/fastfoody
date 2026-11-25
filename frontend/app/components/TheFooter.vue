@@ -1,151 +1,144 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import {
-  ChefHat,
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Instagram,
-  Send,
-  ArrowLeft,
-} from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
-import GooeyButton from '~/components/ui/GooeyButton.vue'
+import { computed } from 'vue'
+import { MapPin, Phone, Clock, ShieldCheck } from 'lucide-vue-next'
+import { useCmsStore } from '~/stores/cms'
+import { usePersian } from '~/composables/usePersian'
 
-const emailInput = ref('')
+const cmsStore = useCmsStore()
+const { formatTime, formatToman } = usePersian()
 
-const handleSubscribe = () => {
-  if (!emailInput.value) return
-  toast.success('ایمیل شما با موفقیت در خبرنامه ویژه فست‌فودی ثبت شد')
-  emailInput.value = ''
-}
+const brandName = computed(() => cmsStore.headerSection?.restaurant_name || 'فست‌فودی')
+const tagline = computed(() => cmsStore.headerSection?.tagline || 'دست‌پخت اصیل و مواد اولیه تازه')
+const address = computed(
+  () => cmsStore.footerSection?.address || 'تهران، خیابان ولیعصر، نرسیده به پارک وی، پلاک ۱۲۴'
+)
+const phone = computed(() => cmsStore.footerSection?.phone || '۰۲۱-۲۲۰۰۵۵۸۸')
+const workingHoursText = computed(() => cmsStore.footerSection?.working_hours_text || '')
+const copyrightText = computed(
+  () => cmsStore.footerSection?.copyright_text || 'تمامی حقوق برای آشپزخانه فست‌فودی محفوظ است.'
+)
+const socialLinks = computed(() => cmsStore.footerSection?.social_links || [])
 </script>
 
 <template>
   <footer
-    class="bg-[var(--color-brand-forest-deep)] text-white/80 pt-16 pb-12"
+    class="no-print bg-[var(--color-brand-forest-deep)] text-white/85 pt-14 pb-10"
     role="contentinfo"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      
-      <div class="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 pb-12 border-b border-white/10">
-        
-        <div class="space-y-4 lg:col-span-4">
+      <div class="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 pb-10 border-b border-white/10">
+        <div class="space-y-4 lg:col-span-5">
           <div class="flex items-center gap-3">
-            <div
-              class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-brand-forest)] text-white shadow-xs"
-            >
+            <div class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-brand-forest)] text-white shadow-xs">
               <img
                 src="/svg/chef.svg"
-                alt="Chef"
+                :alt="brandName"
+                width="24"
+                height="24"
                 class="h-6 w-6 filter invert brightness-0"
               />
             </div>
             <div>
               <span class="text-xl font-bold tracking-tight text-white">
-                فست‌فودی
+                {{ brandName }}
               </span>
               <p class="text-[11px] text-[var(--color-accent-gold)]">
-                دست‌پخت اصیل • مواد ارگانیک
+                {{ tagline }}
               </p>
             </div>
           </div>
 
-          <p class="text-xs leading-relaxed text-white/70 max-w-sm">
-            فست‌فودی با تلفیق هنر آشپزی اسکاندیناوی و میهمان‌نوازی گرم ایرانی، برگرها، پیتزاها و سالادهای دست‌ساز سالم را با بالاترین استانداردهای بهداشتی و طعم فراموش‌نشدنی ارائه می‌دهد.
-          </p>
-
-          <div class="space-y-2 pt-2 text-xs">
+          <div class="space-y-2.5 pt-2 text-xs">
             <div class="flex items-start gap-2.5">
-              <MapPin :size="16" class="mt-0.5 text-[var(--color-accent-gold)] shrink-0" />
-              <span>تهران، خیابان ولیعصر، نرسیده به پارک وی، پلاک ۱۲۴</span>
+              <MapPin :size="16" aria-hidden="true" class="mt-0.5 text-[var(--color-accent-gold)] shrink-0" />
+              <span>{{ address }}</span>
             </div>
             <div class="flex items-center gap-2.5">
-              <Phone :size="16" class="text-[var(--color-accent-gold)] shrink-0" />
-              <bdi class="text-white font-semibold">۰۲۱-۲۲۰۰۵۵۸۸</bdi>
+              <Phone :size="16" aria-hidden="true" class="text-[var(--color-accent-gold)] shrink-0" />
+              <bdi class="text-white font-semibold">{{ phone }}</bdi>
             </div>
+          </div>
+
+          <div v-if="socialLinks.length > 0" class="flex flex-wrap gap-2 pt-2">
+            <a
+              v-for="link in socialLinks"
+              :key="link.label"
+              :href="link.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-white/15"
+            >
+              {{ link.label }}
+            </a>
           </div>
         </div>
 
-        
-        <div class="space-y-3 lg:col-span-2">
-          <h4 class="text-sm font-bold text-white">دسترسی سریع</h4>
+        <div class="space-y-3 lg:col-span-3">
+          <h2 class="text-sm font-bold text-white">دسترسی سریع</h2>
           <ul class="space-y-2 text-xs">
             <li>
-              <a href="/#hero" class="hover:text-white transition-colors">صفحه نخست</a>
+              <NuxtLink to="/" class="hover:text-white transition-colors">صفحه نخست</NuxtLink>
             </li>
             <li>
-              <a href="/#menu" class="hover:text-white transition-colors">منوی کامل غذاها</a>
+              <NuxtLink to="/menu" class="hover:text-white transition-colors">منوی کامل و جستجو</NuxtLink>
             </li>
             <li>
-              <a href="/#specials" class="hover:text-white transition-colors">پیشنهاد سرآشپز</a>
+              <NuxtLink to="/lucky-wheel" class="hover:text-white transition-colors">گردونه شانس غذا</NuxtLink>
             </li>
             <li>
-              <a href="/#reservation" class="hover:text-white transition-colors">رزرو آنلاین میز</a>
+              <NuxtLink to="/orders" class="hover:text-white transition-colors">پیگیری سفارش‌ها</NuxtLink>
             </li>
             <li>
-              <a href="/#testimonials" class="hover:text-white transition-colors">نظرات مشتریان</a>
+              <NuxtLink to="/account" class="hover:text-white transition-colors">حساب کاربری و آدرس‌ها</NuxtLink>
+            </li>
+            <li>
+              <NuxtLink to="/about" class="hover:text-white transition-colors">درباره ما</NuxtLink>
             </li>
           </ul>
         </div>
 
-        
-        <div class="space-y-3 lg:col-span-3">
-          <h4 class="text-sm font-bold text-white">ساعات کاری و تحویل</h4>
-          <div class="space-y-2.5 text-xs text-white/70">
-            <div class="rounded-xl bg-white/5 p-3 border border-white/5 space-y-1">
+        <div class="space-y-3 lg:col-span-4">
+          <h2 class="text-sm font-bold text-white">ساعات کاری و تعرفه ارسال</h2>
+          <div class="space-y-2.5 text-xs text-white/80">
+            <div class="rounded-xl bg-white/5 p-3.5 border border-white/10 space-y-1.5">
               <div class="flex items-center justify-between text-white font-semibold">
-                <span>شنبه تا چهارشنبه:</span>
-                <bdi>۱۱:۳۰ الی ۲۳:۴۵</bdi>
+                <span class="inline-flex items-center gap-1.5">
+                  <Clock :size="14" aria-hidden="true" class="text-[var(--color-accent-gold)]" />
+                  <span>ساعت کاری روزانه:</span>
+                </span>
+                <bdi v-if="cmsStore.restaurantStatus">
+                  {{ formatTime(cmsStore.restaurantStatus.open_time) }} تا {{ formatTime(cmsStore.restaurantStatus.close_time) }}
+                </bdi>
               </div>
-              <p class="text-[11px] text-white/50">ارسال پیک درون‌شهری تا ۲۳:۳۰</p>
+              <p v-if="workingHoursText" class="text-[11px] text-white/65">
+                {{ workingHoursText }}
+              </p>
             </div>
 
-            <div class="rounded-xl bg-white/5 p-3 border border-white/5 space-y-1">
-              <div class="flex items-center justify-between text-white font-semibold">
-                <span>پنج‌شنبه و جمعه:</span>
-                <bdi>۱۲:۰۰ الی ۲۴:۰۰</bdi>
+            <div v-if="cmsStore.restaurantStatus" class="rounded-xl bg-white/5 p-3.5 border border-white/10 space-y-1">
+              <div class="flex items-center justify-between">
+                <span>ارسال درون‌محدوده:</span>
+                <strong class="text-white">{{ formatToman(cmsStore.restaurantStatus.in_zone_delivery_fee) }}</strong>
               </div>
-              <p class="text-[11px] text-[var(--color-accent-gold)]">پیشنهاد می‌شود از قبل میز رزرو نمایید</p>
+              <div class="flex items-center justify-between">
+                <span>ارسال برون‌محدوده:</span>
+                <strong class="text-white">{{ formatToman(cmsStore.restaurantStatus.out_zone_delivery_fee) }}</strong>
+              </div>
             </div>
           </div>
         </div>
-
-        
-        <div class="space-y-3 lg:col-span-3">
-          <h4 class="text-sm font-bold text-white">باشگاه مشتریان فست‌فودی</h4>
-          <p class="text-xs text-white/70">
-            با عضویت در خبرنامه، از تخفیف‌های فصلی و منوی مخفی سرآشپز مطلع شوید.
-          </p>
-          <form @submit.prevent="handleSubscribe" class="space-y-2">
-            <div class="relative">
-              <input
-                v-model="emailInput"
-                type="email"
-                placeholder="ایمیل خود را وارد نمایید..."
-                class="w-full rounded-full border border-white/10 bg-white/5 py-2.5 ps-4 pe-10 text-xs text-white placeholder-white/40 focus:border-[var(--color-accent-gold)] focus:outline-none"
-              />
-              <GooeyButton
-                type="submit"
-                variant="gold"
-                class="!absolute inset-inline-end-1 top-1 bottom-1 !h-7 !w-7 !min-h-0 !p-0 !rounded-full"
-                aria-label="عضویت در خبرنامه"
-              >
-                <ArrowLeft :size="14" class="icon-directional" />
-              </GooeyButton>
-            </div>
-          </form>
-        </div>
       </div>
 
-      
-      <div class="pt-8 flex items-center justify-center text-xs text-white/50">
-        <p>
-          طراحی شده توسط تیم Besporman
-        </p>
+      <div class="pt-7 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
+        <p>{{ copyrightText }}</p>
+        <NuxtLink
+          to="/backoffice"
+          class="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+        >
+          <ShieldCheck :size="14" aria-hidden="true" />
+          <span>ورود کارکنان و پنل مدیریت</span>
+        </NuxtLink>
       </div>
     </div>
   </footer>
 </template>
-

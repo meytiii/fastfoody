@@ -4,6 +4,7 @@ export const useUiStore = defineStore('ui', {
   state: () => ({
     isMobileMenuOpen: false,
     isSearchOpen: false,
+    announcementDismissed: false,
     activeSection: 'home',
   }),
 
@@ -24,9 +25,12 @@ export const useUiStore = defineStore('ui', {
       this.isSearchOpen = false
     },
 
+    dismissAnnouncement() {
+      this.announcementDismissed = true
+    },
+
     setActiveSection(section: string) {
       this.activeSection = section
     },
   },
 })
-

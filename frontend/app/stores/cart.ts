@@ -1,5 +1,29 @@
 import { defineStore } from 'pinia'
-import type { CartItem, Product, ProductModifier, ProductSize } from '~/types'
+import type {
+  CartItem,
+  CartItemAddOn,
+  CartProductSnapshot,
+  DeliveryType,
+  OrderCreatePayload,
+  ProductDetailPublic,
+  ProductSummaryPublic,
+} from '~/types'
+import { useCmsStore } from './cms'
+
+const CART_STORAGE_KEY = 'fastfoody_cart_v2'
+
+function isValidCartItem(raw: unknown): raw is CartItem {
+  if (!raw || typeof raw !== 'object') return false
+  const obj = raw as Record<string, unknown>
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.productId === 'number' &&
+    typeof obj.quantity === 'number' &&
+    Array.isArray(obj.selectedAddons) &&
+    typeof obj.unitPrice === 'number' &&
+    typeof obj.totalPrice === 'number'
+  )
+}
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -17,18 +41,17 @@ export const useCartStore = defineStore('cart', {
       return state.items.reduce((acc, item) => acc + item.totalPrice, 0)
     },
 
-    deliveryFee(): number {
+    estimatedDeliveryFee(): number {
       if (this.subtotal === 0) return 0
-      return this.subtotal >= 450000 ? 0 : 35000
+      const cms = useCmsStore()
+      return cms.inZoneFee
     },
 
-    packagingFee: (state): number => {
-      return state.items.length > 0 ? 15000 : 0
-    },
-
-    grandTotal(): number {
-      if (this.subtotal === 0) return 0
-      return this.subtotal + this.deliveryFee + this.packagingFee
+    estimatedPrepMinutes(): number {
+      if (this.items.length === 0) return 0
+      const cms = useCmsStore()
+      const maxPrep = Math.max(...this.items.map(i => i.product.prep_time_minutes || 0))
+      return maxPrep + cms.prepBufferMinutes
     },
 
     isEmpty: (state): boolean => {
@@ -40,12 +63,15 @@ export const useCartStore = defineStore('cart', {
     initFromStorage() {
       if (!import.meta.client || this.initialized) return
       try {
-        const saved = localStorage.getItem('fastfoody_cart')
+        const saved = localStorage.getItem(CART_STORAGE_KEY)
         if (saved) {
-          this.items = JSON.parse(saved)
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            this.items = parsed.filter(isValidCartItem)
+          }
         }
-      } catch (e) {
-        console.error('Failed to parse cart from storage:', e)
+      } catch {
+        this.items = []
       } finally {
         this.initialized = true
       }
@@ -54,9 +80,9 @@ export const useCartStore = defineStore('cart', {
     persist() {
       if (!import.meta.client) return
       try {
-        localStorage.setItem('fastfoody_cart', JSON.stringify(this.items))
-      } catch (e) {
-        console.error('Failed to persist cart:', e)
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.items))
+      } catch {
+        return
       }
     },
 
@@ -73,44 +99,73 @@ export const useCartStore = defineStore('cart', {
     },
 
     addItem(
-      product: Product,
+      product: ProductDetailPublic | ProductSummaryPublic | CartProductSnapshot,
       quantity = 1,
-      options?: {
-        size?: ProductSize
-        addons?: ProductModifier[]
-        specialInstructions?: string
-      }
+      addons: CartItemAddOn[] = []
     ) {
-      const selectedSize = options?.size
-      const selectedAddons = options?.addons || []
-      const instructions = options?.specialInstructions || ''
+      if (product.status !== 'AVAILABLE' || !product.is_in_stock) {
+        return
+      }
 
-      const sizeOffset = selectedSize?.priceOffset || 0
-      const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0)
-      const unitPrice = product.price + sizeOffset + addonsTotal
+      const normalizedAddons = addons
+        .filter(a => a.quantity > 0)
+        .map(a => ({ ...a }))
+        .sort((a, b) => a.addon_id - b.addon_id)
 
-      const addonIds = selectedAddons.map(a => a.id).sort().join('-')
-      const itemId = `${product.id}_${selectedSize?.id || 'standard'}_${addonIds}`
+      const addonSignature = normalizedAddons
+        .map(a => `${a.addon_id}:${a.quantity}`)
+        .join('-')
+      const itemId = `${product.id}_${addonSignature || 'base'}`
 
-      const existingIndex = this.items.findIndex(item => item.id === itemId)
+      const categoryId =
+        'category' in product ? product.category.id : product.category_id
 
-      if (existingIndex > -1) {
-        const item = this.items[existingIndex]
-        if (item) {
-          item.quantity += quantity
-          item.totalPrice = item.quantity * item.unitPrice
-        }
+      const snapshot: CartProductSnapshot = {
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        price: product.price,
+        compare_at_price: product.compare_at_price,
+        prep_time_minutes: product.prep_time_minutes,
+        image_url: product.image_url,
+        status: product.status,
+        stock_quantity: product.stock_quantity,
+        is_in_stock: product.is_in_stock,
+        category_id: categoryId,
+      }
+
+      const addonsTotal = normalizedAddons.reduce(
+        (sum, a) => sum + a.price * a.quantity,
+        0
+      )
+      const existing = this.items.find(item => item.id === itemId)
+
+      if (existing) {
+        const nextQty = existing.quantity + quantity
+        const cappedQty =
+          snapshot.stock_quantity !== null
+            ? Math.min(nextQty, snapshot.stock_quantity)
+            : nextQty
+        existing.quantity = Math.max(1, cappedQty)
+        existing.product = snapshot
+        existing.unitPrice = snapshot.price
+        existing.addonsTotal = addonsTotal
+        existing.totalPrice = existing.unitPrice * existing.quantity + addonsTotal
       } else {
+        const safeQty =
+          snapshot.stock_quantity !== null
+            ? Math.min(quantity, snapshot.stock_quantity)
+            : quantity
+        if (safeQty <= 0) return
         this.items.push({
           id: itemId,
-          productId: product.id,
-          product,
-          quantity,
-          selectedSize,
-          selectedAddons,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-          specialInstructions: instructions,
+          productId: snapshot.id,
+          product: snapshot,
+          quantity: safeQty,
+          selectedAddons: normalizedAddons,
+          unitPrice: snapshot.price,
+          addonsTotal,
+          totalPrice: snapshot.price * safeQty + addonsTotal,
         })
       }
 
@@ -118,20 +173,25 @@ export const useCartStore = defineStore('cart', {
     },
 
     updateQuantity(itemId: string, delta: number) {
-      const index = this.items.findIndex(i => i.id === itemId)
-      if (index === -1) return
-
-      const item = this.items[index]
+      const item = this.items.find(i => i.id === itemId)
       if (!item) return
 
       const newQty = item.quantity + delta
       if (newQty <= 0) {
         this.removeItem(itemId)
-      } else {
-        item.quantity = newQty
-        item.totalPrice = item.quantity * item.unitPrice
-        this.persist()
+        return
       }
+
+      if (
+        item.product.stock_quantity !== null &&
+        newQty > item.product.stock_quantity
+      ) {
+        return
+      }
+
+      item.quantity = newQty
+      item.totalPrice = item.unitPrice * item.quantity + item.addonsTotal
+      this.persist()
     },
 
     removeItem(itemId: string) {
@@ -143,6 +203,25 @@ export const useCartStore = defineStore('cart', {
       this.items = []
       this.persist()
     },
+
+    buildOrderPayload(
+      deliveryType: DeliveryType,
+      addressId: number | null,
+      notesToKitchen = ''
+    ): OrderCreatePayload {
+      return {
+        delivery_type: deliveryType,
+        address_id: deliveryType === 'DELIVERY' ? addressId : null,
+        notes_to_kitchen: notesToKitchen,
+        items: this.items.map(item => ({
+          product_id: item.productId,
+          quantity: item.quantity,
+          addons: item.selectedAddons.map(a => ({
+            addon_id: a.addon_id,
+            quantity: a.quantity,
+          })),
+        })),
+      }
+    },
   },
 })
-

@@ -2,30 +2,28 @@
 import { computed } from 'vue'
 import { ArrowLeft } from 'lucide-vue-next'
 import { useMenuStore } from '~/stores/menu'
-import { usePersian } from '~/composables/usePersian'
 import ProductCard from '~/components/ProductCard.vue'
 
 const menuStore = useMenuStore()
-const { toPersianDigits } = usePersian()
 
 const specials = computed(() => menuStore.specialOffers.slice(0, 4))
 </script>
 
 <template>
   <section
+    v-if="specials.length > 0"
     id="specials"
-    class="bg-[var(--color-surface-ivory)] py-14 sm:py-20"
-    aria-label="پیشنهادهای ویژه سرآشپز"
+    class="bg-[var(--color-surface-ivory)] py-12 sm:py-16"
+    aria-label="پیشنهادهای ویژه منو"
   >
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      
-      <div class="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+      <div class="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h2 class="text-2xl sm:text-3xl font-extrabold text-[var(--color-brand-forest)]">
-            پیشنهادهای ویژه و خاص این هفته
+            پیشنهادهای تخفیف‌دار و ویژه
           </h2>
           <p class="mt-2 text-xs sm:text-sm text-[var(--color-text-secondary)] max-w-xl">
-            غذاهایی که با دستور پخت اختصاصی و مواد اولیه دست‌چین آماده شده‌اند و بیشترین رضایت میهمانان را به همراه داشته‌اند.
+            انتخاب‌های منتخب منوی روز با تخفیف ویژه و آماده‌سازی تازه در آشپزخانه فست‌فودی.
           </p>
         </div>
 
@@ -34,11 +32,10 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
           class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[var(--color-brand-forest)] hover:underline"
         >
           <span>مشاهده همه موارد منو</span>
-          <ArrowLeft :size="16" class="icon-directional" />
+          <ArrowLeft :size="16" aria-hidden="true" class="icon-directional" />
         </a>
       </div>
 
-      
       <div class="grid grid-cols-2 gap-3.5 sm:gap-5 lg:grid-cols-4">
         <ProductCard
           v-for="dish in specials"
@@ -49,4 +46,3 @@ const specials = computed(() => menuStore.specialOffers.slice(0, 4))
     </div>
   </section>
 </template>
-

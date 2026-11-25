@@ -7,6 +7,7 @@
 
   --color-accent-gold: #D6A84B;
   --color-accent-gold-hover: #C4963A;
+  --color-accent-gold-text: #8A651C;
   --color-accent-gold-soft: #F8F3E8;
 
   --color-surface-white: #FFFFFF;
@@ -14,17 +15,22 @@
   --color-surface-cream: #FAF7F2;
 
   --color-text-primary: #292B27;
-  --color-text-secondary: #777A73;
-  --color-text-muted: #9EA199;
+  --color-text-secondary: #5A5D56;
+  --color-text-muted: #72756E;
   --color-text-inverse: #FFFFFF;
 
   --color-border-subtle: #E8E5DC;
   --color-border-focus: #183A2D;
 
   --color-success: #2E7D32;
-  --color-warning: #ED6C02;
-  --color-danger: #D32F2F;
-  --color-info: #0288D1;
+  --color-brand-success: #1E5E22;
+  --color-success-bg: #EDF7ED;
+  --color-warning: #9A4300;
+  --color-warning-bg: #FFF4E5;
+  --color-danger: #A61B1B;
+  --color-danger-bg: #FDE8E8;
+  --color-info: #026AA7;
+  --color-info-bg: #E1F5FE;
 
   --font-persian: 'IranSansX', 'IRANSans', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-latin: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -53,15 +59,29 @@
   --color-brand-forest-light: #224E3D;
   --color-accent-gold: #D6A84B;
   --color-accent-gold-hover: #C4963A;
+  --color-accent-gold-text: #8A651C;
   --color-accent-gold-soft: #F8F3E8;
   --color-surface-white: #FFFFFF;
   --color-surface-ivory: #F4EFE3;
   --color-surface-cream: #FAF7F2;
   --color-text-primary: #292B27;
-  --color-text-secondary: #777A73;
-  --color-text-muted: #9EA199;
+  --color-text-secondary: #5A5D56;
+  --color-text-muted: #72756E;
   --color-border-subtle: #E8E5DC;
   --color-border-focus: #183A2D;
+  --color-success: #2E7D32;
+  --color-brand-success: #1E5E22;
+  --color-success-bg: #EDF7ED;
+  --color-warning: #9A4300;
+  --color-warning-bg: #FFF4E5;
+  --color-danger: #A61B1B;
+  --color-danger-bg: #FDE8E8;
+  --color-info: #026AA7;
+  --color-info-bg: #E1F5FE;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   --white: #ffffff;
   --black: #000000;
@@ -87,13 +107,58 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
   background-color: #FFFFFF;
+  overscroll-behavior: none;
+}
+
+@layer base {
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  textarea:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  button,
+  a,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(1rem, 1em);
+  }
 }
 
 :focus-visible {
@@ -105,6 +170,42 @@ body {
   transform: scaleX(-1);
 }
 
+dialog.modal-top-layer {
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.modal-top-layer {
+    transform: scale(0.95);
+  }
+}
+
+dialog.modal-top-layer[open]:not([data-closing]) {
+  opacity: 1;
+}
+
+@starting-style {
+  dialog.modal-top-layer[open]:not([data-closing]) {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.modal-top-layer[open]:not([data-closing]) {
+    transform: scale(1);
+  }
+
+  @starting-style {
+    dialog.modal-top-layer[open]:not([data-closing]) {
+      transform: scale(0.95);
+    }
+  }
+}
+
 dialog:modal {
   overscroll-behavior: contain;
 }
@@ -112,8 +213,45 @@ dialog:modal {
 dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
-  background: rgba(18, 37, 29, 0.45);
+  background-color: rgba(18, 37, 29, 0);
   backdrop-filter: blur(4px);
+  transition-property: background-color, display, overlay;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+dialog[open]:not([data-closing])::backdrop {
+  background-color: rgba(18, 37, 29, 0.5);
+}
+
+@starting-style {
+  dialog[open]:not([data-closing])::backdrop {
+    background-color: rgba(18, 37, 29, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.modal-top-layer,
+  dialog::backdrop {
+    transition-duration: 120ms;
+  }
+}
+
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+:is(input, select, textarea):is(:user-invalid, .user-invalid-fallback) {
+  border-color: var(--color-danger);
 }
 
 .touch-target {
@@ -122,7 +260,7 @@ dialog::backdrop {
 }
 
 .transition-spring {
-  transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 250ms var(--ease-out), opacity 250ms var(--ease-out);
 }
 
 ::-webkit-scrollbar {
@@ -137,6 +275,10 @@ dialog::backdrop {
 ::-webkit-scrollbar-thumb {
   background: #D8D4C8;
   border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B0ACA0;
 }
 
 .gooey-button {
@@ -155,8 +297,8 @@ dialog::backdrop {
   border-radius: 9999px;
   overflow: hidden;
   transition:
-    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 160ms var(--ease-out),
+    box-shadow 220ms var(--ease-out),
     background-color 200ms ease,
     border-color 200ms ease,
     color 200ms ease;
@@ -202,7 +344,7 @@ dialog::backdrop {
     transparent 65%
   );
   transform: translateX(-100%);
-  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.65s var(--ease-out);
   z-index: 2;
 }
 
@@ -217,6 +359,7 @@ dialog::backdrop {
   color: #FFFFFF;
   box-shadow: 0 4px 14px rgba(24, 58, 45, 0.18);
 }
+
 @media (hover: hover) and (pointer: fine) {
   .gooey-button--primary:hover {
     background-color: var(--color-brand-forest-light, #224E3D);
@@ -229,6 +372,7 @@ dialog::backdrop {
   color: var(--color-brand-forest-deep, #12251D);
   box-shadow: 0 4px 14px rgba(214, 168, 75, 0.25);
 }
+
 @media (hover: hover) and (pointer: fine) {
   .gooey-button--gold:hover {
     background-color: var(--color-accent-gold-hover, #C4963A);
@@ -241,6 +385,7 @@ dialog::backdrop {
   color: var(--color-text-primary, #292B27);
   box-shadow: inset 0 0 0 1px var(--color-border-subtle, #E8E5DC), 0 2px 8px rgba(24, 58, 45, 0.04);
 }
+
 @media (hover: hover) and (pointer: fine) {
   .gooey-button--secondary:hover {
     background-color: var(--color-surface-ivory, #F4EFE3);
@@ -253,6 +398,7 @@ dialog::backdrop {
   color: var(--color-brand-forest, #183A2D);
   box-shadow: inset 0 0 0 1.5px var(--color-brand-forest, #183A2D);
 }
+
 @media (hover: hover) and (pointer: fine) {
   .gooey-button--outline:hover {
     background-color: var(--color-brand-forest, #183A2D);
@@ -278,20 +424,20 @@ dialog::backdrop {
 }
 
 .hero-btn-enter-1 {
-  animation: heroBtnEnter 450ms cubic-bezier(0.16, 1, 0.3, 1) 180ms both;
+  animation: heroBtnEnter 450ms var(--ease-out) 180ms both;
 }
 
 .hero-btn-enter-2 {
-  animation: heroBtnEnter 450ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
+  animation: heroBtnEnter 450ms var(--ease-out) 300ms both;
 }
 
 @keyframes navBadgePop {
   0% {
-    transform: scale(0.6);
+    transform: scale(0.9);
     opacity: 0.5;
   }
   50% {
-    transform: scale(1.25);
+    transform: scale(1.15);
   }
   100% {
     transform: scale(1);
@@ -300,7 +446,7 @@ dialog::backdrop {
 }
 
 .nav-cart-badge {
-  animation: navBadgePop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: navBadgePop 260ms var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -320,6 +466,21 @@ dialog::backdrop {
   }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #B0ACA0;
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  container-type: inline-size;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only-receipt {
+    display: block !important;
+    width: 80mm;
+    margin: 0 auto;
+    color: #000000;
+    background: #FFFFFF;
+  }
 }

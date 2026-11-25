@@ -1,390 +1,572 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
-  User,
-  Phone,
   MapPin,
-  Clock,
+  Store,
+  Plus,
   CreditCard,
-  Banknote,
   ShieldCheck,
   ArrowRight,
-  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  User,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useCartStore } from '~/stores/cart'
+import { useAuthStore } from '~/stores/auth'
+import { useCmsStore } from '~/stores/cms'
 import { usePersian } from '~/composables/usePersian'
+import { storefrontApi } from '~/services/api'
+import type { DeliveryType } from '~/types'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
-const { toPersianDigits, formatToman } = usePersian()
+const authStore = useAuthStore()
+const cmsStore = useCmsStore()
+const { toPersianDigits, formatToman, toEnglishDigits } = usePersian()
 
 useHead({
   title: 'تکمیل و پرداخت سفارش | فست‌فودی',
 })
 
-const form = ref({
-  fullName: '',
-  phone: '',
-  address: '',
-  unit: '',
-  deliveryNotes: '',
-  deliveryTime: 'asap',
-  scheduledTime: '19:30 - 20:30',
-  paymentMethod: 'online',
+const deliveryType = ref<DeliveryType>('DELIVERY')
+const selectedAddressId = ref<number | null>(null)
+const notesToKitchen = ref('')
+const isSubmitting = ref(false)
+const showNewAddressForm = ref(false)
+
+const newAddress = ref({
+  title: '',
+  recipient_name: '',
+  recipient_phone: '',
+  address_text: '',
+  is_out_of_zone: false,
+  is_default: true,
+})
+const savingAddress = ref(false)
+
+watch(
+  () => authStore.addresses,
+  (list) => {
+    if (list.length > 0 && !list.some(a => a.id === selectedAddressId.value)) {
+      selectedAddressId.value = authStore.defaultAddress?.id ?? list[0]!.id
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(async () => {
+  await cmsStore.refreshStatus()
+  await authStore.hydrateSession()
+  if (authStore.isAuthenticated && authStore.addresses.length === 0) {
+    showNewAddressForm.value = true
+  }
 })
 
-const isSubmitting = ref(false)
-const orderCompleted = ref(false)
-const orderTrackingId = ref('')
+const selectedAddress = computed(() => {
+  return authStore.addresses.find(a => a.id === selectedAddressId.value) ?? null
+})
 
-const handlePlaceOrder = async () => {
+const deliveryFee = computed(() => {
+  if (cartStore.isEmpty) return 0
+  if (deliveryType.value === 'PICKUP') return 0
+  if (!selectedAddress.value) return cmsStore.inZoneFee
+  return selectedAddress.value.is_out_of_zone ? cmsStore.outZoneFee : cmsStore.inZoneFee
+})
+
+const grandTotal = computed(() => {
+  return cartStore.subtotal + deliveryFee.value
+})
+
+const handleCreateAddress = async () => {
+  if (!newAddress.value.address_text.trim()) {
+    toast.error('لطفاً نشانی کامل پستی را وارد کنید')
+    return
+  }
+  savingAddress.value = true
+  try {
+    const created = await authStore.addAddress({
+      title: newAddress.value.title,
+      recipient_name: newAddress.value.recipient_name || authStore.user?.full_name || '',
+      recipient_phone:
+        toEnglishDigits(newAddress.value.recipient_phone) || authStore.user?.phone || '',
+      address_text: newAddress.value.address_text,
+      is_out_of_zone: newAddress.value.is_out_of_zone,
+      is_default: newAddress.value.is_default,
+    })
+    selectedAddressId.value = created.id
+    showNewAddressForm.value = false
+    newAddress.value = {
+      title: '',
+      recipient_name: '',
+      recipient_phone: '',
+      address_text: '',
+      is_out_of_zone: false,
+      is_default: false,
+    }
+    toast.success('آدرس جدید ثبت شد')
+  } catch (err: any) {
+    toast.error(err?.message || 'خطا در ثبت آدرس')
+  } finally {
+    savingAddress.value = false
+  }
+}
+
+const submitOrderAndPay = async () => {
   if (cartStore.isEmpty) {
     toast.error('سبد خرید شما خالی است')
     return
   }
-
-  if (!form.value.fullName || !form.value.phone || !form.value.address) {
-    toast.error('لطفاً تمامی فیلدهای الزامی (نام، شماره تماس و آدرس) را تکمیل کنید')
+  if (!cmsStore.isOpen) {
+    toast.error('رستوران در حال حاضر خارج از ساعت کاری است')
+    return
+  }
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal(() => {
+      if (authStore.addresses.length === 0) {
+        showNewAddressForm.value = true
+      }
+    })
+    return
+  }
+  if (deliveryType.value === 'DELIVERY' && !selectedAddressId.value) {
+    toast.error('لطفاً یک آدرس ارسال انتخاب یا ثبت کنید')
+    showNewAddressForm.value = true
     return
   }
 
   isSubmitting.value = true
-  await new Promise(resolve => setTimeout(resolve, 1000))
-
-  orderTrackingId.value = Math.floor(100000 + Math.random() * 900000).toString()
-  isSubmitting.value = false
-  orderCompleted.value = true
-
-  cartStore.clearCart()
-  toast.success('سفارش شما با موفقیت ثبت شد و به آشپزخانه ارسال گردید')
+  try {
+    const payload = cartStore.buildOrderPayload(
+      deliveryType.value,
+      selectedAddressId.value,
+      notesToKitchen.value
+    )
+    const order = await storefrontApi.orders.createOrder(payload)
+    const payment = await storefrontApi.payments.requestPayment(order.id)
+    cartStore.clearCart()
+    await navigateTo(payment.payment_url)
+  } catch (err: any) {
+    toast.error(err?.message || 'خطا در ثبت سفارش یا اتصال به درگاه')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
 <template>
   <main class="min-h-screen bg-[var(--color-surface-cream)]/50 py-8 sm:py-14">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      
       <div class="mb-6">
         <NuxtLink
-          to="/"
+          to="/menu"
           class="inline-flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)]"
         >
-          <ArrowRight :size="15" class="icon-directional" />
-          <span>بازگشت به منوی اصلی</span>
+          <ArrowRight :size="15" aria-hidden="true" class="icon-directional" />
+          <span>بازگشت به منوی غذاها</span>
         </NuxtLink>
       </div>
 
-      
       <div
-        v-if="orderCompleted"
-        class="mx-auto max-w-xl rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 sm:p-12 text-center shadow-[var(--shadow-md)] space-y-5"
-      >
-        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-success-bg)] text-[var(--color-brand-success)]">
-          <CheckCircle2 :size="44" />
-        </div>
-        <h1 class="text-2xl font-extrabold text-[var(--color-brand-forest)]">
-          سفارش شما با موفقیت ثبت گردید
-        </h1>
-        <p class="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
-          سفارش شما با شماره پیگیری <strong class="text-[var(--color-text-primary)] font-bold text-base"><bdi>{{ toPersianDigits(orderTrackingId) }}</bdi></strong> در حال آماده‌سازی در آشپزخانه است و تا کمتر از ۳۰ دقیقه دیگر تحویل پیک خواهد شد.
-        </p>
-
-        <div class="rounded-2xl bg-[var(--color-surface-cream)] p-4 text-xs text-[var(--color-text-secondary)] space-y-1.5 text-start">
-          <p><strong>تحویل‌گیرنده:</strong> {{ form.fullName }}</p>
-          <p><strong>شماره تماس:</strong> <bdi>{{ form.phone }}</bdi></p>
-          <p><strong>آدرس ارسال:</strong> {{ form.address }}</p>
-          <p><strong>روش پرداخت:</strong> {{ form.paymentMethod === 'online' ? 'پرداخت اینترنتی موفق' : 'پرداخت در محل هنگام تحویل' }}</p>
-        </div>
-
-        <div class="pt-4">
-          <NuxtLink
-            to="/"
-            class="touch-target inline-flex items-center justify-center rounded-full bg-[var(--color-brand-forest)] px-8 py-3 text-sm font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)]"
-          >
-            بازگشت به صفحه اصلی
-          </NuxtLink>
-        </div>
-      </div>
-
-      
-      <div
-        v-else-if="cartStore.isEmpty"
+        v-if="cartStore.isEmpty"
         class="mx-auto max-w-md rounded-3xl border border-[var(--color-border-subtle)] bg-white p-8 text-center shadow-[var(--shadow-sm)] space-y-4"
       >
         <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-surface-cream)] p-4 border border-[var(--color-border-subtle)]">
-          <img src="/svg/cart.svg" alt="سبد خرید خالی" class="h-12 w-12 object-contain" />
+          <img src="/svg/cart.svg" alt="" width="48" height="48" aria-hidden="true" class="h-12 w-12 object-contain" />
         </div>
-        <h2 class="text-lg font-bold text-[var(--color-text-primary)]">
+        <h1 class="text-lg font-bold text-[var(--color-text-primary)]">
           سبد خرید شما خالی است
-        </h2>
+        </h1>
         <p class="text-xs text-[var(--color-text-secondary)]">
-          برای تکمیل فرآیند خرید، لطفاً ابتدا غذاهای مورد علاقه خود را به سبد خرید اضافه فرمایید.
+          برای تکمیل خرید، ابتدا غذاهای مورد نظر خود را به سبد خرید اضافه کنید.
         </p>
         <NuxtLink
-          to="/"
+          to="/menu"
           class="touch-target inline-flex items-center justify-center rounded-full bg-[var(--color-brand-forest)] px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[var(--color-brand-forest-light)]"
         >
           مشاهده منوی غذاها
         </NuxtLink>
       </div>
 
-      
       <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
-        
         <div class="lg:col-span-8 space-y-6">
-          <form @submit.prevent="handlePlaceOrder" class="space-y-6">
-            
-            <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
-              <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
+          <h1 class="text-2xl font-extrabold text-[var(--color-brand-forest)]">
+            تکمیل سفارش و اتصال به درگاه پرداخت
+          </h1>
+
+          <div
+            v-if="!cmsStore.isOpen"
+            role="alert"
+            class="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/30 bg-[var(--color-warning-bg)] p-4 text-xs font-bold text-[var(--color-warning)]"
+          >
+            <AlertTriangle :size="18" aria-hidden="true" class="shrink-0" />
+            <span>
+              رستوران در حال حاضر بسته است و امکان ثبت سفارش جدید وجود ندارد.
+            </span>
+          </div>
+
+          <section class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
+              <div class="flex items-center gap-2.5">
                 <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
-                  {{ toPersianDigits('۱') }}
+                  {{ toPersianDigits('1') }}
                 </div>
                 <h2 class="text-base font-bold text-[var(--color-text-primary)]">
-                  اطلاعات تحویل‌گیرنده
+                  احراز هویت مشتری
                 </h2>
               </div>
+              <NuxtLink
+                v-if="authStore.isAuthenticated"
+                to="/account"
+                class="text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
+              >
+                مدیریت حساب
+              </NuxtLink>
+            </div>
 
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div class="space-y-1.5">
-                  <label class="block text-xs font-bold text-[var(--color-text-primary)]">
-                    نام و نام خانوادگی *
-                  </label>
-                  <div class="relative">
-                    <User :size="16" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+            <div
+              v-if="authStore.isAuthenticated && authStore.user"
+              class="flex items-center justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-4 py-3 text-xs"
+            >
+              <div class="flex items-center gap-3">
+                <User :size="18" aria-hidden="true" class="text-[var(--color-brand-forest)]" />
+                <div>
+                  <p class="font-bold text-[var(--color-text-primary)]">
+                    {{ authStore.user.full_name || 'کاربر تاییدشده' }}
+                  </p>
+                  <p class="text-[var(--color-text-secondary)]">
+                    شماره موبایل: <bdi>{{ toPersianDigits(authStore.user.phone) }}</bdi>
+                  </p>
+                </div>
+              </div>
+              <span class="rounded-full bg-[var(--color-success-bg)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-brand-success)]">
+                وارد شده
+              </span>
+            </div>
+
+            <div v-else class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-dashed border-[var(--color-brand-forest)]/40 bg-[var(--color-surface-cream)] p-4">
+              <p class="text-xs text-[var(--color-text-secondary)]">
+                برای ثبت سفارش و انتخاب آدرس ارسال، ابتدا با شماره موبایل خود وارد شوید. سبد خرید شما حفظ می‌شود.
+              </p>
+              <GooeyButton
+                type="button"
+                variant="primary"
+                size="sm"
+                class="shrink-0"
+                @click="authStore.openAuthModal()"
+              >
+                <span>ورود با کد پیامکی</span>
+              </GooeyButton>
+            </div>
+          </section>
+
+          <section class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
+            <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
+              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
+                {{ toPersianDigits('2') }}
+              </div>
+              <h2 class="text-base font-bold text-[var(--color-text-primary)]">
+                روش دریافت سفارش
+              </h2>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="روش دریافت سفارش">
+              <label
+                class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                :class="
+                  deliveryType === 'DELIVERY'
+                    ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
+                    : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
+                "
+              >
+                <input
+                  v-model="deliveryType"
+                  type="radio"
+                  value="DELIVERY"
+                  name="delivery_type"
+                  class="mt-1 accent-[var(--color-brand-forest)]"
+                />
+                <div>
+                  <span class="flex items-center gap-1.5 text-xs font-bold">
+                    <MapPin :size="16" aria-hidden="true" />
+                    <span>ارسال با پیک به آدرس</span>
+                  </span>
+                  <p class="text-[11px] text-[var(--color-text-secondary)] mt-1 font-normal">
+                    درون‌محدوده: {{ formatToman(cmsStore.inZoneFee) }} | برون‌محدوده: {{ formatToman(cmsStore.outZoneFee) }}
+                  </p>
+                </div>
+              </label>
+
+              <label
+                class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                :class="
+                  deliveryType === 'PICKUP'
+                    ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
+                    : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
+                "
+              >
+                <input
+                  v-model="deliveryType"
+                  type="radio"
+                  value="PICKUP"
+                  name="delivery_type"
+                  class="mt-1 accent-[var(--color-brand-forest)]"
+                />
+                <div>
+                  <span class="flex items-center gap-1.5 text-xs font-bold">
+                    <Store :size="16" aria-hidden="true" />
+                    <span>تحویل حضوری از رستوران</span>
+                  </span>
+                  <p class="text-[11px] text-[var(--color-text-secondary)] mt-1 font-normal">
+                    بدون هزینه ارسال (رایگان)
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div v-if="deliveryType === 'PICKUP'" class="rounded-2xl bg-[var(--color-surface-cream)] p-4 text-xs text-[var(--color-text-secondary)]">
+              <p class="font-bold text-[var(--color-text-primary)] mb-1">نشانی تحویل حضوری:</p>
+              <p>{{ cmsStore.footerSection?.address || 'تهران، خیابان ولیعصر، نرسیده به پارک وی، پلاک ۱۲۴' }}</p>
+            </div>
+
+            <div v-else-if="authStore.isAuthenticated" class="space-y-4 pt-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold text-[var(--color-text-primary)]">
+                  انتخاب از آدرس‌های ذخیره‌شده
+                </h3>
+                <button
+                  type="button"
+                  @click="showNewAddressForm = !showNewAddressForm"
+                  class="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
+                >
+                  <Plus :size="14" aria-hidden="true" />
+                  <span>{{ showNewAddressForm ? 'بستن فرم آدرس' : 'افزودن آدرس جدید' }}</span>
+                </button>
+              </div>
+
+              <div v-if="authStore.addresses.length > 0" class="grid grid-cols-1 gap-3">
+                <label
+                  v-for="addr in authStore.addresses"
+                  :key="addr.id"
+                  class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                  :class="
+                    selectedAddressId === addr.id
+                      ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] ring-2 ring-[var(--color-brand-forest)]/15'
+                      : 'border-[var(--color-border-subtle)] bg-white'
+                  "
+                >
+                  <input
+                    v-model="selectedAddressId"
+                    type="radio"
+                    :value="addr.id"
+                    name="address_id"
+                    class="mt-1 accent-[var(--color-brand-forest)]"
+                  />
+                  <div class="flex-1 text-xs space-y-1">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <span class="font-bold text-[var(--color-text-primary)]">
+                        {{ addr.title || 'آدرس ثبت‌شده' }}
+                        <span v-if="addr.is_default" class="text-[10px] font-semibold text-[var(--color-brand-forest)]">
+                          (پیش‌فرض)
+                        </span>
+                      </span>
+                      <span
+                        class="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                        :class="
+                          addr.is_out_of_zone
+                            ? 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]'
+                            : 'bg-[var(--color-success-bg)] text-[var(--color-brand-success)]'
+                        "
+                      >
+                        {{ addr.is_out_of_zone ? `برون‌محدوده (${formatToman(cmsStore.outZoneFee)})` : `درون‌محدوده (${formatToman(cmsStore.inZoneFee)})` }}
+                      </span>
+                    </div>
+                    <p class="text-[var(--color-text-secondary)] leading-relaxed">
+                      {{ addr.address_text }}
+                    </p>
+                    <p v-if="addr.recipient_name || addr.recipient_phone" class="text-[11px] text-[var(--color-text-secondary)]">
+                      تحویل‌گیرنده: {{ addr.recipient_name }} <bdi>{{ toPersianDigits(addr.recipient_phone) }}</bdi>
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <form
+                v-if="showNewAddressForm || authStore.addresses.length === 0"
+                @submit.prevent="handleCreateAddress"
+                class="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/60 p-4 space-y-3"
+              >
+                <h4 class="text-xs font-bold text-[var(--color-brand-forest)]">
+                  ثبت آدرس جدید
+                </h4>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div class="space-y-1">
+                    <label for="addr-title" class="block text-xs font-bold text-[var(--color-text-primary)]">
+                      عنوان (مثلاً خانه)
+                    </label>
                     <input
-                      v-model="form.fullName"
+                      id="addr-title"
+                      v-model="newAddress.title"
                       type="text"
-                      required
-                      placeholder="مثال: علی حسینی"
-                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                      placeholder="منزل یا محل کار"
+                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs"
                     />
                   </div>
-                </div>
-
-                <div class="space-y-1.5">
-                  <label class="block text-xs font-bold text-[var(--color-text-primary)]">
-                    شماره تلفن همراه (جهت هماهنگی پیک) *
-                  </label>
-                  <div class="relative">
-                    <Phone :size="16" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+                  <div class="space-y-1">
+                    <label for="addr-recipient" class="block text-xs font-bold text-[var(--color-text-primary)]">
+                      نام تحویل‌گیرنده
+                    </label>
                     <input
-                      v-model="form.phone"
+                      id="addr-recipient"
+                      v-model="newAddress.recipient_name"
+                      type="text"
+                      autocomplete="name"
+                      placeholder="نام کامل"
+                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs"
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <label for="addr-phone" class="block text-xs font-bold text-[var(--color-text-primary)]">
+                      تلفن تحویل‌گیرنده
+                    </label>
+                    <input
+                      id="addr-phone"
+                      v-model="newAddress.recipient_phone"
                       type="tel"
-                      required
-                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      inputmode="tel"
+                      autocomplete="tel"
                       dir="ltr"
-                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] text-end focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                      placeholder="۰۹۱۲..."
+                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs text-end"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
 
-            
-            <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
-              <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
-                  {{ toPersianDigits('۲') }}
-                </div>
-                <h2 class="text-base font-bold text-[var(--color-text-primary)]">
-                  نشانی محل تحویل سفارش
-                </h2>
-              </div>
-
-              <div class="space-y-4">
-                <div class="space-y-1.5">
-                  <label class="block text-xs font-bold text-[var(--color-text-primary)]">
-                    آدرس کامل پستی *
+                <div class="space-y-1">
+                  <label for="addr-text" class="block text-xs font-bold text-[var(--color-text-primary)]">
+                    نشانی کامل پستی <span aria-hidden="true">*</span>
                   </label>
-                  <div class="relative">
-                    <MapPin :size="16" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
-                    <textarea
-                      v-model="form.address"
-                      rows="2"
-                      required
-                      placeholder="تهران، خیابان..."
-                      class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-white p-3 ps-10 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
-                    />
-                  </div>
+                  <textarea
+                    id="addr-text"
+                    v-model="newAddress.address_text"
+                    rows="2"
+                    required
+                    autocomplete="street-address"
+                    placeholder="خیابان، کوچه، پلاک، طبقه و واحد..."
+                    class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-white p-3 text-xs"
+                  />
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-[var(--color-text-primary)]">
-                      پلاک، زنگ یا واحد (اختیاری)
-                    </label>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <label class="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-text-primary)]">
                     <input
-                      v-model="form.unit"
-                      type="text"
-                      placeholder="پلاک ۱۲، واحد ۴، زنگ غربی"
-                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3.5 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                      v-model="newAddress.is_out_of_zone"
+                      type="checkbox"
+                      class="h-4 w-4 accent-[var(--color-brand-forest)]"
                     />
-                  </div>
+                    <span>آدرس خارج از محدوده اصلی است ({{ formatToman(cmsStore.outZoneFee) }})</span>
+                  </label>
 
-                  <div class="space-y-1.5">
-                    <label class="block text-xs font-bold text-[var(--color-text-primary)]">
-                      یادداشت برای پیک (کد آسانسور، تماس قبل از ورود...)
-                    </label>
-                    <input
-                      v-model="form.deliveryNotes"
-                      type="text"
-                      placeholder="مثال: لطفاً زنگ طبقه دوم فشرده شود"
-                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3.5 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
-                    />
-                  </div>
+                  <GooeyButton type="submit" variant="primary" size="sm" :disabled="savingAddress">
+                    <span>{{ savingAddress ? 'در حال ذخیره...' : 'ذخیره آدرس' }}</span>
+                  </GooeyButton>
                 </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
+            <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
+              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
+                {{ toPersianDigits('3') }}
+              </div>
+              <h2 class="text-base font-bold text-[var(--color-text-primary)]">
+                یادداشت برای آشپزخانه و پرداخت آنلاین
+              </h2>
+            </div>
+
+            <div class="space-y-1.5">
+              <label for="notes-to-kitchen" class="block text-xs font-bold text-[var(--color-text-primary)]">
+                توضیحات سفارش برای آشپزخانه (اختیاری)
+              </label>
+              <textarea
+                id="notes-to-kitchen"
+                v-model="notesToKitchen"
+                rows="2"
+                maxlength="300"
+                placeholder="مثال: سس کنار غذا ارسال شود، بدون پیاز..."
+                class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-white p-3 text-xs text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none"
+              />
+            </div>
+
+            <div class="flex items-start gap-3 rounded-2xl border border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] p-4">
+              <CreditCard :size="20" aria-hidden="true" class="mt-0.5 shrink-0 text-[var(--color-brand-forest)]" />
+              <div class="text-xs space-y-1">
+                <p class="font-bold text-[var(--color-brand-forest)]">
+                  پرداخت آنلاین از طریق درگاه زرین‌پال
+                </p>
+                <p class="text-[var(--color-text-secondary)]">
+                  پس از ثبت سفارش، ۱۵ دقیقه برای تکمیل پرداخت اینترنتی فرصت دارید و بلافاصله شماره نوبت روزانه صادر می‌شود.
+                </p>
               </div>
             </div>
 
-            
-            <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
-              <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
-                  {{ toPersianDigits('۳') }}
-                </div>
-                <h2 class="text-base font-bold text-[var(--color-text-primary)]">
-                  زمان تحویل
-                </h2>
-              </div>
-
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  @click="form.deliveryTime = 'asap'"
-                  class="flex items-start gap-3 rounded-2xl border p-4 text-start transition-all"
-                  :class="
-                    form.deliveryTime === 'asap'
-                      ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
-                      : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
-                  "
-                >
-                  <Clock :size="18" class="mt-0.5 shrink-0" />
-                  <div>
-                    <h3 class="text-xs font-bold">سریع‌ترین زمان ممکن (پیشنهادی)</h3>
-                    <p class="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-normal">
-                      آماده‌سازی فوری و ارسال گرم (حدود ۲۵ الی ۳۵ دقیقه)
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  @click="form.deliveryTime = 'scheduled'"
-                  class="flex items-start gap-3 rounded-2xl border p-4 text-start transition-all"
-                  :class="
-                    form.deliveryTime === 'scheduled'
-                      ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
-                      : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
-                  "
-                >
-                  <Clock :size="18" class="mt-0.5 shrink-0" />
-                  <div>
-                    <h3 class="text-xs font-bold">زمان‌بندی برای ساعت مشخص</h3>
-                    <p class="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-normal">
-                      انتخاب بازه تحویل در ساعات بعد
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            
-            <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
-              <div class="flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] pb-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] text-xs font-bold">
-                  {{ toPersianDigits('۴') }}
-                </div>
-                <h2 class="text-base font-bold text-[var(--color-text-primary)]">
-                  شیوه پرداخت
-                </h2>
-              </div>
-
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  @click="form.paymentMethod = 'online'"
-                  class="flex items-start gap-3 rounded-2xl border p-4 text-start transition-all"
-                  :class="
-                    form.paymentMethod === 'online'
-                      ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
-                      : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
-                  "
-                >
-                  <CreditCard :size="18" class="mt-0.5 shrink-0" />
-                  <div>
-                    <h3 class="text-xs font-bold">پرداخت آنلاین با درگاه بانکی</h3>
-                    <p class="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-normal">
-                      کلیه کارت‌های عضو شتاب (سامان، ملت، زرین‌پال)
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  @click="form.paymentMethod = 'cash'"
-                  class="flex items-start gap-3 rounded-2xl border p-4 text-start transition-all"
-                  :class="
-                    form.paymentMethod === 'cash'
-                      ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
-                      : 'border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)]'
-                  "
-                >
-                  <Banknote :size="18" class="mt-0.5 shrink-0" />
-                  <div>
-                    <h3 class="text-xs font-bold">پرداخت در محل (کارتخوان سیار)</h3>
-                    <p class="text-[11px] text-[var(--color-text-secondary)] mt-0.5 font-normal">
-                      تسویه توسط دستگاه کارتخوان سیار پیک هنگام تحویل
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            
             <GooeyButton
-              type="submit"
+              type="button"
               variant="primary"
               size="lg"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || !cmsStore.isOpen"
               class="w-full !py-4"
-              aria-label="ثبت نهایی و پرداخت سفارش"
+              @click="submitOrderAndPay"
             >
-              <ShieldCheck :size="18" />
-              <span v-if="isSubmitting">در حال ثبت سفارش...</span>
-              <span v-else>ثبت نهایی و پرداخت سفارش ({{ formatToman(cartStore.grandTotal) }})</span>
+              <ShieldCheck :size="18" aria-hidden="true" />
+              <span v-if="isSubmitting">در حال ثبت سفارش و انتقال به درگاه...</span>
+              <span v-else-if="!authStore.isAuthenticated">ورود و ادامه پرداخت ({{ formatToman(grandTotal) }})</span>
+              <span v-else>ثبت سفارش و پرداخت ({{ formatToman(grandTotal) }})</span>
             </GooeyButton>
-          </form>
+          </section>
         </div>
 
-        
         <aside class="sticky top-24 lg:col-span-4 space-y-4">
           <div class="rounded-3xl border border-[var(--color-border-subtle)] bg-white p-6 shadow-xs space-y-4">
-            <div class="border-b border-[var(--color-border-subtle)] pb-3">
-              <h3 class="text-sm font-bold text-[var(--color-text-primary)]">
+            <div class="border-b border-[var(--color-border-subtle)] pb-3 flex items-center justify-between">
+              <h2 class="text-sm font-bold text-[var(--color-text-primary)]">
                 خلاصه سفارش ({{ toPersianDigits(cartStore.totalCount) }} مورد)
-              </h3>
+              </h2>
+              <span class="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-brand-forest)]">
+                <Clock :size="13" aria-hidden="true" />
+                <span>{{ toPersianDigits(cartStore.estimatedPrepMinutes) }} دقیقه</span>
+              </span>
             </div>
 
-            
-            <div class="max-h-[260px] overflow-y-auto space-y-3 pe-1">
+            <div class="max-h-[280px] overflow-y-auto space-y-3 pe-1">
               <div
                 v-for="item in cartStore.items"
                 :key="item.id"
-                class="flex items-center justify-between gap-3 text-xs"
+                class="flex items-start justify-between gap-3 text-xs"
               >
-                <div class="flex items-center gap-2.5 min-w-0">
+                <div class="flex items-start gap-2.5 min-w-0">
                   <img
-                    :src="item.product.image"
-                    :alt="item.product.title"
+                    :src="item.product.image_url || '/img/placeholder.webp'"
+                    :alt="item.product.name"
+                    width="40"
+                    height="40"
                     class="h-10 w-10 rounded-lg object-cover bg-[var(--color-surface-cream)] shrink-0"
                   />
-                  <div class="truncate">
+                  <div class="min-w-0">
                     <p class="font-bold text-[var(--color-text-primary)] truncate">
-                      {{ item.product.title }}
+                      {{ item.product.name }}
                     </p>
-                    <p class="text-[10px] text-[var(--color-text-secondary)]">
+                    <p class="text-[11px] text-[var(--color-text-secondary)]">
                       {{ toPersianDigits(item.quantity) }} × {{ formatToman(item.unitPrice) }}
+                    </p>
+                    <p
+                      v-for="addon in item.selectedAddons"
+                      :key="addon.addon_id"
+                      class="text-[10px] text-[var(--color-text-secondary)]"
+                    >
+                      + {{ addon.name }} ({{ toPersianDigits(addon.quantity) }})
                     </p>
                   </div>
                 </div>
@@ -394,53 +576,38 @@ const handlePlaceOrder = async () => {
               </div>
             </div>
 
-            
             <div class="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5 text-xs text-[var(--color-text-secondary)]">
               <div class="flex items-center justify-between">
-                <span>مجموع اقلام</span>
+                <span>جمع اقلام</span>
                 <span class="font-bold text-[var(--color-text-primary)]">
                   {{ formatToman(cartStore.subtotal) }}
                 </span>
               </div>
               <div class="flex items-center justify-between">
-                <span>هزینه بسته‌بندی</span>
-                <span class="font-bold text-[var(--color-text-primary)]">
-                  {{ formatToman(cartStore.packagingFee) }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span>هزینه ارسال پیک اختصاصی</span>
+                <span>هزینه ارسال</span>
                 <span
-                  v-if="cartStore.deliveryFee === 0"
+                  v-if="deliveryFee === 0"
                   class="font-bold text-[var(--color-brand-success)]"
                 >
-                  رایگان
+                  رایگان (تحویل حضوری)
                 </span>
                 <span v-else class="font-bold text-[var(--color-text-primary)]">
-                  {{ formatToman(cartStore.deliveryFee) }}
+                  {{ formatToman(deliveryFee) }}
                 </span>
               </div>
             </div>
 
-            
             <div class="border-t border-[var(--color-border-subtle)] pt-3 flex items-center justify-between">
               <span class="text-sm font-bold text-[var(--color-text-primary)]">
-                مبلغ نهایی
+                مبلغ قابل پرداخت
               </span>
               <span class="text-lg font-extrabold text-[var(--color-brand-forest)]">
-                {{ formatToman(cartStore.grandTotal) }}
+                {{ formatToman(grandTotal) }}
               </span>
             </div>
-          </div>
-
-          
-          <div class="flex items-center gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] p-4 text-xs text-[var(--color-text-secondary)]">
-            <ShieldCheck :size="24" class="text-[var(--color-brand-forest)] shrink-0" />
-            <span>ضمانت سلامت، گرمی و بهداشت غذا با بسته‌بندی حرارتی اختصاصی</span>
           </div>
         </aside>
       </div>
     </div>
   </main>
 </template>
-
