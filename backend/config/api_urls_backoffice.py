@@ -15,6 +15,14 @@ urlpatterns = [
     path("cms/", include("apps.cms.apis.backoffice.urls")),
     path("catalog/", include("apps.catalog.apis.backoffice.urls")),
     path("orders/", include("apps.orders.apis.backoffice.urls")),
+    path(
+        "promo-codes/",
+        include("apps.orders.apis.backoffice.promo_urls"),
+    ),
+    path(
+        "analytics/",
+        include("apps.orders.apis.backoffice.analytics_urls"),
+    ),
     # Accounts owns /auth/... and /crm/customers/... itself.
     path("", include("apps.accounts.apis.backoffice.urls")),
     # Payments exposes /orders/<order_id>/payments/ (nested under orders).

@@ -189,6 +189,7 @@ class ProductListResponseSerializer(serializers.Serializer):
     next = serializers.CharField(allow_null=True)
     previous = serializers.CharField(allow_null=True)
     results = ProductSummaryPublicSerializer(many=True)
+    did_you_mean = serializers.CharField(allow_null=True, required=False)
 
 
 class ProductSuggestionListResponseSerializer(serializers.Serializer):

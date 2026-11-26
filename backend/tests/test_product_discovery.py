@@ -40,6 +40,7 @@ def _make(
     *,
     slug,
     price=100_000,
+    compare_at_price=None,
     status=Product.Status.AVAILABLE,
     is_main_dish=True,
     display_order=0,
@@ -51,6 +52,7 @@ def _make(
         name=name,
         slug=slug,
         price=price,
+        compare_at_price=compare_at_price,
         status=status,
         is_main_dish=is_main_dish,
         display_order=display_order,
@@ -208,6 +210,44 @@ class TestSearch:
         _make(cat, "Ghost Product", slug="ghost")
 
         assert _names(api_client.get(LIST_URL, {"q": "Ghost"})) == []
+
+
+class TestFuzzySearchAndDidYouMean:
+    def test_partial_word_matches_via_trigram(self, api_client, db, category):
+        _make(category, "Cheese Burger", slug="cheese-burger")
+
+        assert _names(api_client.get(LIST_URL, {"q": "chee"})) == ["Cheese Burger"]
+
+    def test_typo_matches_via_trigram(self, api_client, db, category):
+        _make(category, "Margherita", slug="margherita")
+
+        names = _names(api_client.get(LIST_URL, {"q": "margheritta"}))
+        assert "Margherita" in names
+
+    def test_empty_result_reports_category_did_you_mean(
+        self, api_client, db, category
+    ):
+        from apps.catalog.models import Category
+
+        drinks = Category.objects.create(name="Drinks", slug="drinks")
+        _make(drinks, "Cola", slug="cola")
+
+        payload = _payload(api_client.get(LIST_URL, {"q": "drniks"}))
+        assert payload["count"] == 0
+        assert payload["did_you_mean"] == "Drinks"
+
+    def test_non_empty_result_has_no_did_you_mean(self, api_client, db, category):
+        _make(category, "Cheese Burger", slug="cheese-burger")
+
+        payload = _payload(api_client.get(LIST_URL, {"q": "burger"}))
+        assert "did_you_mean" not in payload
+
+    def test_did_you_mean_is_null_when_nothing_is_close(self, api_client, db, category):
+        _make(category, "Cheese Burger", slug="cheese-burger")
+
+        payload = _payload(api_client.get(LIST_URL, {"q": "zzzzzz"}))
+        assert payload["count"] == 0
+        assert "did_you_mean" not in payload
 
 
 class TestCategoryFilter:
@@ -371,11 +411,18 @@ class TestAvailabilityFilters:
         response = api_client.get(LIST_URL, {"available": "maybe"})
         assert response.status_code == 400
 
-    def test_discount_filter_is_rejected_explicitly(self, api_client, db, category):
-        response = api_client.get(LIST_URL, {"discount": 1})
+    def test_discount_filter(self, api_client, db, category):
+        _make(
+            category,
+            "On Sale",
+            slug="on-sale",
+            price=80_000,
+            compare_at_price=100_000,
+        )
+        _make(category, "Full Price", slug="full-price", price=80_000)
 
-        assert response.status_code == 400
-        assert "discount" in _error(response)["details"]
+        assert _names(api_client.get(LIST_URL, {"discount": 1})) == ["On Sale"]
+        assert _names(api_client.get(LIST_URL, {"discount": 0})) == ["Full Price"]
 
     def test_filters_combine(self, api_client, db, category):
         _make(category, "Cheap Main", slug="cheap-main", price=80_000)
@@ -541,6 +588,8 @@ class TestSuggestions:
             "name",
             "slug",
             "price",
+            "compare_at_price",
+            "discount_percent",
             "status",
             "image_url",
         }
@@ -602,6 +651,35 @@ class TestSuggestions:
             for row in _payload(api_client.get(SUGGEST_URL, {"q": "burger"}))["results"]
         ]
         assert names == ["Visible Burger"]
+
+    def test_autocomplete_matches_prefix(self, api_client, db, category):
+        _make(category, "Cheese Burger", slug="cheese-burger")
+        _make(category, "Chicken Pizza", slug="chicken-pizza")
+
+        names = [
+            row["name"]
+            for row in _payload(api_client.get(SUGGEST_URL, {"q": "chee"}))["results"]
+        ]
+        assert names == ["Cheese Burger"]
+
+    def test_autocomplete_tolerates_typos(self, api_client, db, category):
+        _make(category, "Cheese Burger", slug="cheese-burger")
+
+        names = [
+            row["name"]
+            for row in _payload(api_client.get(SUGGEST_URL, {"q": "burgr"}))["results"]
+        ]
+        assert "Cheese Burger" in names
+
+    def test_autocomplete_reports_did_you_mean(self, api_client, db):
+        from apps.catalog.models import Category
+
+        drinks = Category.objects.create(name="Drinks", slug="drinks")
+        _make(drinks, "Cola", slug="cola")
+
+        payload = _payload(api_client.get(SUGGEST_URL, {"q": "drniks"}))
+        assert payload["results"] == []
+        assert payload["did_you_mean"] == "Drinks"
 
     def test_query_is_limited(self, api_client, db, category, django_assert_max_num_queries):
         for index in range(10):

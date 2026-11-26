@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Prefetch
 from django.utils import timezone
 from redis.exceptions import RedisError
 
@@ -17,7 +17,15 @@ from common.exceptions import NotFoundError, ValidationError
 from common.redis_client import get_redis
 
 from .exceptions import OrderNotFoundError
-from .models import Order, OrderItem, OrderItemAddOn
+from .models import (
+    Order,
+    OrderItem,
+    OrderItemAddOn,
+    PromoCode,
+    PromoCodeUsage,
+    normalize_promo_code,
+)
+from .sse import publish_order_event
 from .tasks import (
     send_order_ready_sms,
     send_order_registered_sms,
@@ -197,6 +205,158 @@ def _compute_prep_time(
 
 
 # ---------------------------------------------------------------------------
+# Promo codes
+# ---------------------------------------------------------------------------
+def _validate_promo_window(promo: PromoCode) -> None:
+    """Reject inactive or out-of-window codes with a Persian message."""
+    if not promo.is_active:
+        raise ValidationError(
+            message="این کد تخفیف فعال نیست.",
+            code="PROMO_CODE_INACTIVE",
+            details={"code": promo.code},
+        )
+
+    now = timezone.now()
+    if promo.valid_from is not None and now < promo.valid_from:
+        raise ValidationError(
+            message="زمان استفاده از این کد تخفیف هنوز شروع نشده است.",
+            code="PROMO_CODE_NOT_STARTED",
+            details={"code": promo.code},
+        )
+    if promo.valid_until is not None and now > promo.valid_until:
+        raise ValidationError(
+            message="این کد تخفیف منقضی شده است.",
+            code="PROMO_CODE_EXPIRED",
+            details={"code": promo.code},
+        )
+
+
+def _get_promo_code(raw_code: str | None) -> PromoCode | None:
+    """Fetch an existing promo code and validate its active window."""
+    normalized = normalize_promo_code(raw_code or "")
+    if not normalized:
+        return None
+
+    try:
+        promo = PromoCode.objects.get(code=normalized)
+    except PromoCode.DoesNotExist:
+        raise ValidationError(
+            message="کد تخفیف یافت نشد.",
+            code="PROMO_CODE_NOT_FOUND",
+            details={"code": normalized},
+        )
+
+    _validate_promo_window(promo)
+    return promo
+
+
+def _lock_promo_code(raw_code: str | None) -> PromoCode | None:
+    """Lock the promo row so concurrent checkouts cannot exceed usage limits."""
+    normalized = normalize_promo_code(raw_code or "")
+    if not normalized:
+        return None
+
+    try:
+        promo = PromoCode.objects.select_for_update().get(code=normalized)
+    except PromoCode.DoesNotExist:
+        raise ValidationError(
+            message="کد تخفیف یافت نشد.",
+            code="PROMO_CODE_NOT_FOUND",
+            details={"code": normalized},
+        )
+
+    _validate_promo_window(promo)
+    return promo
+
+
+def _promo_discount_amount(
+    *,
+    customer: Customer,
+    promo: PromoCode,
+    subtotal: int,
+) -> int:
+    """Validate eligibility and return the discount in toman."""
+    if subtotal < promo.min_order_amount:
+        raise ValidationError(
+            message=(
+                "حداقل مبلغ سفارش برای استفاده از این کد تخفیف "
+                f"{promo.min_order_amount:,} تومان است."
+            ),
+            code="PROMO_CODE_MIN_ORDER",
+            details={
+                "min_order_amount": promo.min_order_amount,
+                "subtotal": subtotal,
+            },
+        )
+
+    # Unpaid cancellations soft-delete their usage row, so every alive row
+    # still represents a consumed use (including paid orders later canceled).
+    usages = PromoCodeUsage.objects.filter(promo_code=promo)
+
+    if promo.max_total_uses is not None:
+        if usages.count() >= promo.max_total_uses:
+            raise ValidationError(
+                message="ظرفیت استفاده از این کد تخفیف تکمیل شده است.",
+                code="PROMO_CODE_TOTAL_LIMIT",
+                details={"code": promo.code},
+            )
+
+    if usages.filter(customer=customer).count() >= promo.max_uses_per_customer:
+        raise ValidationError(
+            message="شما به سقف استفاده از این کد تخفیف رسیده‌اید.",
+            code="PROMO_CODE_CUSTOMER_LIMIT",
+            details={"code": promo.code},
+        )
+
+    if promo.first_order_only:
+        # ``paid_at`` also covers orders that were later canceled or refunded.
+        has_paid_order = Order.objects.filter(
+            customer=customer,
+            paid_at__isnull=False,
+        ).exists()
+        if has_paid_order:
+            raise ValidationError(
+                message="این کد تخفیف فقط برای اولین سفارش قابل استفاده است.",
+                code="PROMO_CODE_FIRST_ORDER_ONLY",
+                details={"code": promo.code},
+            )
+
+    if promo.discount_type == PromoCode.DiscountType.PERCENTAGE:
+        discount = subtotal * promo.discount_value // 100
+        if promo.max_discount_amount is not None:
+            discount = min(discount, promo.max_discount_amount)
+    else:
+        discount = promo.discount_value
+
+    return max(0, min(discount, subtotal))
+
+
+def validate_promo_code(
+    *,
+    customer: Customer,
+    code: str,
+    subtotal: int,
+) -> dict[str, Any]:
+    """Validate a code for checkout and return the resulting discount."""
+    promo = _get_promo_code(code)
+    assert promo is not None
+
+    discount = _promo_discount_amount(
+        customer=customer,
+        promo=promo,
+        subtotal=subtotal,
+    )
+    return {
+        "code": promo.code,
+        "discount_type": promo.discount_type,
+        "discount_value": promo.discount_value,
+        "discount_amount": discount,
+        "subtotal": subtotal,
+        "discounted_subtotal": subtotal - discount,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Order creation
 # ---------------------------------------------------------------------------
 @transaction.atomic
@@ -207,6 +367,7 @@ def create_order(
     address_id: int | None,
     items: list[dict[str, Any]],
     notes_to_kitchen: str = "",
+    promo_code: str | None = None,
 ) -> Order:
     _ensure_restaurant_is_open()
 
@@ -242,6 +403,10 @@ def create_order(
 
     packaging_fee = settings_obj.packaging_fee
 
+    # Lock before any order rows are written so two simultaneous checkouts
+    # cannot both consume the final use of a limited code.
+    promo = _lock_promo_code(promo_code)
+
     product_by_id = {
         p.pk: p
         for p in Product.objects.filter(pk__in=[i["product_id"] for i in items])
@@ -258,6 +423,7 @@ def create_order(
         delivery_recipient_phone=(address.recipient_phone if address else ""),
         delivery_fee=delivery_fee,
         packaging_fee=packaging_fee,
+        promo_code_snapshot=(promo.code if promo is not None else ""),
         notes_to_kitchen=notes_to_kitchen or "",
         prep_time_minutes=prep_time,
         status=Order.Status.PENDING_PAYMENT,
@@ -284,10 +450,32 @@ def create_order(
             },
         )
 
+    discount_amount = 0
+    if promo is not None:
+        discount_amount = _promo_discount_amount(
+            customer=customer,
+            promo=promo,
+            subtotal=subtotal,
+        )
+        PromoCodeUsage.objects.create(
+            promo_code=promo,
+            customer=customer,
+            order=order,
+            discount_amount=discount_amount,
+        )
+
     order.subtotal = subtotal
-    order.total_amount = subtotal + delivery_fee + packaging_fee
+    order.discount_amount = discount_amount
+    order.total_amount = (
+        max(0, subtotal - discount_amount) + delivery_fee + packaging_fee
+    )
     order.save(
-        update_fields=["subtotal", "total_amount", "updated_at"]
+        update_fields=[
+            "subtotal",
+            "discount_amount",
+            "total_amount",
+            "updated_at",
+        ]
     )
 
     logger.info(
@@ -465,6 +653,9 @@ def mark_order_ready(*, order_id: int) -> Order:
     order.save(update_fields=["status", "updated_at"])
 
     transaction.on_commit(lambda: send_order_ready_sms.delay(order.pk))
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.status_changed")
+    )
     return order
 
 
@@ -485,6 +676,10 @@ def mark_order_completed(*, order_id: int) -> Order:
 
     order.status = Order.Status.COMPLETED
     order.save(update_fields=["status", "updated_at"])
+
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.status_changed")
+    )
     return order
 
 
@@ -519,7 +714,9 @@ def cancel_order_by_manager(
     order.canceled_by = manager
     order.cancellation_reason = reason or ""
 
-    if order.payment_status == Order.PaymentStatus.PAID:
+    if order.payment_status == Order.PaymentStatus.UNPAID:
+        _release_promo_usage(order)
+    elif order.payment_status == Order.PaymentStatus.PAID:
         order.payment_status = Order.PaymentStatus.AWAITING_REFUND
 
     order.save(
@@ -531,6 +728,9 @@ def cancel_order_by_manager(
             "payment_status",
             "updated_at",
         ]
+    )
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.status_changed")
     )
     return order
 
@@ -585,7 +785,20 @@ def request_cancellation(
             "updated_at",
         ]
     )
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.cancellation_requested")
+    )
     return order
+
+
+def _release_promo_usage(order: Order) -> None:
+    """Soft-delete the usage row so an unpaid cancellation restores the quota."""
+    try:
+        usage = order.promo_usage
+    except PromoCodeUsage.DoesNotExist:
+        return
+    if usage.deleted_at is None:
+        usage.delete()
 
 
 @transaction.atomic
@@ -608,6 +821,12 @@ def cancel_expired_unpaid_orders() -> int:
                 "cancellation_reason",
                 "updated_at",
             ]
+        )
+        _release_promo_usage(order)
+        transaction.on_commit(
+            lambda order=order: publish_order_event(
+                order, "order.status_changed"
+            )
         )
     return len(expired)
 
@@ -687,6 +906,9 @@ def update_prep_time(
     transaction.on_commit(
         lambda: send_prep_time_changed_sms.delay(order.pk, new_prep_time_minutes)
     )
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.prep_time_updated")
+    )
     return order
 
 
@@ -704,3 +926,283 @@ def mark_order_printed(*, order_id: int) -> Order:
     order.printed_at = timezone.now()
     order.save(update_fields=["is_printed", "printed_at", "updated_at"])
     return order
+
+
+# ---------------------------------------------------------------------------
+# Promo code administration (Backoffice)
+# ---------------------------------------------------------------------------
+PROMO_EDITABLE_FIELDS = (
+    "code",
+    "discount_type",
+    "discount_value",
+    "max_discount_amount",
+    "min_order_amount",
+    "valid_from",
+    "valid_until",
+    "max_total_uses",
+    "max_uses_per_customer",
+    "first_order_only",
+    "is_active",
+)
+
+
+def _apply_promo_data(promo: PromoCode, data: dict[str, Any]) -> None:
+    for field in PROMO_EDITABLE_FIELDS:
+        if field in data:
+            setattr(promo, field, data[field])
+    promo.code = normalize_promo_code(promo.code)
+
+
+def _validate_promo_instance(promo: PromoCode) -> None:
+    if not promo.code:
+        raise ValidationError(
+            message="وارد کردن کد تخفیف الزامی است.",
+            details={"code": "این فیلد الزامی است."},
+        )
+
+    if promo.discount_type not in PromoCode.DiscountType.values:
+        raise ValidationError(
+            message="نوع تخفیف نامعتبر است.",
+            details={"discount_type": promo.discount_type},
+        )
+
+    if promo.discount_type == PromoCode.DiscountType.PERCENTAGE:
+        if promo.discount_value is None or not 1 <= promo.discount_value <= 100:
+            raise ValidationError(
+                message="درصد تخفیف باید بین ۱ تا ۱۰۰ باشد.",
+                details={"discount_value": promo.discount_value},
+            )
+    elif promo.discount_value is None or promo.discount_value <= 0:
+        raise ValidationError(
+            message="مبلغ تخفیف باید بزرگ‌تر از صفر باشد.",
+            details={"discount_value": promo.discount_value},
+        )
+
+    if (
+        promo.valid_from is not None
+        and promo.valid_until is not None
+        and promo.valid_until <= promo.valid_from
+    ):
+        raise ValidationError(
+            message="زمان پایان اعتبار باید بعد از زمان شروع باشد.",
+            details={
+                "valid_from": promo.valid_from,
+                "valid_until": promo.valid_until,
+            },
+        )
+
+
+@transaction.atomic
+def create_promo_code(*, data: dict[str, Any]) -> PromoCode:
+    promo = PromoCode()
+    _apply_promo_data(promo, data)
+    _validate_promo_instance(promo)
+
+    if PromoCode.objects.filter(code=promo.code).exists():
+        raise ValidationError(
+            message="کد تخفیف تکراری است.",
+            code="PROMO_CODE_DUPLICATE",
+            details={"code": promo.code},
+        )
+
+    try:
+        with transaction.atomic():
+            promo.save()
+    except IntegrityError:
+        raise ValidationError(
+            message="کد تخفیف تکراری است.",
+            code="PROMO_CODE_DUPLICATE",
+            details={"code": promo.code},
+        )
+    return promo
+
+
+@transaction.atomic
+def update_promo_code(
+    *,
+    promo_code_id: int,
+    data: dict[str, Any],
+) -> PromoCode:
+    try:
+        promo = PromoCode.objects.select_for_update().get(pk=promo_code_id)
+    except PromoCode.DoesNotExist:
+        from .exceptions import PromoCodeNotFoundError
+
+        raise PromoCodeNotFoundError()
+
+    _apply_promo_data(promo, data)
+    _validate_promo_instance(promo)
+
+    if (
+        PromoCode.objects.filter(code=promo.code)
+        .exclude(pk=promo.pk)
+        .exists()
+    ):
+        raise ValidationError(
+            message="کد تخفیف تکراری است.",
+            code="PROMO_CODE_DUPLICATE",
+            details={"code": promo.code},
+        )
+
+    try:
+        with transaction.atomic():
+            promo.save()
+    except IntegrityError:
+        raise ValidationError(
+            message="کد تخفیف تکراری است.",
+            code="PROMO_CODE_DUPLICATE",
+            details={"code": promo.code},
+        )
+    return promo
+
+
+@transaction.atomic
+def delete_promo_code(*, promo_code_id: int) -> None:
+    try:
+        promo = PromoCode.objects.select_for_update().get(pk=promo_code_id)
+    except PromoCode.DoesNotExist:
+        from .exceptions import PromoCodeNotFoundError
+
+        raise PromoCodeNotFoundError()
+    promo.delete()
+
+
+# ---------------------------------------------------------------------------
+# One-click reorder
+# ---------------------------------------------------------------------------
+def _warn(warnings: list[str], message: str) -> None:
+    if message not in warnings:
+        warnings.append(message)
+
+
+def prepare_reorder_payload(
+    customer: Customer,
+    order_id: int,
+) -> dict[str, Any]:
+    """
+    Rebuild a cart from a past order against the current catalog.
+
+    Unavailable products/add-ons are dropped with a Persian warning, add-on
+    quantities are clamped to the current maximum, and price changes are
+    reported so the customer never gets a surprise at checkout.
+    """
+    try:
+        order = (
+            Order.objects.select_related("customer")
+            .prefetch_related(
+                Prefetch(
+                    "items",
+                    queryset=OrderItem.objects.select_related(
+                        "product__category"
+                    ).prefetch_related(
+                        Prefetch(
+                            "addons",
+                            queryset=OrderItemAddOn.objects.select_related(
+                                "addon"
+                            ),
+                        )
+                    ),
+                )
+            )
+            .get(pk=order_id, customer=customer)
+        )
+    except Order.DoesNotExist:
+        raise OrderNotFoundError()
+
+    product_ids = [item.product_id for item in order.items.all()]
+    links_by_product: dict[int, dict[int, ProductAddOn]] = {}
+    for link in ProductAddOn.objects.filter(product_id__in=product_ids):
+        links_by_product.setdefault(link.product_id, {})[link.addon_id] = link
+
+    items: list[dict[str, Any]] = []
+    warnings: list[str] = []
+
+    for order_item in order.items.all():
+        product = order_item.product
+        if (
+            product.deleted_at is not None
+            or product.status != Product.Status.AVAILABLE
+        ):
+            _warn(
+                warnings,
+                f"محصول «{order_item.product_name_snapshot}» در حال حاضر "
+                "موجود نیست و از سبد حذف شد.",
+            )
+            continue
+
+        category = product.category
+        if category.deleted_at is not None or not category.is_active:
+            _warn(
+                warnings,
+                f"دسته‌بندی محصول «{order_item.product_name_snapshot}» غیرفعال "
+                "است و محصول از سبد حذف شد.",
+            )
+            continue
+
+        if product.price != order_item.unit_price_snapshot:
+            _warn(
+                warnings,
+                f"قیمت محصول «{product.name}» تغییر کرده است.",
+            )
+
+        addon_lines: list[dict[str, Any]] = []
+        addons_total = 0
+        links = links_by_product.get(product.pk, {})
+
+        for order_addon in order_item.addons.all():
+            addon = order_addon.addon
+            link = links.get(addon.pk)
+            if (
+                addon.deleted_at is not None
+                or not addon.is_available
+                or link is None
+            ):
+                _warn(
+                    warnings,
+                    f"افزودنی «{order_addon.addon_name_snapshot}» برای محصول "
+                    f"«{product.name}» در دسترس نیست و حذف شد.",
+                )
+                continue
+
+            quantity = order_addon.quantity
+            if quantity > link.max_quantity:
+                quantity = link.max_quantity
+                _warn(
+                    warnings,
+                    f"تعداد افزودنی «{addon.name}» به حداکثر مجاز "
+                    f"({link.max_quantity}) کاهش یافت.",
+                )
+            if quantity <= 0:
+                continue
+
+            if addon.price != order_addon.unit_price_snapshot:
+                _warn(
+                    warnings,
+                    f"قیمت افزودنی «{addon.name}» تغییر کرده است.",
+                )
+
+            line_total = quantity * addon.price
+            addons_total += line_total
+            addon_lines.append(
+                {
+                    "addon_id": addon.pk,
+                    "name": addon.name,
+                    "quantity": quantity,
+                    "unit_price": addon.price,
+                    "line_total": line_total,
+                }
+            )
+
+        line_total = (product.price * order_item.quantity) + addons_total
+        items.append(
+            {
+                "product_id": product.pk,
+                "name": product.name,
+                "quantity": order_item.quantity,
+                "unit_price": product.price,
+                "addons": addon_lines,
+                "line_total": line_total,
+            }
+        )
+
+    return {"items": items, "warnings": warnings}

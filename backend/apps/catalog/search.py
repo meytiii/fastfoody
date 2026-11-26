@@ -1,5 +1,5 @@
 """
-Reusable search / filtering / sorting helpers for the public product catalog.
+Query building for the public product catalog, backed by PostgreSQL.
 
 This module owns *only* query construction for product discovery. Business
 visibility rules (which products are publicly discoverable) live in
@@ -7,55 +7,87 @@ visibility rules (which products are publicly discoverable) live in
 and the autocomplete endpoint reuse this module so there is a single search
 implementation.
 
+Search strategy:
+- ``SearchVector`` combines ``Product.name`` (weight A), ``Category.name``
+  (weight B) and ``Product.description`` (weight C). Persian/Arabic letter
+  variants and the food synonym dictionary expand each query word, so stored
+  Arabic spellings still match a Persian query.
+- ``TrigramSimilarity`` on the product name adds fuzzy/partial matches;
+  autocomplete's prefix match is served by the ``gin_trgm_ops`` GIN index.
+- Relevance is the sum of the weighted full-text rank and the trigram
+  similarity, so exact keyword and fuzzy matches rank naturally.
+
 Data model notes (verified against ``apps/catalog/models.py``):
 - ``Product.price`` is the effective selling price (integer toman) and is the
   value orders snapshot. ``Product.compare_at_price`` is the optional original
   price, so a discount never changes historical order totals.
 - Availability is manual: ``Product.status`` is the only source of truth and
   the project intentionally does not track numeric stock quantities.
-- Search matching goes through ``ProductSearchToken`` (an indexed inverted
-  index) rather than leading-wildcard ``icontains`` scans.
 - There are no variant, SKU, tag or ingredient fields. Filters that would need
   them are not offered here.
 """
 
 from __future__ import annotations
 
-import difflib
 from functools import lru_cache
-from typing import Any, Sequence
+from typing import Sequence
 
 from django.conf import settings
+from django.contrib.postgres.search import (
+    SearchQuery,
+    SearchRank,
+    SearchVector,
+    TrigramSimilarity,
+)
 from django.db.models import (
-    Case,
     F,
+    FloatField,
     IntegerField,
     Q,
     QuerySet,
     Sum,
     Value,
-    When,
 )
+from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
-from .models import Product, ProductSearchToken
-from .search_index import (
+from .models import Product
+from .normalization import (
     ARABIC_KAF,
     ARABIC_YEH,
     MAX_SEARCH_LENGTH,
-    MAX_SEARCH_TOKENS,
     PERSIAN_KAF,
     PERSIAN_YEH,
-    TOKEN_MAX_LENGTH,
     normalize_search_query,
     tokenize_search_query,
 )
 
-MAX_PRICE_FILTER = 1_000_000_000  # 1e9 toman; guards SQLite integer overflow
+MAX_PRICE_FILTER = 1_000_000_000  # 1e9 toman; keeps filter values bounded
+
+#: PostgreSQL has no built-in Persian text-search configuration, so the
+#: language-agnostic ``simple`` configuration is used for stemming/stopwords.
+#: Matching is still exact-word; trigram similarity covers partial spellings.
+SEARCH_CONFIG = "simple"
+
+#: Trigram matching is only meaningful once a query has at least two characters.
+TRIGRAM_MIN_QUERY_LENGTH = 2
 
 #: Default catalog order, mirroring ``Product.Meta.ordering`` plus a deterministic
 #: tie-breaker so pagination is stable.
 DEFAULT_ORDERING = ("display_order", "name", "pk")
+
+#: Relevance ordering requires the ``search_score``/``search_similarity``
+#: annotations added by ``apply_search``.
+RELEVANCE_ORDERING = ("-search_score", "display_order", "name", "pk")
+
+#: Autocomplete ranking: closest name first, then the best-selling products.
+AUTOCOMPLETE_ORDERING = (
+    "-search_similarity",
+    "-sales_count",
+    "display_order",
+    "name",
+    "pk",
+)
 
 #: Explicit allowlist — client input never reaches ``order_by`` unfiltered.
 SORT_ORDERINGS: dict[str, tuple[str, ...]] = {
@@ -88,18 +120,21 @@ SYNONYM_GROUPS: tuple[tuple[str, ...], ...] = (
     ("میگو", "shrimp"),
 )
 
-# Tolerance for the autocomplete fallback: a query word is replaced only by a
-# product-name word that is this similar (difflib ratio, 0..1).
-FUZZY_MIN_TOKEN_LENGTH = 3
-
 
 # ---------------------------------------------------------------------------
 # Normalization (re-exported for callers/tests that import it from here)
 # ---------------------------------------------------------------------------
 __all__ = [
+    "AUTOCOMPLETE_ORDERING",
     "MAX_PRICE_FILTER",
     "MAX_SEARCH_LENGTH",
+    "RELEVANCE_ORDERING",
+    "SEARCH_CONFIG",
     "SORT_CHOICES",
+    "apply_autocomplete",
+    "apply_filters",
+    "apply_ordering",
+    "apply_search",
     "build_relevance_ordering",
     "build_search_filter",
     "normalize_search_query",
@@ -151,7 +186,7 @@ def _synonym_map() -> dict[str, tuple[str, ...]]:
 
 
 def _expand_token(token: str) -> list[str]:
-    """All spellings/synonyms of a single word, capped to bound the lookup."""
+    """All spellings/synonyms of a single word, capped to bound the query."""
     expanded: list[str] = []
     for variant in search_variants(token):
         expanded.append(variant)
@@ -161,28 +196,43 @@ def _expand_token(token: str) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
     for candidate in expanded:
-        candidate = candidate.lower()[:TOKEN_MAX_LENGTH]
+        candidate = candidate.lower()
         if candidate and candidate not in seen:
             seen.add(candidate)
             result.append(candidate)
     return result[:8]
 
 
+def _similarity_threshold() -> float:
+    return float(getattr(settings, "CATALOG_SEARCH_SIMILARITY_THRESHOLD", 0.2))
+
+
 # ---------------------------------------------------------------------------
 # Query building
 # ---------------------------------------------------------------------------
+def build_search_vector() -> SearchVector:
+    """Weighted full-text vector over product name, category name and description."""
+    return (
+        SearchVector("name", weight="A", config=SEARCH_CONFIG)
+        + SearchVector("category__name", weight="B", config=SEARCH_CONFIG)
+        + SearchVector("description", weight="C", config=SEARCH_CONFIG)
+    )
+
+
+def _token_query(token: str) -> Q:
+    """OR every spelling/synonym of one query word against the search vector."""
+    query = Q()
+    for alternative in _expand_token(token):
+        query |= Q(search_vector=SearchQuery(alternative, config=SEARCH_CONFIG))
+    return query
+
+
 def build_search_filter(term: str) -> Q:
     """
-    Build a token-AND search filter backed by ``ProductSearchToken``.
+    Build a word-AND full-text filter over the ``search_vector`` annotation.
 
-    Every query word must match at least one indexed token (or a synonym of
-    that word). Each word becomes a ``pk__in`` subquery over the token index, so
-    the planner starts from ``catalog_search_token_idx`` and reads only the
-    matching products instead of scanning the product table with
-    ``LIKE '%...%'``. Word subqueries are AND-ed; the inner ``DISTINCT`` keeps
-    the id lists duplicate-free.
-
-    A query without words produces an empty ``Q`` (no filtering).
+    Every query word must match at least one weighted field (or a synonym of
+    that word). A query without words produces an empty ``Q`` (no filtering).
     """
     tokens = tokenize_search_query(term)
     if not tokens:
@@ -190,49 +240,66 @@ def build_search_filter(term: str) -> Q:
 
     combined = Q()
     for token in tokens:
-        # Drive the query from the token index (indexed ``token`` lookups) and
-        # intersect the resulting product ids, instead of scanning products and
-        # probing the index once per row.
-        matches = (
-            ProductSearchToken.objects.filter(token__in=_expand_token(token))
-            .values("product_id")
-            .distinct()
-        )
-        combined &= Q(pk__in=matches)
+        combined &= _token_query(token)
     return combined
 
 
-def build_relevance_ordering(term: str) -> list[Any]:
+def apply_search(queryset: QuerySet[Product], term: str) -> QuerySet[Product]:
     """
-    Rank: exact name > name prefix > name substring > slug/category/description.
+    Annotate and filter a queryset with PostgreSQL full-text + trigram search.
 
-    Ties fall back to the default catalog order, so relevance never produces
-    unstable pagination.
+    The filter accepts either a weighted full-text match or a product name that
+    is trigram-similar to the query (or contains it as a substring), so exact
+    words, Persian/Arabic variants, synonyms and partial/fuzzy spellings all
+    return rows. ``search_score`` combines both signals for relevance ordering.
     """
-    exact = Q()
-    prefix = Q()
-    name_partial = Q()
-    related_partial = Q()
-
-    for variant in search_variants(term):
-        exact |= Q(name__iexact=variant)
-        prefix |= Q(name__istartswith=variant)
-        name_partial |= Q(name__icontains=variant)
-        related_partial |= (
-            Q(slug__icontains=variant)
-            | Q(category__name__icontains=variant)
-            | Q(description__icontains=variant)
-        )
-
-    score = Case(
-        When(exact, then=Value(5)),
-        When(prefix, then=Value(4)),
-        When(name_partial, then=Value(3)),
-        When(related_partial, then=Value(2)),
-        default=Value(0),
-        output_field=IntegerField(),
+    queryset = queryset.annotate(search_vector=build_search_vector())
+    queryset = queryset.annotate(
+        search_rank=SearchRank(
+            F("search_vector"), SearchQuery(term, config=SEARCH_CONFIG)
+        ),
+        search_similarity=TrigramSimilarity("name", term),
     )
-    return [score.desc(), "display_order", "name", "pk"]
+    queryset = queryset.annotate(
+        search_score=ExpressionWrapper(
+            F("search_rank") + F("search_similarity"),
+            output_field=FloatField(),
+        )
+    )
+
+    match = build_search_filter(term) | Q(name__icontains=term)
+    if len(term) >= TRIGRAM_MIN_QUERY_LENGTH:
+        match |= Q(search_similarity__gte=_similarity_threshold())
+    return queryset.filter(match)
+
+
+def apply_autocomplete(
+    queryset: QuerySet[Product], term: str
+) -> QuerySet[Product]:
+    """
+    Filter/annotate an autocomplete queryset using trigram similarity and prefix.
+
+    ``name__istartswith`` is served by the trigram GIN index, while
+    ``TrigramSimilarity`` catches typos. Synonyms of the whole term are also
+    accepted as prefixes. ``search_similarity`` drives the ordering.
+    """
+    queryset = queryset.annotate(search_similarity=TrigramSimilarity("name", term))
+
+    prefix = Q()
+    for candidate in search_variants(term):
+        prefix |= Q(name__istartswith=candidate)
+        for synonym in _synonym_map().get(candidate.lower(), ()):
+            prefix |= Q(name__istartswith=synonym)
+
+    match = prefix
+    if len(term) >= TRIGRAM_MIN_QUERY_LENGTH:
+        match |= Q(search_similarity__gte=_similarity_threshold())
+    return queryset.filter(match)
+
+
+def build_relevance_ordering() -> tuple[str, ...]:
+    """Ordering that ranks combined full-text/trigram relevance first."""
+    return RELEVANCE_ORDERING
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +391,7 @@ def apply_ordering(
     """
     if sort == "relevance" or (not sort and term):
         if term:
-            return queryset.order_by(*build_relevance_ordering(term))
+            return queryset.order_by(*build_relevance_ordering())
         sort = "default"
 
     if sort == "popularity":
@@ -334,53 +401,3 @@ def apply_ordering(
 
     ordering = SORT_ORDERINGS.get(sort or "default", DEFAULT_ORDERING)
     return queryset.order_by(*ordering)
-
-
-# ---------------------------------------------------------------------------
-# Typo tolerance (bounded, autocomplete-only fallback)
-# ---------------------------------------------------------------------------
-def correct_search_term(
-    term: str,
-    vocabulary: Sequence[str],
-    *,
-    cutoff: float | None = None,
-) -> str | None:
-    """
-    Return ``term`` with misspelled words replaced by close vocabulary words.
-
-    ``difflib`` performs a Levenshtein-like ratio comparison in Python. The
-    vocabulary is built from product names only (see
-    ``selectors.get_search_vocabulary``) and the caller applies this to at most
-    one query, only when the exact search found nothing — so no per-request scan
-    of the catalog happens on the normal path.
-
-    Returns ``None`` when no word can be corrected.
-    """
-    tokens = tokenize_search_query(term)
-    if not tokens or not vocabulary:
-        return None
-
-    threshold = (
-        cutoff
-        if cutoff is not None
-        else getattr(settings, "CATALOG_SEARCH_FUZZY_CUTOFF", 0.8)
-    )
-    vocabulary_lower = [word.lower() for word in vocabulary]
-
-    corrected: list[str] = []
-    changed = False
-    for token in tokens:
-        if token.lower() in vocabulary_lower or len(token) < FUZZY_MIN_TOKEN_LENGTH:
-            corrected.append(token)
-            continue
-
-        matches = difflib.get_close_matches(
-            token.lower(), vocabulary_lower, n=1, cutoff=threshold
-        )
-        if matches:
-            corrected.append(matches[0])
-            changed = True
-        else:
-            corrected.append(token)
-
-    return " ".join(corrected) if changed else None

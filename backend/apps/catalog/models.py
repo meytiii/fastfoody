@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from common.models import BaseModel
@@ -23,6 +24,14 @@ class Category(BaseModel):
                 fields=["slug"],
                 condition=models.Q(deleted_at__isnull=True),
                 name="unique_alive_category_slug",
+            ),
+        ]
+        indexes = [
+            # Trigram index for fuzzy ancestry matching in product search.
+            GinIndex(
+                fields=["name"],
+                name="catalog_category_name_trgm",
+                opclasses=["gin_trgm_ops"],
             ),
         ]
         verbose_name = "Category"
@@ -115,6 +124,18 @@ class Product(BaseModel):
                 fields=["category", "status"],
                 name="catalog_product_cat_status_idx",
             ),
+            # Trigram indexes power prefix matching and TrigramSimilarity without
+            # a sequential scan of the product table.
+            GinIndex(
+                fields=["name"],
+                name="catalog_product_name_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
+            GinIndex(
+                fields=["slug"],
+                name="catalog_product_slug_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
         ]
         verbose_name = "Product"
         verbose_name_plural = "Products"
@@ -134,46 +155,6 @@ class Product(BaseModel):
             return 0
         assert self.compare_at_price is not None
         return round((self.compare_at_price - self.price) * 100 / self.compare_at_price)
-
-
-class ProductSearchToken(models.Model):
-    """
-    Inverted-index entry powering catalog search.
-
-    Each row maps one normalized word (or one of its prefixes) to a product.
-    Querying through this table uses an index on ``token`` instead of scanning
-    every product row with ``icontains``, which is what makes a large catalog
-    (tens of thousands of products) practical on both SQLite and PostgreSQL.
-
-    Rows are maintained by ``apps.catalog.indexing`` from the catalog services;
-    ``rebuild_search_index`` rebuilds them after bulk imports.
-    """
-
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        related_name="search_tokens",
-    )
-    token = models.CharField(max_length=48)
-    #: 3 = product name, 2 = category name, 1 = slug/description. Reserved for
-    #: future weighted ranking; ordering is currently done on the product query.
-    weight = models.PositiveSmallIntegerField(default=1)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["product", "token"],
-                name="unique_product_search_token",
-            )
-        ]
-        indexes = [
-            models.Index(fields=["token"], name="catalog_search_token_idx"),
-        ]
-        verbose_name = "Product search token"
-        verbose_name_plural = "Product search tokens"
-
-    def __str__(self) -> str:
-        return f"{self.token} -> {self.product_id}"
 
 
 class ProductAddOn(BaseModel):

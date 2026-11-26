@@ -13,7 +13,6 @@ from .cache import bump_search_cache_version
 from .constants import (
     CACHE_KEY_LUCKY_WHEEL,
     CACHE_KEY_MENU,
-    CACHE_KEY_SEARCH_VOCAB,
     CACHE_KEY_UPSELL,
 )
 from .exceptions import (
@@ -23,8 +22,7 @@ from .exceptions import (
     ProductNotFoundError,
     SlugAlreadyExistsError,
 )
-from .indexing import refresh_product_search_index, refresh_products_search_index
-from .models import AddOn, Category, Product, ProductAddOn, ProductSearchToken
+from .models import AddOn, Category, Product, ProductAddOn
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +33,6 @@ logger = logging.getLogger(__name__)
 def _invalidate_catalog_cache() -> None:
     cache.delete(CACHE_KEY_MENU)
     cache.delete(CACHE_KEY_LUCKY_WHEEL)
-    cache.delete(CACHE_KEY_SEARCH_VOCAB)
     cache.delete(CACHE_KEY_UPSELL)
     # ``get_lucky_wheel_products`` writes one key per category; those derived
     # keys must be cleared too or they stay stale until the timeout expires.
@@ -92,10 +89,6 @@ def update_category(*, category_id: int, data: dict[str, Any]) -> Category:
         raise CategoryNotFoundError()
 
     image = data.pop("image", None)
-    searchable_category_change = any(
-        field in data and data[field] != getattr(category, field)
-        for field in ("name", "slug")
-    )
 
     if "slug" in data and data["slug"] != category.slug:
         if Category.objects.filter(slug=data["slug"]).exclude(pk=category.pk).exists():
@@ -110,12 +103,6 @@ def update_category(*, category_id: int, data: dict[str, Any]) -> Category:
         category.image = image
         category.save(update_fields=["image", "updated_at"])
         generate_webp_for_field(category)
-
-    if searchable_category_change:
-        # Category names are part of every product's search index.
-        refresh_products_search_index(
-            Product.objects.filter(category=category).select_related("category")
-        )
 
     _schedule_invalidation()
     return category
@@ -240,7 +227,6 @@ def create_product(*, data: dict[str, Any]) -> Product:
         generate_webp_for_field(product)
 
     _set_product_addons(product, addon_links)
-    refresh_product_search_index(product)
     _schedule_invalidation()
     return product
 
@@ -282,7 +268,6 @@ def update_product(*, product_id: int, data: dict[str, Any]) -> Product:
     if addon_links_provided:
         _set_product_addons(product, addon_links)
 
-    refresh_product_search_index(product)
     _schedule_invalidation()
     return product
 
@@ -295,7 +280,6 @@ def delete_product(*, product_id: int) -> None:
         raise ProductNotFoundError()
 
     ProductAddOn.objects.filter(product=product).delete()
-    ProductSearchToken.objects.filter(product=product).delete()
     product.soft_delete()
     _schedule_invalidation()
 

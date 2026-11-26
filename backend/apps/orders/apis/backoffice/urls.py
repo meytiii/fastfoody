@@ -4,6 +4,7 @@ from django.urls import path
 
 from .views import (
     CancelOrderView,
+    LiveOrdersStreamView,
     LiveOrdersView,
     MarkCompletedView,
     MarkPrintedView,
@@ -16,6 +17,11 @@ from .views import (
 
 urlpatterns = [
     path("", OrderListView.as_view(), name="backoffice-orders"),
+    path(
+        "live/stream/",
+        LiveOrdersStreamView.as_view(),
+        name="backoffice-orders-live-stream",
+    ),
     path("live/", LiveOrdersView.as_view(), name="backoffice-orders-live"),
     path(
         "<int:pk>/",

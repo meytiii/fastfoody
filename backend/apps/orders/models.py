@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import Any
+
 from django.db import models
 
 from common.models import BaseModel
+
+
+def normalize_promo_code(value: str) -> str:
+    """Promo codes are case-insensitive and stored in a canonical form."""
+    return (value or "").strip().upper()
 
 
 class Order(BaseModel):
@@ -57,6 +64,8 @@ class Order(BaseModel):
     subtotal = models.PositiveIntegerField(default=0)
     delivery_fee = models.PositiveIntegerField(default=0)
     packaging_fee = models.PositiveIntegerField(default=0)
+    promo_code_snapshot = models.CharField(max_length=50, blank=True)
+    discount_amount = models.PositiveIntegerField(default=0)
     total_amount = models.PositiveIntegerField(default=0)
 
     prep_time_minutes = models.PositiveSmallIntegerField(default=0)
@@ -112,6 +121,65 @@ class Order(BaseModel):
     def __str__(self) -> str:
         label = self.daily_number or self.pk
         return f"Order #{label} ({self.status})"
+
+
+class PromoCode(BaseModel):
+    class DiscountType(models.TextChoices):
+        PERCENTAGE = "PERCENTAGE", "Percentage"
+        FIXED = "FIXED", "Fixed amount"
+
+    code = models.CharField(max_length=50, unique=True, db_index=True)
+    discount_type = models.CharField(
+        max_length=16,
+        choices=DiscountType.choices,
+        default=DiscountType.PERCENTAGE,
+    )
+    discount_value = models.PositiveIntegerField()
+    max_discount_amount = models.PositiveIntegerField(null=True, blank=True)
+    min_order_amount = models.PositiveIntegerField(default=0)
+    valid_from = models.DateTimeField(null=True, blank=True)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    max_total_uses = models.PositiveIntegerField(null=True, blank=True)
+    max_uses_per_customer = models.PositiveIntegerField(default=1)
+    first_order_only = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta(BaseModel.Meta):
+        verbose_name = "Promo Code"
+        verbose_name_plural = "Promo Codes"
+
+    def __str__(self) -> str:
+        return self.code
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.code = normalize_promo_code(self.code)
+        super().save(*args, **kwargs)
+
+
+class PromoCodeUsage(BaseModel):
+    promo_code = models.ForeignKey(
+        PromoCode,
+        on_delete=models.PROTECT,
+        related_name="usages",
+    )
+    customer = models.ForeignKey(
+        "accounts.Customer",
+        on_delete=models.CASCADE,
+        related_name="promo_usages",
+    )
+    order = models.OneToOneField(
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="promo_usage",
+    )
+    discount_amount = models.PositiveIntegerField()
+
+    class Meta(BaseModel.Meta):
+        verbose_name = "Promo Code Usage"
+        verbose_name_plural = "Promo Code Usages"
+
+    def __str__(self) -> str:
+        return f"{self.promo_code_id} -> order {self.order_id}"
 
 
 class OrderItem(BaseModel):

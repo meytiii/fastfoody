@@ -21,6 +21,7 @@ ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.stri
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.postgres",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "rest_framework_simplejwt.token_blacklist",
@@ -65,41 +66,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # ---------------------------------------------------------------------------
-# Database
+# Database — PostgreSQL is the only supported backend
 # ---------------------------------------------------------------------------
-# SQLite is the active *development* database. It is selected by default and can
-# be overridden per environment; PostgreSQL configuration is kept intact so the
-# project can switch back by setting DB_ENGINE=postgres in the env only.
-#
-#   DB_ENGINE=sqlite    (default) -> db.sqlite3, no server required
-#   DB_ENGINE=postgres            -> POSTGRES_* variables below
-#
-# The application code deliberately avoids PostgreSQL-only features (no
-# ArrayField, JSONField lookups, Full Text Search or trigram indexes), so no
-# model or query change is needed when switching engines.
-DB_ENGINE = config("DB_ENGINE", default="sqlite").strip().lower()
-
-if DB_ENGINE in {"postgres", "postgresql"}:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": config("POSTGRES_DB", default="fastfood"),
-            "USER": config("POSTGRES_USER", default="fastfood"),
-            "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
-            "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
-            "PORT": config("POSTGRES_PORT", default=5432, cast=int),
-            "CONN_MAX_AGE": 60,
-        }
+# The catalog relies on PostgreSQL-native full-text search and pg_trgm, so there
+# is deliberately no SQLite fallback. Every value comes from the environment;
+# see .env.example for the defaults used by local development.
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("POSTGRES_DB", default="fastfood"),
+        "USER": config("POSTGRES_USER", default="fastfood"),
+        "PASSWORD": config("POSTGRES_PASSWORD", default="fastfood"),
+        "HOST": config("POSTGRES_HOST", default="127.0.0.1"),
+        "PORT": config("POSTGRES_PORT", default=5432, cast=int),
+        "CONN_MAX_AGE": 60,
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": config("SQLITE_PATH", default=str(BASE_DIR / "db.sqlite3")),
-            # Wait instead of failing immediately when two writers overlap.
-            "OPTIONS": {"timeout": 20},
-        }
-    }
+}
 
 # ---------------------------------------------------------------------------
 # Cache
@@ -300,18 +282,14 @@ CATALOG_SEARCH_SYNONYMS: dict[str, list[str]] = (
 if not isinstance(CATALOG_SEARCH_SYNONYMS, dict):
     raise ValueError("CATALOG_SEARCH_SYNONYMS must be a JSON object.")
 
-# Bounded typo tolerance for autocomplete: only used when a search returns no
-# rows. Correction compares query words with product-name words (Levenshtein via
-# difflib); it is not a replacement for a real search engine.
-CATALOG_SEARCH_FUZZY_ENABLED = config(
-    "CATALOG_SEARCH_FUZZY_ENABLED", default=True, cast=bool
+# Minimum pg_trgm similarity for fuzzy matches. Search uses it to keep partial
+# matches alongside full-text hits; autocomplete uses it for typo tolerance and
+# "did you mean" uses the (slightly stricter) threshold below.
+CATALOG_SEARCH_SIMILARITY_THRESHOLD = config(
+    "CATALOG_SEARCH_SIMILARITY_THRESHOLD", default=0.2, cast=float
 )
-CATALOG_SEARCH_FUZZY_CUTOFF = config(
-    "CATALOG_SEARCH_FUZZY_CUTOFF", default=0.8, cast=float
-)
-# Maximum number of product names used to build the in-process vocabulary.
-CATALOG_SEARCH_VOCAB_LIMIT = config(
-    "CATALOG_SEARCH_VOCAB_LIMIT", default=2000, cast=int
+CATALOG_DID_YOU_MEAN_THRESHOLD = config(
+    "CATALOG_DID_YOU_MEAN_THRESHOLD", default=0.25, cast=float
 )
 
 # Cached search/autocomplete responses. Keys include the normalized query, all

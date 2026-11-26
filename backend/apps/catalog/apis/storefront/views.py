@@ -49,9 +49,11 @@ _SEARCH_PARAMETERS = [
         "q",
         OpenApiTypes.STR,
         description=(
-            "Free-text search (max 100 chars). Every word must match the name, "
-            "slug, description or category name. Persian/Arabic letter variants "
-            "and the built-in synonym groups are handled server-side."
+            "Free-text search (max 100 chars). Words are matched with weighted "
+            "PostgreSQL full-text search over product name, category name and "
+            "description, plus trigram similarity for partial/fuzzy matches. "
+            "Persian/Arabic letter variants and the synonym groups are handled "
+            "server-side."
         ),
     ),
     OpenApiParameter(
@@ -188,9 +190,11 @@ class ProductListView(StorefrontAPIView):
         summary="Search and filter public products",
         description=(
             "Returns paginated, publicly visible products (not HIDDEN, active "
-            "category). Search words are AND-ed over an indexed token list built "
-            "from name, slug, description and category name; Persian/Arabic "
-            "letter variants and synonym groups are applied server-side. "
+            "category). Search uses weighted PostgreSQL full-text search "
+            "(name/category/description) combined with pg_trgm similarity for "
+            "partial and fuzzy matches; Persian/Arabic letter variants and "
+            "synonym groups are applied server-side. An empty result set "
+            "includes did_you_mean when a close product or category name exists. "
             "Responses are cached per query/filter/sort/page and invalidated by "
             "catalog writes. Invalid parameters return 400 with the standard "
             "error envelope."
@@ -257,6 +261,11 @@ class ProductListView(StorefrontAPIView):
                 ProductSummaryPublicSerializer(page, many=True).data
             ).data
         )
+        query = params.get("q")
+        if query and paginator.count == 0:
+            did_you_mean = selectors.get_did_you_mean(query)
+            if did_you_mean:
+                payload["did_you_mean"] = did_you_mean
         if cache_enabled and cache_key:
             set_cached_response(cache_key, payload, timeout=ttl)
         return Response(payload)
@@ -268,8 +277,9 @@ class ProductSuggestionsView(StorefrontAPIView):
 
     A blank/whitespace query returns an empty result set (not the whole
     catalog); the requested ``limit`` is clamped to the configured maximum.
-    When the query has no match and typo tolerance is enabled, one bounded
-    correction is attempted and reported as ``did_you_mean``.
+    Name prefix and trigram matching are both index-backed. When the query has
+    no match, the closest product/category name is reported as
+    ``did_you_mean`` (PostgreSQL trigram similarity).
     """
 
     permission_classes = [AllowAny]
@@ -280,10 +290,11 @@ class ProductSuggestionsView(StorefrontAPIView):
         operation_id="storefront_catalog_suggestions",
         summary="Autocomplete product suggestions",
         description=(
-            "Minimal product rows ordered by relevance. Blank q returns an "
-            "empty list. If no row matches and typo tolerance is enabled, the "
-            "closest product words are tried once and returned in "
-            "did_you_mean (null when no correction matched)."
+            "Minimal product rows ordered by trigram relevance and popularity. "
+            "Blank q returns an empty list. Prefix matching and trigram "
+            "similarity use the catalog GIN indexes; if no row matches, the "
+            "closest product or category name is returned in did_you_mean "
+            "(null when nothing is close enough)."
         ),
         parameters=[
             OpenApiParameter(

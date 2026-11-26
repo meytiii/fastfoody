@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.orders.models import Order
 from apps.orders.services import mark_order_paid, revalidate_order_for_payment
+from apps.orders.sse import publish_order_event
 from common.exceptions import NotFoundError, OrderStateError
 
 from .exceptions import (
@@ -169,7 +170,13 @@ def verify_payment(*, authority: str, status: str) -> Payment:
         ]
     )
 
-    mark_order_paid(order_id=payment.order_id, paid_at=payment.verified_at)
+    order = mark_order_paid(
+        order_id=payment.order_id, paid_at=payment.verified_at
+    )
+    # Publish only after the payment/order transaction commits.
+    transaction.on_commit(
+        lambda: publish_order_event(order, "order.created_or_paid")
+    )
     logger.info(
         "Payment %s verified (ref_id=%s) for order %s",
         payment.pk,

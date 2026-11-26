@@ -3,28 +3,27 @@ from __future__ import annotations
 from typing import Any
 
 from django.conf import settings
+from django.contrib.postgres.search import TrigramSimilarity
 from django.core.cache import cache
 from django.db.models import Prefetch, Q, QuerySet
 
 from .constants import (
     CACHE_KEY_LUCKY_WHEEL,
     CACHE_KEY_MENU,
-    CACHE_KEY_SEARCH_VOCAB,
     CACHE_KEY_UPSELL,
     CACHE_TIMEOUT_SECONDS,
 )
 from .exceptions import CategoryNotFoundError, ProductNotFoundError
 from .models import AddOn, Category, Product, ProductAddOn
 from .search import (
+    AUTOCOMPLETE_ORDERING,
     annotate_sales_count,
+    apply_autocomplete,
     apply_filters,
     apply_ordering,
-    build_relevance_ordering,
-    build_search_filter,
-    correct_search_term,
+    apply_search,
     normalize_search_query,
 )
-from .search_index import iter_index_tokens
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +250,7 @@ def search_public_products(
     sort: str | None = None,
 ) -> QuerySet[Product]:
     """
-    Apply the public visibility rules, then search, filters and ordering.
+    Apply the public visibility rules, then PostgreSQL search, filters, ordering.
 
     Shared by the storefront product listing (paginated) and the autocomplete
     endpoint (limited), so both always agree on what is discoverable.
@@ -277,45 +276,18 @@ def search_public_products(
         is_main_dish=is_main_dish,
     )
     if term:
-        qs = qs.filter(build_search_filter(term))
+        qs = apply_search(qs, term)
     return apply_ordering(qs, sort=sort, term=term)
-
-
-def get_search_vocabulary() -> list[str]:
-    """
-    Distinct product-name words used by the typo-tolerance fallback.
-
-    Built once per cache window (1 hour) and invalidated with the rest of the
-    catalog cache, so a new product does not stay invisible to autocomplete.
-    """
-    cached = cache.get(CACHE_KEY_SEARCH_VOCAB)
-    if cached is not None:
-        return cached
-
-    limit = getattr(settings, "CATALOG_SEARCH_VOCAB_LIMIT", 2000)
-    names = get_public_product_queryset().values_list("name", flat=True)[:limit]
-    vocabulary = sorted(
-        {
-            word
-            for name in names
-            for word in iter_index_tokens(name)
-            if len(word) >= 3 and not word.isdigit()
-        }
-    )
-    cache.set(CACHE_KEY_SEARCH_VOCAB, vocabulary, timeout=CACHE_TIMEOUT_SECONDS)
-    return vocabulary
 
 
 def _suggestion_queryset(term: str, limit: int) -> QuerySet[Product]:
     # ``only()`` cannot be combined with ``select_related("category")`` (the
     # joined FK would be both deferred and traversed), so the suggestion query
     # drops the join and selects exactly the columns it returns.
-    qs = (
-        get_public_product_queryset()
-        .select_related(None)
-        .filter(build_search_filter(term))
+    qs = apply_autocomplete(
+        get_public_product_queryset().select_related(None), term
     )
-    qs = qs.order_by(*build_relevance_ordering(term))
+    qs = annotate_sales_count(qs).order_by(*AUTOCOMPLETE_ORDERING)
     return qs.only(
         "id",
         "name",
@@ -326,6 +298,45 @@ def _suggestion_queryset(term: str, limit: int) -> QuerySet[Product]:
         "image",
         "webp_image",
     )[:limit]
+
+
+def get_did_you_mean(term: str) -> str | None:
+    """
+    Closest product or category name for a query that returned no rows.
+
+    ``TrigramSimilarity`` runs in PostgreSQL over product and category names;
+    only the single best candidate is returned, and the function is intended
+    for the empty-result path so the normal search stays one query.
+    """
+    normalized = normalize_search_query(term)
+    if len(normalized) < 2:
+        return None
+
+    threshold = float(getattr(settings, "CATALOG_DID_YOU_MEAN_THRESHOLD", 0.25))
+    product_candidate = (
+        get_public_product_queryset()
+        .exclude(name__iexact=normalized)
+        .annotate(similarity=TrigramSimilarity("name", normalized))
+        .filter(similarity__gte=threshold)
+        .order_by("-similarity", "name")
+        .values("name", "similarity")
+        .first()
+    )
+    category_candidate = (
+        Category.objects.filter(is_active=True)
+        .exclude(name__iexact=normalized)
+        .annotate(similarity=TrigramSimilarity("name", normalized))
+        .filter(similarity__gte=threshold)
+        .order_by("-similarity", "name")
+        .values("name", "similarity")
+        .first()
+    )
+
+    candidates = [row for row in (product_candidate, category_candidate) if row]
+    if not candidates:
+        return None
+    best = max(candidates, key=lambda row: row["similarity"])
+    return str(best["name"])
 
 
 def suggest_public_products(
@@ -351,32 +362,21 @@ def suggest_public_products_with_correction(
     limit: int,
 ) -> tuple[QuerySet[Product], str | None]:
     """
-    Autocomplete with a bounded typo-tolerance fallback.
+    Autocomplete with PostgreSQL-backed "did you mean" correction.
 
-    The normal path is exactly one query. Only when that query yields nothing
-    (and fuzzy search is enabled) is the vocabulary consulted, and the result
-    is a single corrected term — never a per-row scan of the catalog. Returns
-    ``(queryset, did_you_mean)``; ``did_you_mean`` is ``None`` when no correction
-    produced results.
+    The normal path is a single trigram/prefix query. Only when it yields no
+    rows is ``get_did_you_mean`` consulted, which returns the closest product
+    or category name (or ``None``). Returns ``(queryset, did_you_mean)``.
     """
     term = normalize_search_query(query)
     if not term:
         return Product.objects.none(), None
 
     queryset = _suggestion_queryset(term, limit)
-    if not getattr(settings, "CATALOG_SEARCH_FUZZY_ENABLED", False):
-        return queryset, None
     if queryset.exists():
         return queryset, None
 
-    corrected = correct_search_term(term, get_search_vocabulary())
-    if not corrected:
-        return queryset, None
-
-    corrected_queryset = _suggestion_queryset(corrected, limit)
-    if not corrected_queryset.exists():
-        return queryset, None
-    return corrected_queryset, corrected
+    return queryset, get_did_you_mean(term)
 
 
 # ---------------------------------------------------------------------------

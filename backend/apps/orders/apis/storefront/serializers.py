@@ -56,6 +56,8 @@ class OrderReadSerializer(serializers.ModelSerializer):
             "subtotal",
             "delivery_fee",
             "packaging_fee",
+            "promo_code_snapshot",
+            "discount_amount",
             "total_amount",
             "prep_time_minutes",
             "expected_ready_at",
@@ -104,9 +106,51 @@ class OrderCreateSerializer(serializers.Serializer):
     notes_to_kitchen = serializers.CharField(
         required=False, allow_blank=True, default=""
     )
+    promo_code = serializers.CharField(
+        max_length=50,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
     items = OrderItemWriteSerializer(many=True)
 
     def validate_items(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not value:
             raise serializers.ValidationError("حداقل یک آیتم لازم است.")
         return value
+
+
+class ValidatePromoSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=50)
+    subtotal = serializers.IntegerField(min_value=0)
+
+
+class ValidatePromoResponseSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    discount_type = serializers.CharField()
+    discount_value = serializers.IntegerField()
+    discount_amount = serializers.IntegerField()
+    subtotal = serializers.IntegerField()
+    discounted_subtotal = serializers.IntegerField()
+
+
+class ReorderAddOnSerializer(serializers.Serializer):
+    addon_id = serializers.IntegerField()
+    name = serializers.CharField()
+    quantity = serializers.IntegerField()
+    unit_price = serializers.IntegerField()
+    line_total = serializers.IntegerField()
+
+
+class ReorderItemSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    name = serializers.CharField()
+    quantity = serializers.IntegerField()
+    unit_price = serializers.IntegerField()
+    addons = ReorderAddOnSerializer(many=True)
+    line_total = serializers.IntegerField()
+
+
+class ReorderResponseSerializer(serializers.Serializer):
+    items = ReorderItemSerializer(many=True)
+    warnings = serializers.ListField(child=serializers.CharField())
