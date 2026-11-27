@@ -25,6 +25,10 @@ class SoftDeleteManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
     def get_queryset(self) -> SoftDeleteQuerySet:
         return super().get_queryset().alive()
 
+    def dead(self) -> SoftDeleteQuerySet:
+        """Return soft-deleted rows explicitly; ``objects`` stays alive-only."""
+        return super().get_queryset().dead()
+
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)

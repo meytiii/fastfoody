@@ -1,0 +1,59 @@
+# Infrastructure dependencies for local development and staging.
+#
+# The Django application deliberately runs directly via Python/Gunicorn (or a
+# process manager); only PostgreSQL and Redis are containerized.
+#
+#   docker compose -f docker-compose.infra.yml up -d
+#   docker compose -f docker-compose.infra.yml ps
+#   docker compose -f docker-compose.infra.yml down
+#
+# Credentials default to the values documented in .env.example and can be
+# overridden through the shell environment or a local .env file.
+
+name: fastfood-infra
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fastfood-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fastfood}
+      POSTGRES_USER: ${POSTGRES_USER:-fastfood}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fastfood}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-fastfood} -d ${POSTGRES_DB:-fastfood}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: fastfood-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres_data:
+    name: fastfood_postgres_data
+  redis_data:
+    name: fastfood_redis_data

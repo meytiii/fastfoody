@@ -18,6 +18,31 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 _allowed_hosts = config("ALLOWED_HOSTS", default="127.0.0.1,localhost")
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
 
+# ---------------------------------------------------------------------------
+# CORS / CSRF — browser clients (storefront and backoffice)
+# ---------------------------------------------------------------------------
+# The Backoffice authenticates with session cookies, so credentialed CORS is
+# required. Origins are explicit (a wildcard cannot be combined with
+# credentials). CSRF trusted origins cover the same frontend hosts.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        "CORS_ALLOWED_ORIGINS",
+        default="http://127.0.0.1:3000,http://localhost:3000",
+    ).split(",")
+    if origin.strip()
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        "CSRF_TRUSTED_ORIGINS",
+        default="http://127.0.0.1:3000,http://localhost:3000",
+    ).split(",")
+    if origin.strip()
+]
+
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -27,6 +52,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "rest_framework",
     "drf_spectacular",
+    "corsheaders",
     "common",
     "apps.accounts",
     "apps.cms",
@@ -39,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -142,10 +169,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.Customer"
 
+# The browsable API is a development aid only; pre-production and production
+# stay JSON-only so HTML pages never leak into API responses.
+_DEFAULT_RENDERER_CLASSES = ["rest_framework.renderers.JSONRenderer"]
+if DEBUG:
+    _DEFAULT_RENDERER_CLASSES.append("rest_framework.renderers.BrowsableAPIRenderer")
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "common.exception_handler.custom_exception_handler",
-    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_RENDERER_CLASSES": _DEFAULT_RENDERER_CLASSES,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 20,
 
@@ -252,12 +285,14 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
-# Inline task execution is a development convenience only; it follows DEBUG so a
-# deployed environment does not run SMS/HTTP calls inside the web process.
+# Inline task execution is opt-in. Staging and production run real workers and
+# beat, so the safe default is to enqueue tasks. Set
+# CELERY_TASK_ALWAYS_EAGER=True only when running without a worker (tests,
+# single-process demos).
 CELERY_TASK_ALWAYS_EAGER = config(
-    "CELERY_TASK_ALWAYS_EAGER", default=DEBUG, cast=bool
+    "CELERY_TASK_ALWAYS_EAGER", default=False, cast=bool
 )
-CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 
 
 MANAGER_PHONE = config("MANAGER_PHONE", default="")
@@ -331,12 +366,16 @@ SMS_IR_SENDER = config("SMS_IR_SENDER", default="")
 
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
-    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=True, cast=bool)
-    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=True, cast=bool)
-    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=31_536_000, cast=int)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # HTTPS enforcement is opt-in. An HTTP-only staging server must be able to
+    # boot with DEBUG=False without redirecting every request to https:// or
+    # dropping cookies. Enable each flag explicitly once TLS terminates in front
+    # of Django.
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=False, cast=bool)
+    SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
+    CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=False, cast=bool)
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=0, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     X_FRAME_OPTIONS = "DENY"
     SECURE_CONTENT_TYPE_NOSNIFF = True

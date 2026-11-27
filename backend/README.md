@@ -57,7 +57,7 @@ fastfood-backend/
 ├── config/
 │   ├── __init__.py            # exports celery_app
 │   ├── settings.py            # the only settings file (D1 — no split);
-│   │                          # DB_ENGINE selects SQLite (default) or PostgreSQL
+│   │                          # PostgreSQL-only database configuration
 │   ├── celery.py              # app + autodiscover
 │   ├── urls.py                # health + schema + docs + mounts
 │   ├── api_urls_storefront.py
@@ -116,7 +116,7 @@ There is no Repository layer (D19).
 | Layer | Technology |
 | --- | --- |
 | Framework | Django 5.x + DRF 3.15 |
-| DB | PostgreSQL 16 (dev: SQLite) |
+| DB | PostgreSQL 16 |
 | Cache | Redis 7 |
 | Async | Celery 5.4 + Beat (2 queues: high_priority and default) |
 | JWT | djangorestframework-simplejwt (Storefront only) |
@@ -161,16 +161,22 @@ JWT: Storefront JWT + Session → Backoffice Session only
 ### Prerequisites
 
 - Python 3.12
-- Redis 7 — optional for the default dev setup (`CACHE_BACKEND=locmem`); required for
-  `CACHE_BACKEND=redis` or Celery workers
+- Docker Desktop (or Docker Engine + Compose v2)
 
-```powershell
-# Redis via Docker
-docker run -d --name fastfood-redis -p 6379:6379 redis:7-alpine
+PostgreSQL 16 and Redis 7 run as containers; the Django application runs directly
+through Python/Gunicorn. Start the infrastructure dependencies with:
 
-# or if installed directly
-redis-server
+```bash
+docker compose -f docker-compose.infra.yml up -d
+docker compose -f docker-compose.infra.yml ps
 ```
+
+The compose file exposes PostgreSQL on `5432` and Redis on `6379`, uses the
+`fastfood` / `fastfood` / `fastfood` credentials from `.env.example`, and persists
+data in the named volumes `fastfood_postgres_data` and `fastfood_redis_data`.
+PostgreSQL and Redis only report healthy after their healthchecks pass. Stop the
+services with `docker compose -f docker-compose.infra.yml down` (add `-v` to also
+delete the persisted volumes).
 
 ### Installation
 
@@ -181,21 +187,27 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-.env for dev (SQLite)
+.env for dev / staging
 
 ```dotenv
 SECRET_KEY=dev-key-not-for-production
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 
-# SQLite — no Postgres and no Redis server needed for the API to boot
-DB_ENGINE=sqlite
-# SQLITE_PATH=./db.sqlite3        # optional; defaults to BASE_DIR/db.sqlite3
-CACHE_BACKEND=locmem              # use `redis` (with REDIS_URL) to mirror production
+POSTGRES_DB=fastfood
+POSTGRES_USER=fastfood
+POSTGRES_PASSWORD=fastfood
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
 
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+CSRF_TRUSTED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+
+CACHE_BACKEND=redis
 REDIS_URL=redis://127.0.0.1:6379/0
 CELERY_BROKER_URL=redis://127.0.0.1:6379/1
 CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/2
+CELERY_TASK_ALWAYS_EAGER=False
 
 MANAGER_PHONE=09123456789
 
@@ -211,28 +223,39 @@ JWT_ACCESS_LIFETIME_MINUTES=60
 JWT_REFRESH_LIFETIME_DAYS=7
 ```
 
-Database selection lives in `config/settings.py` (no separate settings module):
-
-```python
-DB_ENGINE = config("DB_ENGINE", default="sqlite")  # "sqlite" | "postgres"
-```
-
-With `DB_ENGINE=sqlite` (the default) Django uses `SQLITE_PATH` or
-`BASE_DIR/db.sqlite3`. For PostgreSQL set `DB_ENGINE=postgres` plus the existing
-`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`,
-`POSTGRES_PORT` variables; no code change is required. `CACHE_BACKEND=locmem`
-(the default) uses Django's in-process cache, so Redis is optional in dev.
-
-`CELERY_TASK_ALWAYS_EAGER` defaults to the value of `DEBUG`; in dev all Celery tasks
-(OTP SMS, order, prep time change) run inline in the runserver process instead of the
-Redis queue, so no worker or beat is needed.
+PostgreSQL is the only supported database backend (`config/settings.py` has no
+SQLite fallback or engine switch). `CACHE_BACKEND=locmem` keeps Redis optional for
+quick local runs; set `CACHE_BACKEND=redis` to mirror staging. `CELERY_TASK_ALWAYS_EAGER`
+defaults to `False`; set it to `True` only when running without a worker. See
+`.env.example` for the full annotated list, including the independently controlled
+HTTPS flags (`SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
+`SECURE_HSTS_SECONDS`), which should stay off on an HTTP-only staging server.
 
 ### Startup
 
-```powershell
+```bash
+docker compose -f docker-compose.infra.yml up -d
 python manage.py migrate
-python manage.py create_staff 09123456789 "Test@1234" --superuser
+python manage.py seed_staging_data
 python manage.py runserver
+```
+
+`seed_staging_data` is idempotent: it creates the restaurant settings, CMS sections,
+categories, products, add-ons, promo codes, a superuser (`09120000000`, password from
+`STAGING_ADMIN_PASSWORD` or `Admin1234!`), and a sample customer with addresses only
+when they do not already exist. It is safe to run on every staging deploy.
+
+### Pre-production (staging) process layout
+
+```bash
+# Web process
+gunicorn config.wsgi:application -c gunicorn.conf.py
+
+# Background jobs (two queues are declared in settings)
+celery -A config worker -l info -Q default,high_priority
+
+# Scheduled jobs (expired orders, pending payment re-verification)
+celery -A config beat -l info
 ```
 
 The server starts at http://127.0.0.1:8000. Check:
@@ -258,8 +281,10 @@ devpy runserver
 | SECRET_KEY | ✅ in prod | dev-insecure | signing key for session, CSRF, JWT |
 | DEBUG | — | True | set False in production (enables SSL/HSTS block) |
 | ALLOWED_HOSTS | ✅ in prod | 127.0.0.1,localhost | comma-separated |
-| DB_ENGINE | — | sqlite | `sqlite` (dev) or `postgres` |
-| SQLITE_PATH | — | BASE_DIR/db.sqlite3 | SQLite file path |
+| POSTGRES_DB / USER / PASSWORD | ✅ | fastfood | PostgreSQL credentials |
+| POSTGRES_HOST / PORT | ✅ | 127.0.0.1 / 5432 | PostgreSQL address |
+| CORS_ALLOWED_ORIGINS | ✅ in staging | localhost:3000 | comma-separated browser origins |
+| CSRF_TRUSTED_ORIGINS | ✅ in staging | localhost:3000 | comma-separated trusted origins |
 | CACHE_BACKEND | — | locmem | `locmem` or `redis` |
 | CATALOG_SEARCH_CACHE_ENABLED | — | True | cache product list/search responses |
 | CATALOG_SEARCH_CACHE_TTL | — | 60 | list cache TTL (seconds) |
@@ -268,6 +293,7 @@ devpy runserver
 | REDIS_URL | prod (redis cache) | redis://127.0.0.1:6379/0 | cache/Redis client |
 | CELERY_BROKER_URL | ✅ | redis://.../1 | task queue |
 | CELERY_RESULT_BACKEND | — | redis://.../2 | task results |
+| CELERY_TASK_ALWAYS_EAGER | — | False | run tasks inline; only without workers |
 | MANAGER_PHONE | recommended | empty | for new order SMS |
 | ZARINPAL_MERCHANT_ID | ✅ in prod | empty | — |
 | ZARINPAL_CALLBACK_URL | ✅ in dev | must be HTTPS in prod | — |
@@ -275,8 +301,13 @@ devpy runserver
 | SMS_IR_API_KEY | recommended | empty | if empty, SMS is logged |
 | SMS_IR_SENDER | recommended | empty | line number |
 | PAYMENT_FRONTEND_RESULT_URL | recommended | dev URL | user redirects there after payment |
+| SECURE_SSL_REDIRECT | — | False | enable only when TLS is terminated in front |
+| SESSION_COOKIE_SECURE | — | False | require HTTPS for session cookies |
+| CSRF_COOKIE_SECURE | — | False | require HTTPS for the CSRF cookie |
+| SECURE_HSTS_SECONDS | — | 0 | HSTS max-age; keep 0 until HTTPS is permanent |
 | JWT_ACCESS_LIFETIME_MINUTES | — | 60 | — |
 | JWT_REFRESH_LIFETIME_DAYS | — | 7 | — |
+| STAGING_ADMIN_PASSWORD | — | Admin1234! | seeded superuser password |
 
 In dev: if SMS_IR_API_KEY is empty, messages are logged to the runserver console. That means you read the OTP from the console — no real SMS is required.
 
@@ -1411,14 +1442,14 @@ price/availability/category changes never serve stale pages. Tune with
 | `test_*.py` fail on Redis | DB 15 config but Redis down | bring Redis up |
 | `billiard PermissionError` in Celery | default pool on Windows | `-P solo` or `-P threads` |
 | Celery `Ctrl+C` does not work | Celery 5.4 bug | upgrade to `celery>=5.5` or use `-P solo` |
-| migrate points to a different SQLite DB | two `db.sqlite3` files | `Get-ChildItem -Recurse -Filter db.sqlite3` |
+| `connection refused` on `migrate` | PostgreSQL container is not running | `docker compose -f docker-compose.infra.yml up -d` |
 | `daily_number` stays zero | successful payment not marked | check `Payment.verify_payment` |
 
 ## 11. Final Checklist
 
 Goal: from zero to a fully working backend tested in ~30 minutes.
 
-Prerequisite: `.env` according to section 4. Redis is only needed when `CACHE_BACKEND=redis` (or for Celery workers); the default SQLite + locmem setup boots without it.
+Prerequisite: `.env` according to section 4 and `docker compose -f docker-compose.infra.yml up -d`. PostgreSQL is required; Redis is needed when `CACHE_BACKEND=redis` or when running Celery workers.
 
 ### Step 0 — Setup
 

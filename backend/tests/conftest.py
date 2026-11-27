@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -63,6 +64,19 @@ def restaurant_settings(db):
     from apps.cms.models import RestaurantSettings
 
     obj, _ = RestaurantSettings.objects.get_or_create(pk=1)
+    # Order tests must not depend on the wall clock. Production/staging seeds
+    # 11:00-01:00, which would make the suite fail outside opening hours.
+    obj.open_time = time(0, 0)
+    obj.close_time = time(23, 59, 59)
+    obj.is_temporarily_closed = False
+    obj.save(
+        update_fields=[
+            "open_time",
+            "close_time",
+            "is_temporarily_closed",
+            "updated_at",
+        ]
+    )
     return obj
 
 
