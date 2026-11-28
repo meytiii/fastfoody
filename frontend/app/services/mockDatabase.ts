@@ -85,6 +85,51 @@ function normalizeMockDb(db: MockDatabaseState): MockDatabaseState {
       }
     }
   }
+  if (Array.isArray(db.categories)) {
+    const legacyIconOverrides: Record<string, { stale: string[]; next: string }> = {
+      burgers: { stale: ['/svg/sandwich.svg'], next: '/svg/burger.svg' },
+      pizzas: { stale: ['/svg/pizza.svg'], next: '/svg/pizza_full.svg' },
+      'spicy-pizzas': { stale: ['/svg/color_pizza.svg'], next: '/svg/pizza_full.svg' },
+      pasta: { stale: ['/svg/food.svg'], next: '/svg/pasta.svg' },
+      salads: { stale: ['/svg/food.svg'], next: '/svg/salad.svg' },
+      cakes: { stale: ['/svg/dessert.svg'], next: '/svg/dessert_cake.svg' },
+      puddings: { stale: ['/svg/dessert.svg'], next: '/svg/dessert_pudding.svg' },
+    }
+    for (const cat of db.categories) {
+      if (cat.id === 7 && cat.slug === 'desserts') {
+        cat.name = 'کیک و شیرینی'
+        cat.slug = 'cakes'
+        cat.description = 'کیک‌ها و شیرینی‌های گرم اسکاندیناوی پخت صبح'
+        cat.image_url = '/svg/dessert_cake.svg'
+      }
+      const override = legacyIconOverrides[cat.slug]
+      if (override && (!cat.image_url || override.stale.includes(cat.image_url))) {
+        cat.image_url = override.next
+      }
+    }
+    const defaultPuddings = defaults.categories.find(c => c.slug === 'puddings')
+    if (defaultPuddings && !db.categories.some(c => c.slug === 'puddings')) {
+      db.categories.push(defaultPuddings)
+      db.nextIds.category = Math.max(db.nextIds.category, defaultPuddings.id + 1)
+    }
+    if (Array.isArray(db.products)) {
+      const catById = new Map(db.categories.map(c => [c.id, c]))
+      for (const product of db.products) {
+        const updatedCat = catById.get(product.category.id)
+        if (updatedCat) {
+          product.category = updatedCat
+        }
+      }
+      const defaultPuddingProduct = defaults.products.find(p => p.category.slug === 'puddings')
+      if (
+        defaultPuddingProduct &&
+        !db.products.some(p => p.slug === defaultPuddingProduct.slug)
+      ) {
+        db.products.push(defaultPuddingProduct)
+        db.nextIds.product = Math.max(db.nextIds.product, defaultPuddingProduct.id + 1)
+      }
+    }
+  }
   return db
 }
 
