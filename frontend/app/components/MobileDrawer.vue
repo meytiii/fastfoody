@@ -68,9 +68,11 @@ const handleLogout = async () => {
   >
     <div
       v-if="uiStore.isMobileMenuOpen"
-      class="fixed top-0 bottom-0 end-0 z-50 flex w-[300px] flex-col bg-white shadow-[var(--shadow-lg)] md:hidden overscroll-contain"
+      class="fixed top-0 bottom-0 start-0 z-50 flex w-[300px] flex-col bg-white shadow-[var(--shadow-lg)] md:hidden overscroll-contain"
       role="dialog"
+      aria-modal="true"
       aria-label="منوی دسترسی موبایل"
+      @keydown.escape="uiStore.closeMobileMenu"
     >
       <div class="flex h-16 items-center justify-between border-b border-[var(--color-border-subtle)] px-5">
         <a
