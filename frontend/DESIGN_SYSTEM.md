@@ -328,29 +328,23 @@ Directly adapting the reservation card from `reference.png`:
 
 ## 7. Interaction & Motion Design
 
-### 7.1. Motion Principles (Emil Kowalski Philosophy)
-Animations must never be decorative fluff; they exist to provide **spatial orientation**, **tactile feedback**, and **state continuity**.
+### 7.1. Motion Principles (`emil-design-eng` & Emil Kowalski Philosophy)
+Animations must never be decorative fluff; they exist to provide **spatial orientation**, **tactile feedback**, **state continuity**, or **perceived speed** (aligned with `.agents/skills/emil-design-eng/SKILL.md`).
 
-1. **Physical Springs over Easing:** Transitions for drawers, modals, and sheets use spring dynamics rather than rigid `cubic-bezier`:
-   ```javascript
-   // Recommended Spring Token
-   const springConfig = {
-     stiffness: 300,
-     damping: 30,
-     mass: 1.0
-   };
-   ```
-2. **Interruptible Gestures:** Drawer sheets and modals must track the user's touch 1:1. Swiping down on a mobile bottom sheet or dragging the cart drawer must allow interrupting, reversing, or releasing mid-flight without snapping glitches.
-3. **Restraint:** Only animate interactive states and layout shifts. Do not animate text continuously or use distracting scroll-triggered parallax on body copy.
+1. **Frequency & Restraint:** Never animate keyboard-initiated or high-frequency actions. Prefer instant/crisp state changes over slow flourish, keeping standard UI transitions under `300ms`.
+2. **Custom `ease-out` & Physical Springs:** Never use `ease-in` or `transition: all` on UI interactions. Use strong custom `ease-out` curves (`cubic-bezier(0.23, 1, 0.32, 1)`) for entrances/exits and physical springs (`stiffness: 300, damping: 30, mass: 1.0`) for interruptible drawers and gestures.
+3. **Origin, Entry & Tactile Rules:** Start popovers/dialogs from `scale(0.95)` + `opacity: 0` (never `scale(0)`), anchor popovers to their trigger (`transform-origin`) while keeping centered modals anchored to `center`, and provide `:active` `scale(0.97)` press feedback on interactive controls.
+4. **Compositor-Only & Touch Safety:** Animate only `transform` and `opacity` (plus restrained `clip-path` reveals), prefer CSS transitions over keyframes for interruptible elements, and gate hover animations behind `@media (hover: hover) and (pointer: fine)`.
+5. **Interruptible Gestures:** Drawer sheets and modals must track the user's touch 1:1. Swiping down on a mobile bottom sheet or dragging the cart drawer must allow interrupting, reversing, or releasing mid-flight without snapping glitches.
 
 ### 7.2. Micro-Interaction Specifications
 
 | Interaction | Target Element | Transformation / Transition | Timing / Physics |
 | :--- | :--- | :--- | :--- |
-| **Button Active** | All buttons | `scale(0.98)` on active press | `100ms ease-out` |
-| **Card Hover** | Product cards, Blog cards | `translateY(-3px)`, shadow `var(--shadow-md)` | `200ms cubic-bezier(0.16, 1, 0.3, 1)` |
-| **Dish Image Hover**| Product card thumbnail | `scale(1.04)` inside overflow hidden | `250ms ease-out` |
-| **Pill Filter Tab** | Category tabs | Background color shift + subtle scale | `150ms ease-in-out` |
+| **Button Active** | All buttons | `scale(0.97)` on active press | `150ms cubic-bezier(0.23, 1, 0.32, 1)` |
+| **Card Hover** | Product cards, Blog cards | `translateY(-3px)`, shadow `var(--shadow-md)` (fine pointer only) | `200ms cubic-bezier(0.23, 1, 0.32, 1)` |
+| **Dish Image Hover**| Product card thumbnail | `scale(1.04)` inside overflow hidden (fine pointer only) | `250ms ease-out` |
+| **Pill Filter Tab** | Category tabs | Background color shift + subtle scale | `150ms ease-out` |
 | **Drawer Slide** | Cart Drawer / Mobile Nav | `translateX(0)` from off-screen | `Spring (stiffness: 320, damping: 32)` |
 | **Modal Scale** | Product modal / Dialog | `opacity: 0 -> 1`, `scale: 0.95 -> 1.0` | `200ms cubic-bezier(0.16, 1, 0.3, 1)` |
 | **Toast Entrance** | Sonner notifications | Slide up `16px` + fade in | `Spring (stiffness: 400, damping: 28)` |

@@ -64,11 +64,11 @@ If a user prompt or task requires a pattern not explicitly covered or seemingly 
 - Use `IranSansX` for Persian text and localized Persian numerals (`۰-۹`) for all prices and quantities.
 - Mirror directional icons (progress arrows, forward chevrons) while keeping non-directional icons (search, cart, user, star) un-mirrored.
 
-### 3.3. Motion & Micro-Interactions (Emil Kowalski Philosophy)
-- Use physics-based springs (stiffness: 300, damping: 30) for drawer and modal transitions.
-- Interactive controls must provide snappy feedback (`active:scale-[0.98]`, card hover `translateY(-3px)`).
-- Use Sonner non-blocking toast notifications for cart updates.
-- Respect `prefers-reduced-motion` at all times.
+### 3.3. Motion & Micro-Interactions (`emil-design-eng` & Emil Kowalski Philosophy)
+- **Active Local Skill:** Follow `.agents/skills/emil-design-eng/SKILL.md` (`/emil-design-eng`) for every frontend build and UI review (using the structured `Before | After | Why` review table format when reviewing UI motion).
+- **Springs & Easing:** Use physics-based springs (`stiffness: 300`, `damping: 30`) for interruptible drawers/gestures, and strong custom `ease-out` curves (`cubic-bezier(0.23, 1, 0.32, 1)`) kept under `300ms` for UI state changes. Never use `ease-in` or `transition: all`.
+- **Tactile & Entry Discipline:** Give pressable controls `:active { transform: scale(0.97); }` (`active:scale-[0.97]`), never enter from `scale(0)` (start from `scale(0.95)` + `opacity: 0`), make popovers origin-aware (`transform-origin`), keep modals centered, and gate hover transforms behind `@media (hover: hover) and (pointer: fine)`.
+- **Performance & Restraint:** Animate only compositor properties (`transform`, `opacity`, restrained `clip-path`), prefer CSS transitions over keyframes for interruptible UI, never animate keyboard-initiated shortcuts, use Sonner toasts for non-blocking feedback, and respect `prefers-reduced-motion`.
 
 ---
 

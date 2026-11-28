@@ -45,6 +45,7 @@ The following skills are installed in `.agents/skills/` and active for Antigravi
 | **antislop** | `/antislop` | Zero generic AI slop in code, UI, copywriting, and mobile layouts |
 | **humanizer** | `/humanizer` | Natural, human-written copy; eliminating corporate AI buzzwords |
 | **caveman** | `/caveman` | Ultra-dense, token-efficient technical communication |
+| **emil-design-eng** | `/emil-design-eng` | Emil Kowalski UI polish, tactile feedback, sub-300ms easing, compositor motion, review checklist |
 | **emilkowalski/skills** | `/animate`, `/choreograph`, etc. | Fluid motion, physics springs, interruptible gestures, mobile feel |
 
 ---
@@ -60,8 +61,8 @@ The following skills are installed in `.agents/skills/` and active for Antigravi
    - Employ `impeccable`, `ui-ux-pro-max`, and `high-end-visual-design` to enforce the Scandinavian minimalist aesthetic and strict spacing tokens (4px base scale).
    - Ensure native RTL handling and accessibility (WCAG AA).
 
-3. **Motion & Interactivity:**
-   - Apply Emil Kowalski motion principles (`animate`, `choreograph`, `gestures`): physics-based springs (stiffness 300, damping 30), interruptible drawer sheets, and subtle micro-interactions. Never use abrupt transitions or linear animations.
+3. **Motion & Interactivity (`emil-design-eng`):**
+   - Apply `.agents/skills/emil-design-eng/SKILL.md` (`/emil-design-eng`) alongside `animate`, `choreograph`, and `gestures`: physics-based springs (`stiffness: 300`, `damping: 30`), custom `ease-out` curves under `300ms`, `:active` `scale(0.97)` feedback, `scale(0.95)` + `opacity: 0` entrances (never `scale(0)`), origin-aware popovers, `@media (hover: hover) and (pointer: fine)` hover gating, compositor-only properties (`transform`/`opacity`), and zero animation on keyboard shortcuts. Never use `transition: all` or `ease-in`.
 
 4. **Copywriting & Communication:**
    - Strip AI jargon with `humanizer` and `antislop-copywriting` to keep menu descriptions and interface copy warm, appetizing, and human.

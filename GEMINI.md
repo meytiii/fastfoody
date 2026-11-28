@@ -15,6 +15,7 @@ Operating rules and directives for Gemini-based agents working in `fastfoody`.
 ## 2. Core Architectural & Design Directives
 
 - **Design System Authority:** Always consult `frontend/DESIGN_SYSTEM.md` for tokens, spacing, typography, and color harmony.
+- **Active `emil-design-eng` Skill:** `.agents/skills/emil-design-eng/SKILL.md` (`/emil-design-eng`) is active in local scope for UI craft and motion engineering: avoid `transition: all` and `scale(0)` entries, keep UI transitions `<300ms` with custom `ease-out` curves (never `ease-in`), add `:active` `scale(0.97)` press feedback, gate hover motion with `@media (hover: hover) and (pointer: fine)`, make popovers origin-aware (modals centered), and never animate keyboard-initiated actions.
 - **Anti-Slop Craft Standard:** Strictly ban generic AI tropes such as pill badges with pulsing dots/icons floating above section titles and heroes. Let authentic typography and visual hierarchy lead.
 - **Modern Nuxt 4 Architecture:** Nuxt 4 Composition API, Tailwind CSS 4 `@theme`, Pinia state management.
 - **RTL & Persian Typography:** Native RTL layouts with logical CSS properties and Persian numerals (`۰-۹`).

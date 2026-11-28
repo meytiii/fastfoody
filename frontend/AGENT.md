@@ -61,6 +61,8 @@ To ensure alignment across all developers and AI agents, project documentation i
 - Do not duplicate component markup inline across multiple page templates.
 - Maintain a single source of truth for UI components adhering to the design tokens.
 
+- **When Reviewing or Editing Components:** Follow the `emil-design-eng` skill (`.agents/skills/emil-design-eng/SKILL.md`): keep UI transitions under `300ms` with custom `ease-out` curves (never `ease-in` or `transition: all`), add `scale(0.97)` press feedback on `:active`, never animate entries from `scale(0)`, make popovers origin-aware while keeping modals centered, gate hover motion to `(hover: hover) and (pointer: fine)`, animate only `transform`/`opacity`, and never animate keyboard-triggered actions.
+
 ### 4.3. Absolute "NO COMMENT" Rule & Code Hygiene
 - **Zero Comments in Code:** Under no circumstances should any comments be written or left in any code file (no `//`, `/* */`, `/** */`, `<!-- -->`, or `#`). All code must be 100% self-documenting through clean architectural patterns, descriptive identifiers, and robust TypeScript types.
 - **No Placeholder Code:** Deliver complete, functional, production-ready code. Never leave TODOs, stubs, or placeholder comments.
