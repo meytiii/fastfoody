@@ -556,7 +556,7 @@ useHead({
       ref="cancelDialogRef"
       closedby="any"
       aria-labelledby="cancel-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="p-6 sm:p-7">
         <h2 id="cancel-dialog-title" class="text-lg font-extrabold text-[#292B27]">

@@ -151,7 +151,7 @@ const handleVerifyOtp = async () => {
               شماره موبایل <span aria-hidden="true">*</span>
             </label>
             <div class="relative">
-              <Phone :size="16" aria-hidden="true" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+              <Phone :size="16" aria-hidden="true" class="absolute start-3.5 top-4 text-[var(--color-text-muted)]" />
               <input
                 id="auth-phone-input"
                 v-model="phone"
@@ -167,7 +167,7 @@ const handleVerifyOtp = async () => {
                 :aria-describedby="phoneError ? 'auth-phone-error' : 'auth-phone-hint'"
                 @input="phoneError = ''"
                 dir="ltr"
-                class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-sm text-[var(--color-text-primary)] text-end focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-sm text-[var(--color-text-primary)] text-end focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
               />
             </div>
             <p id="auth-phone-hint" class="text-[11px] text-[var(--color-text-secondary)]">
@@ -198,7 +198,7 @@ const handleVerifyOtp = async () => {
             <button
               type="button"
               @click="step = 'phone'"
-              class="font-bold text-[var(--color-brand-forest)] hover:underline"
+              class="touch-target px-2 font-bold text-[var(--color-brand-forest)] hover:underline"
             >
               تغییر شماره
             </button>
@@ -212,7 +212,7 @@ const handleVerifyOtp = async () => {
             <button
               type="button"
               @click="code = devCodeHint"
-              class="font-extrabold text-[var(--color-brand-forest)] underline mx-1"
+              class="touch-target font-extrabold text-[var(--color-brand-forest)] underline mx-1 px-1.5"
             >
               <bdi>{{ devCodeHint }}</bdi>
             </button>
@@ -223,7 +223,7 @@ const handleVerifyOtp = async () => {
               کد تایید ۶ رقمی <span aria-hidden="true">*</span>
             </label>
             <div class="relative">
-              <KeyRound :size="16" aria-hidden="true" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+              <KeyRound :size="16" aria-hidden="true" class="absolute start-3.5 top-4 text-[var(--color-text-muted)]" />
               <input
                 id="auth-otp-input"
                 v-model="code"
@@ -243,7 +243,7 @@ const handleVerifyOtp = async () => {
                 :aria-describedby="codeError ? 'auth-code-error' : undefined"
                 @input="codeError = ''"
                 dir="ltr"
-                class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-center text-base font-bold tracking-[0.3em] text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-3.5 text-center text-base font-bold tracking-[0.3em] text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
               />
             </div>
             <p v-if="codeError" id="auth-code-error" role="alert" class="text-xs font-medium text-[var(--color-danger)]">
@@ -260,7 +260,7 @@ const handleVerifyOtp = async () => {
               type="button"
               :disabled="!canResend"
               @click="handleRequestOtp"
-              class="inline-flex items-center gap-1.5 font-bold text-[var(--color-brand-forest)] hover:underline"
+              class="touch-target inline-flex items-center gap-1.5 px-2 font-bold text-[var(--color-brand-forest)] hover:underline"
             >
               <RefreshCw :size="13" aria-hidden="true" />
               <span>ارسال مجدد کد</span>

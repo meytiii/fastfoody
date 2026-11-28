@@ -84,7 +84,7 @@ const submitFullSearch = async () => {
 
     <div role="search">
       <form @submit.prevent="submitFullSearch" class="relative flex items-center">
-        <Search :size="18" aria-hidden="true" class="absolute inset-inline-start-3.5 text-[var(--color-text-muted)]" />
+        <Search :size="18" aria-hidden="true" class="absolute start-3.5 text-[var(--color-text-muted)]" />
         <label for="global-search-input" class="visually-hidden">عبارت جستجو</label>
         <input
           id="global-search-input"
@@ -97,11 +97,11 @@ const submitFullSearch = async () => {
           autocapitalize="none"
           spellcheck="false"
           placeholder="جستجوی برگر، پیتزا، همبرگر، چیکن..."
-          class="h-12 w-full rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/70 ps-11 pe-24 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+          class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/70 ps-11 pe-24 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
         />
         <button
           type="submit"
-          class="absolute inset-inline-end-1.5 rounded-xl bg-[var(--color-brand-forest)] px-3.5 py-2 text-xs font-bold text-white hover:bg-[var(--color-brand-forest-light)]"
+          class="touch-target absolute end-1 rounded-xl bg-[var(--color-brand-forest)] px-3.5 text-xs font-bold text-white hover:bg-[var(--color-brand-forest-light)] active:scale-[0.97] transition-[background-color,transform] duration-150 ease-[var(--ease-out)]"
         >
           جستجو
         </button>
@@ -117,7 +117,7 @@ const submitFullSearch = async () => {
       <button
         type="button"
         @click="applyCorrection(menuStore.didYouMean)"
-        class="font-bold text-[var(--color-brand-forest)] underline"
+        class="touch-target px-1 font-bold text-[var(--color-brand-forest)] underline"
       >
         «{{ menuStore.didYouMean }}»
       </button>
@@ -139,7 +139,7 @@ const submitFullSearch = async () => {
         <button
           type="button"
           @click="submitFullSearch"
-          class="text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
+          class="touch-target px-3 text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
         >
           مشاهده همه فیلترها در صفحه منو
         </button>

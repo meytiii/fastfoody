@@ -37,7 +37,7 @@ useHead({
 <template>
   <main class="w-full px-3 sm:px-6 lg:px-8 pt-1 pb-6">
     <section
-      class="relative w-full min-h-[calc(100svh-5.5rem)] rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-[#143527] border border-[#224E3D]/30 shadow-[0_24px_64px_-16px_rgba(20,53,39,0.45)] flex items-center"
+      class="relative w-full min-h-[calc(100svh-5.5rem)] rounded-3xl sm:rounded-[2.5rem] overflow-hidden bg-[var(--color-brand-forest)] border border-[var(--color-brand-forest-light)]/30 shadow-[var(--shadow-lg)] flex items-center"
       aria-label="بنر معرفی فست‌فودی"
     >
       <img
@@ -60,12 +60,12 @@ useHead({
       </div>
 
       <div
-        class="absolute inset-0 bg-gradient-to-t from-[#143527]/95 via-[#143527]/45 to-transparent lg:hidden pointer-events-none"
+        class="absolute inset-0 bg-gradient-to-t from-[var(--color-brand-forest-deep)]/95 via-[var(--color-brand-forest-deep)]/45 to-transparent lg:hidden pointer-events-none"
         aria-hidden="true"
       />
 
       <div
-        class="absolute inset-0 hidden lg:block bg-gradient-to-l from-[#143527]/85 via-[#143527]/35 to-transparent pointer-events-none"
+        class="absolute inset-0 hidden lg:block bg-gradient-to-l from-[var(--color-brand-forest-deep)]/85 via-[var(--color-brand-forest)]/35 to-transparent pointer-events-none"
         aria-hidden="true"
       />
 
@@ -77,22 +77,9 @@ useHead({
 
       <div class="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-0 flex items-center justify-start" style="direction: ltr;">
         <div
-          class="w-full max-w-lg lg:max-w-[420px] xl:max-w-[460px] text-right rounded-3xl p-6 sm:p-8 lg:p-0 bg-[#12251D]/88 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none border border-white/10 lg:border-0 shadow-2xl lg:shadow-none"
+          class="w-full max-w-lg lg:max-w-[420px] xl:max-w-[460px] text-start rounded-3xl p-6 sm:p-8 lg:p-0 bg-[#12251D]/88 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none border border-white/10 lg:border-0 shadow-[var(--shadow-lg)] lg:shadow-none"
           style="direction: rtl;"
         >
-          <div
-            v-if="cmsStore.restaurantStatus"
-            class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-[#12251D]/70 px-3 py-1 text-xs font-semibold text-white"
-          >
-            <Clock :size="14" aria-hidden="true" class="text-[var(--color-accent-gold)]" />
-            <span v-if="cmsStore.isOpen">
-              پذیرش سفارش فعال تا <bdi>{{ formatTime(cmsStore.restaurantStatus.close_time) }}</bdi>
-            </span>
-            <span v-else>
-              در حال حاضر بسته است (شروع کار <bdi>{{ formatTime(cmsStore.restaurantStatus.open_time) }}</bdi>)
-            </span>
-          </div>
-
           <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.25] tracking-tight">
             {{ heroTitle }}
           </h1>
@@ -101,7 +88,20 @@ useHead({
             {{ heroSubtitle }}
           </p>
 
-          <div class="mt-7 sm:mt-8 flex flex-wrap items-center gap-3 pt-1">
+          <p
+            v-if="cmsStore.restaurantStatus"
+            class="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-white/90"
+          >
+            <Clock :size="14" aria-hidden="true" class="text-[var(--color-accent-gold)] shrink-0" />
+            <span v-if="cmsStore.isOpen">
+              پذیرش سفارش فعال تا <bdi>{{ formatTime(cmsStore.restaurantStatus.close_time) }}</bdi>
+            </span>
+            <span v-else>
+              در حال حاضر بسته است (شروع کار <bdi>{{ formatTime(cmsStore.restaurantStatus.open_time) }}</bdi>)
+            </span>
+          </p>
+
+          <div class="mt-6 sm:mt-7 flex flex-wrap items-center gap-3 pt-1">
             <GooeyButton
               variant="gold"
               size="lg"
@@ -110,7 +110,7 @@ useHead({
               @click="navigateTo(ctaLink)"
             >
               <span>{{ ctaText }}</span>
-              <span class="inline-flex items-center transition-transform duration-200 ease-out group-hover:-translate-x-1.5 will-change-transform">
+              <span class="fine-hover-shift-end inline-flex items-center transition-transform duration-200 ease-[var(--ease-out)] will-change-transform">
                 <ArrowLeft :size="16" aria-hidden="true" class="icon-directional" />
               </span>
             </GooeyButton>

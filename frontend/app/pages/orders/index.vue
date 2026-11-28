@@ -172,7 +172,7 @@ useHead({
         <article
           v-for="order in orders"
           :key="order.id"
-          class="rounded-2xl border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]"
+          class="rounded-2xl border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2.5">

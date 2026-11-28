@@ -123,7 +123,7 @@ useHead({
           <div role="search">
             <form @submit.prevent="menuStore.searchProducts()" class="flex flex-col md:flex-row gap-3">
               <div class="relative flex-1">
-                <Search :size="18" aria-hidden="true" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+                <Search :size="18" aria-hidden="true" class="absolute start-3.5 top-3.5 text-[var(--color-text-muted)]" />
                 <label for="menu-search-input" class="visually-hidden">جستجو در منو</label>
                 <input
                   id="menu-search-input"
@@ -132,7 +132,7 @@ useHead({
                   name="q"
                   enterkeyhint="search"
                   placeholder="جستجو بر اساس نام غذا، دسته‌بندی یا توضیح..."
-                  class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-4 text-xs sm:text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                  class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white ps-10 pe-4 text-xs sm:text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                 />
               </div>
 

@@ -14,16 +14,16 @@ const hasItems = computed(() => cartStore.totalCount > 0)
 <template>
   
   <Transition
-    enter-active-class="transition duration-300 ease-out"
+    enter-active-class="transition-[transform,opacity] duration-250 ease-[var(--ease-out)]"
     enter-from-class="transform translate-y-12 opacity-0"
     enter-to-class="transform translate-y-0 opacity-100"
-    leave-active-class="transition duration-200 ease-in"
+    leave-active-class="transition-[transform,opacity] duration-200 ease-[var(--ease-out)]"
     leave-from-class="transform translate-y-0 opacity-100"
     leave-to-class="transform translate-y-12 opacity-0"
   >
     <div
       v-if="hasItems"
-      class="fixed bottom-4 inset-inline-start-4 z-40 md:bottom-6 md:inset-inline-start-6"
+      class="fixed bottom-4 start-4 z-40 md:bottom-6 md:start-6"
     >
       <GooeyButton
         variant="primary"
@@ -41,7 +41,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
             />
           </div>
           <span
-            class="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-white shadow-xs"
+            class="absolute -top-1.5 -end-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent-gold)] px-1 text-[11px] font-bold text-[#12251D] shadow-xs"
             aria-live="polite"
           >
             {{ toPersianDigits(cartStore.totalCount) }}
@@ -63,7 +63,7 @@ const hasItems = computed(() => cartStore.totalCount > 0)
 
         
         <div
-          class="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 transition-transform group-hover:-translate-x-1 icon-directional"
+          class="fine-hover-shift-end flex h-7 w-7 items-center justify-center rounded-full bg-white/10 transition-transform duration-150 ease-[var(--ease-out)] icon-directional"
         >
           <ArrowLeft :size="16" />
         </div>

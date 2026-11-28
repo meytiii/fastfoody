@@ -39,7 +39,7 @@ onMounted(async () => {
   <div class="relative min-h-screen flex flex-col bg-white text-[var(--color-text-primary)] selection:bg-[var(--color-accent-gold-soft)] selection:text-[var(--color-brand-forest)]">
     <a
       href="#main-content"
-      class="visually-hidden focus:fixed focus:top-3 focus:inset-inline-start-3 focus:z-[120] focus:rounded-full focus:bg-[var(--color-brand-forest)] focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:text-white"
+      class="visually-hidden focus:fixed focus:top-3 focus:start-3 focus:z-[120] focus:rounded-full focus:bg-[var(--color-brand-forest)] focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:text-white"
     >
       رفتن به محتوای اصلی
     </a>

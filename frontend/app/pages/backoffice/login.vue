@@ -96,7 +96,7 @@ useHead({
         </p>
         <button
           type="button"
-          class="mt-2.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-[#183A2D] shadow-xs hover:bg-[#F4EFE3]"
+          class="touch-target mt-2.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold text-[#183A2D] shadow-xs hover:bg-[#F4EFE3] active:scale-[0.97] transition-[background-color,transform] duration-150 ease-[var(--ease-out)]"
           @click="fillDemoCredentials"
         >
           تکمیل خودکار اطلاعات آزمایشی

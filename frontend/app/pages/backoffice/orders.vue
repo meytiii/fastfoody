@@ -350,7 +350,7 @@ useHead({
                 <tr v-for="ord in orders" :key="ord.id" class="hover:bg-[#FAF7F2]">
                   <td data-label="شناسه" class="px-3 py-3 font-bold text-[#292B27]">
                     #{{ toPersianDigits(ord.id) }}
-                    <span v-if="ord.daily_number" class="mr-1 rounded-md bg-[#F4EFE3] px-1.5 py-0.5 text-xs">
+                    <span v-if="ord.daily_number" class="me-1 rounded-md bg-[#F4EFE3] px-1.5 py-0.5 text-xs">
                       نوبت {{ toPersianDigits(ord.daily_number) }}
                     </span>
                   </td>
@@ -427,7 +427,7 @@ useHead({
       ref="detailDialogRef"
       closedby="any"
       aria-labelledby="order-detail-title"
-      class="modal-top-layer m-auto w-full max-w-2xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-2xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8">
         <div class="mb-5 flex items-center justify-between gap-4 border-b border-[#E8E5DC] pb-4">

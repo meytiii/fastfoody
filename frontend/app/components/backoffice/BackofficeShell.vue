@@ -108,7 +108,7 @@ onMounted(async () => {
               <p class="text-base font-extrabold text-[#292B27]">پنل مدیریت فست‌فودی</p>
               <p class="text-xs text-[#5A5D56]">
                 {{ backofficeStore.staff?.full_name || 'مدیر رستوران' }}
-                <span dir="ltr" class="mr-1.5 font-semibold">({{ toPersianDigits(backofficeStore.staff?.phone) }})</span>
+                <span dir="ltr" class="me-1.5 font-semibold">({{ toPersianDigits(backofficeStore.staff?.phone) }})</span>
               </p>
             </div>
           </div>

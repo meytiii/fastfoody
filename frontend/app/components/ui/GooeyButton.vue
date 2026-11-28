@@ -26,7 +26,7 @@ const emit = defineEmits<{
 const sizeClasses = computed(() => {
   switch (props.size) {
     case 'sm':
-      return 'text-xs px-4 py-2 min-h-[38px] rounded-full'
+      return 'text-xs px-4 py-2 min-h-[44px] rounded-full'
     case 'lg':
       return 'text-base px-8 py-3.5 min-h-[50px] rounded-full'
     case 'md':

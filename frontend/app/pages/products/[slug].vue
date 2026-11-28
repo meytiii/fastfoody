@@ -99,7 +99,7 @@ useHead(() => ({
       <div class="flex items-center justify-between gap-4">
         <NuxtLink
           to="/menu"
-          class="inline-flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)]"
+          class="touch-target inline-flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)]"
         >
           <ArrowRight :size="15" aria-hidden="true" class="icon-directional" />
           <span>بازگشت به منو</span>
@@ -108,7 +108,7 @@ useHead(() => ({
         <NuxtLink
           v-if="product"
           :to="`/menu?category=${product.category.slug}`"
-          class="rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--color-brand-forest)] hover:border-[var(--color-brand-forest)]"
+          class="touch-target inline-flex items-center rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 py-1.5 text-xs font-bold text-[var(--color-brand-forest)] hover:border-[var(--color-brand-forest)]"
         >
           دسته: {{ product.category.name }}
         </NuxtLink>

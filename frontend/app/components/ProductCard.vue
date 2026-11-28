@@ -58,10 +58,10 @@ const handleQuickAdd = async (e: MouseEvent) => {
 
 <template>
   <article
-    class="group relative flex h-full flex-col justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-white p-3.5 sm:p-4 shadow-[var(--shadow-sm)] transition-all duration-200"
+    class="group relative flex h-full flex-col justify-between rounded-2xl border border-[var(--color-border-subtle)] bg-white p-3 sm:p-4 shadow-[var(--shadow-sm)] transition-[transform,border-color,box-shadow] duration-200 ease-[var(--ease-out)]"
     :class="
       isAvailable
-        ? 'hover:-translate-y-0.5 hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]'
+        ? 'fine-hover-lift hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]'
         : 'opacity-80 bg-[var(--color-surface-cream)]/60'
     "
   >
@@ -90,7 +90,7 @@ const handleQuickAdd = async (e: MouseEvent) => {
       <button
         type="button"
         @click="handleCardClick"
-        class="w-full text-start focus-visible:outline-2 focus-visible:outline-[var(--color-brand-forest)] rounded-xl"
+        class="w-full text-start focus-visible:outline-2 focus-visible:outline-[var(--color-brand-forest)] rounded-xl active:scale-[0.98] transition-transform duration-150 ease-[var(--ease-out)]"
         :aria-label="`مشاهده جزئیات ${product.name}`"
       >
         <div
@@ -102,12 +102,12 @@ const handleQuickAdd = async (e: MouseEvent) => {
             width="300"
             height="300"
             loading="lazy"
-            class="h-full w-full object-cover rounded-full shadow-xs transition-transform duration-300"
-            :class="isAvailable ? 'group-hover:scale-105' : 'grayscale-[40%]'"
+            class="h-full w-full object-cover rounded-full shadow-xs transition-transform duration-250 ease-[var(--ease-out)]"
+            :class="isAvailable ? 'fine-hover-scale' : 'grayscale-[40%]'"
           />
 
           <div
-            class="absolute bottom-2 inset-inline-end-2 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-primary)] shadow-xs"
+            class="absolute bottom-2 end-2 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-primary)] shadow-xs"
           >
             <Clock :size="12" aria-hidden="true" class="text-[var(--color-brand-forest)]" />
             <span>{{ toPersianDigits(product.prep_time_minutes) }} دقیقه</span>
@@ -143,7 +143,7 @@ const handleQuickAdd = async (e: MouseEvent) => {
         size="sm"
         :disabled="!isAvailable"
         :aria-label="isAvailable ? `افزودن ${product.name} به سبد خرید` : `${product.name} ناموجود است`"
-        class="h-10 px-3 text-xs shrink-0"
+        class="px-3 text-xs shrink-0"
         @click="handleQuickAdd"
       >
         <Plus v-if="isAvailable" :size="14" aria-hidden="true" />
@@ -151,10 +151,10 @@ const handleQuickAdd = async (e: MouseEvent) => {
       </GooeyButton>
     </div>
 
-    <div class="mt-2 flex items-center justify-end">
+    <div class="mt-1 flex items-center justify-end">
       <NuxtLink
         :to="`/products/${product.slug}`"
-        class="text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:underline"
+        class="touch-target inline-flex items-center px-2 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:underline"
       >
         صفحه محصول
       </NuxtLink>

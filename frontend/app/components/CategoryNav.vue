@@ -23,7 +23,7 @@ const allProductCount = computed(() => {
         role="tab"
         :aria-selected="menuStore.selectedCategory === 'all'"
         @click="menuStore.setCategory('all')"
-        class="touch-target group flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-2.5 transition-colors duration-200 active:scale-95"
+        class="touch-target group flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-2.5 transition-[border-color,background-color,color,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97]"
         :class="
           menuStore.selectedCategory === 'all'
             ? 'border-[var(--color-brand-forest)] bg-[var(--color-brand-forest)] text-white shadow-sm'
@@ -54,7 +54,7 @@ const allProductCount = computed(() => {
         role="tab"
         :aria-selected="menuStore.selectedCategory === cat.slug"
         @click="menuStore.setCategory(cat.slug)"
-        class="touch-target group flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-2.5 transition-colors duration-200 active:scale-95"
+        class="touch-target group flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-2.5 transition-[border-color,background-color,color,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97]"
         :class="
           menuStore.selectedCategory === cat.slug
             ? 'border-[var(--color-brand-forest)] bg-[var(--color-brand-forest)] text-white shadow-sm'

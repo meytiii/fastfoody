@@ -133,7 +133,7 @@ defineExpose({
       
       <div
         v-if="lampReady"
-        class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+        class="pointer-events-none absolute z-0 rounded-full transition-[left,top,width,height,opacity] duration-250 ease-[var(--ease-out)]"
         :style="{
           left: `${lampStyle.left}px`,
           top: `${lampStyle.top}px`,
@@ -168,7 +168,7 @@ defineExpose({
         role="tab"
         :aria-selected="activeTab === item.name"
         @click="selectItem(item)"
-        class="touch-target relative z-10 flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200 cursor-pointer select-none"
+        class="touch-target relative z-10 flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-[color,background-color,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer select-none"
         :class="
           activeTab === item.name
             ? 'text-[var(--color-brand-forest)]'

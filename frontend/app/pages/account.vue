@@ -249,7 +249,7 @@ useHead({
             <div>
               <h2 class="text-xl font-bold text-[#292B27]">
                 نشانی‌های ثبت‌شده
-                <span class="mr-2 rounded-full bg-[#F4EFE3] px-2.5 py-0.5 text-xs font-bold text-[#183A2D]">
+                <span class="me-2 rounded-full bg-[#F4EFE3] px-2.5 py-0.5 text-xs font-bold text-[#183A2D]">
                   {{ toPersianDigits(authStore.addresses.length) }} از ۴
                 </span>
               </h2>
@@ -259,7 +259,7 @@ useHead({
             </div>
             <button
               type="button"
-              class="touch-target inline-flex items-center gap-2 rounded-full bg-[#183A2D] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#12251D]"
+              class="touch-target inline-flex items-center gap-2 rounded-full bg-[#183A2D] px-5 py-2.5 text-sm font-bold text-white transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-[#12251D] active:scale-[0.97]"
               @click="openCreateDialog"
             >
               <Plus class="h-4 w-4" />
@@ -314,7 +314,7 @@ useHead({
                 </p>
                 <p class="mt-2 text-xs text-[#5A5D56]">
                   تحویل‌گیرنده: {{ addr.recipient_name || 'مشتری' }}
-                  <span v-if="addr.recipient_phone" dir="ltr" class="mr-2 font-semibold">
+                  <span v-if="addr.recipient_phone" dir="ltr" class="me-2 font-semibold">
                     ({{ toPersianDigits(addr.recipient_phone) }})
                   </span>
                 </p>
@@ -357,7 +357,7 @@ useHead({
       ref="addressDialogRef"
       closedby="any"
       aria-labelledby="address-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-lg rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-lg rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="p-6 sm:p-8">
         <div class="mb-6 flex items-center justify-between gap-4">

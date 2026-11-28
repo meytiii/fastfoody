@@ -145,7 +145,7 @@ const handleAddToCart = async () => {
           <button
             type="button"
             @click="requestClose"
-            class="touch-target flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-cream)] active:scale-95"
+            class="touch-target flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-cream)] active:scale-[0.97] transition-[background-color,transform] duration-150 ease-[var(--ease-out)]"
             aria-label="بستن پنجره محصول"
           >
             <X :size="20" aria-hidden="true" />

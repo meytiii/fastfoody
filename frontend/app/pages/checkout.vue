@@ -365,7 +365,7 @@ const submitOrderAndPay = async () => {
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="روش دریافت سفارش">
               <label
-                class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                class="flex items-start gap-3 rounded-2xl border p-4 transition-[border-color,background-color] duration-200 ease-[var(--ease-out)]"
                 :class="
                   deliveryType === 'DELIVERY'
                     ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
@@ -391,7 +391,7 @@ const submitOrderAndPay = async () => {
               </label>
 
               <label
-                class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                class="flex items-start gap-3 rounded-2xl border p-4 transition-[border-color,background-color] duration-200 ease-[var(--ease-out)]"
                 :class="
                   deliveryType === 'PICKUP'
                     ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)] ring-2 ring-[var(--color-brand-forest)]/20 font-bold'
@@ -430,7 +430,7 @@ const submitOrderAndPay = async () => {
                 <button
                   type="button"
                   @click="showNewAddressForm = !showNewAddressForm"
-                  class="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
+                  class="touch-target inline-flex items-center gap-1 px-2 text-xs font-bold text-[var(--color-brand-forest)] hover:underline"
                 >
                   <Plus :size="14" aria-hidden="true" />
                   <span>{{ showNewAddressForm ? 'بستن فرم آدرس' : 'افزودن آدرس جدید' }}</span>
@@ -441,7 +441,7 @@ const submitOrderAndPay = async () => {
                 <label
                   v-for="addr in authStore.addresses"
                   :key="addr.id"
-                  class="flex items-start gap-3 rounded-2xl border p-4 transition-all"
+                  class="flex items-start gap-3 rounded-2xl border p-4 transition-[border-color,background-color] duration-200 ease-[var(--ease-out)]"
                   :class="
                     selectedAddressId === addr.id
                       ? 'border-[var(--color-brand-forest)] bg-[var(--color-surface-cream)] ring-2 ring-[var(--color-brand-forest)]/15'
@@ -503,7 +503,7 @@ const submitOrderAndPay = async () => {
                       v-model="newAddress.title"
                       type="text"
                       placeholder="منزل یا محل کار"
-                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs"
+                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                     />
                   </div>
                   <div class="space-y-1">
@@ -516,7 +516,7 @@ const submitOrderAndPay = async () => {
                       type="text"
                       autocomplete="name"
                       placeholder="نام کامل"
-                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs"
+                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                     />
                   </div>
                   <div class="space-y-1">
@@ -531,7 +531,7 @@ const submitOrderAndPay = async () => {
                       autocomplete="tel"
                       dir="ltr"
                       placeholder="۰۹۱۲..."
-                      class="h-11 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs text-end"
+                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-white px-3 text-xs text-end focus:border-[var(--color-brand-forest)] focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                     />
                   </div>
                 </div>

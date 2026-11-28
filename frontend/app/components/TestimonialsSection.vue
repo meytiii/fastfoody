@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Star, Quote, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-vue-next'
-import { usePersian } from '~/composables/usePersian'
-
-const { toPersianDigits } = usePersian()
+import { Star, Quote, CheckCircle2 } from 'lucide-vue-next'
 
 const reviews = [
   {
@@ -58,7 +54,7 @@ const reviews = [
         <div
           v-for="review in reviews"
           :key="review.id"
-          class="relative flex flex-col justify-between rounded-3xl p-6 sm:p-8 transition-all duration-300 shadow-[var(--shadow-sm)] hover:-translate-y-1 hover:shadow-[var(--shadow-md)]"
+          class="fine-hover-lift relative flex flex-col justify-between rounded-3xl p-6 sm:p-8 transition-[transform,box-shadow] duration-200 ease-[var(--ease-out)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)]"
           :class="
             review.highlight
               ? 'bg-[var(--color-brand-forest)] text-white'

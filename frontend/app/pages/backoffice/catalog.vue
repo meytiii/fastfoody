@@ -764,7 +764,7 @@ useHead({
       ref="productDialogRef"
       closedby="any"
       aria-labelledby="prod-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-2xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-2xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8">
         <div class="mb-5 flex items-center justify-between gap-4 border-b border-[#E8E5DC] pb-4">
@@ -905,7 +905,7 @@ useHead({
       ref="categoryDialogRef"
       closedby="any"
       aria-labelledby="cat-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="p-6 sm:p-7">
         <h2 id="cat-dialog-title" class="mb-4 text-xl font-extrabold">
@@ -944,7 +944,7 @@ useHead({
       ref="addonDialogRef"
       closedby="any"
       aria-labelledby="addon-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="p-6 sm:p-7">
         <h2 id="addon-dialog-title" class="mb-4 text-xl font-extrabold">

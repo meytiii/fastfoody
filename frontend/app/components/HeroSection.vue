@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Flame, ArrowLeft, Star, ShieldCheck, Heart } from 'lucide-vue-next'
+import { Flame, ArrowLeft, Star } from 'lucide-vue-next'
 import { usePersian } from '~/composables/usePersian'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
@@ -59,7 +59,7 @@ const scrollToReservation = () => {
               @click="scrollToMenu"
             >
               <span>مشاهده منو و سفارش</span>
-              <ArrowLeft :size="16" class="transition-transform group-hover:-translate-x-1 icon-directional" />
+              <ArrowLeft :size="16" class="fine-hover-shift-end transition-transform duration-150 ease-[var(--ease-out)] icon-directional" />
             </GooeyButton>
 
             <GooeyButton
@@ -108,12 +108,12 @@ const scrollToReservation = () => {
             <img
               src="/img/placeholder.webp"
               alt="Fastfoody Signature Platter"
-              class="h-[280px] w-[280px] sm:h-[350px] sm:w-[350px] rounded-full object-cover shadow-md transition-transform duration-700 hover:rotate-6"
+              class="fine-hover-rotate h-[280px] w-[280px] sm:h-[350px] sm:w-[350px] rounded-full object-cover shadow-md transition-transform duration-250 ease-[var(--ease-out)]"
             />
 
             
             <div
-              class="absolute -bottom-2 sm:bottom-2 inset-inline-start-2 sm:inset-inline-start-4 flex items-center gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-white/95 p-3 shadow-[var(--shadow-md)] backdrop-blur-md"
+              class="absolute -bottom-2 sm:bottom-2 start-2 sm:start-4 flex items-center gap-3 rounded-2xl border border-[var(--color-border-subtle)] bg-white/95 p-3 shadow-[var(--shadow-md)] backdrop-blur-md"
             >
               <div
                 class="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-cream)] text-[var(--color-brand-forest)]"
@@ -132,7 +132,7 @@ const scrollToReservation = () => {
 
             
             <div
-              class="absolute -top-2 sm:top-4 inset-inline-end-2 sm:inset-inline-end-4 flex items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white/95 px-3.5 py-1.5 shadow-[var(--shadow-sm)] backdrop-blur-md"
+              class="absolute -top-2 sm:top-4 end-2 sm:end-4 flex items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white/95 px-3.5 py-1.5 shadow-[var(--shadow-sm)] backdrop-blur-md"
             >
               <Star :size="14" class="fill-[var(--color-accent-gold)] text-[var(--color-accent-gold)]" />
               <span class="text-xs font-bold text-[var(--color-text-primary)]">

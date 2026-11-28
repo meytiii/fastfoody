@@ -130,7 +130,7 @@ onUnmounted(() => {
 
 <template>
   <header
-    class="no-print sticky top-0 z-40 w-full transition-all duration-300 md:top-4 md:z-50"
+    class="no-print sticky top-0 z-40 w-full transition-[top] duration-250 ease-[var(--ease-out)] md:top-4 md:z-50"
     role="banner"
   >
     <div class="hidden w-full px-4 md:block">
@@ -140,7 +140,7 @@ onUnmounted(() => {
       <a
         href="/"
         @click.prevent="goToTop"
-        class="group flex items-center gap-3 transition-transform active:scale-95 cursor-pointer shrink-0"
+        class="group flex items-center gap-3 transition-transform duration-150 ease-[var(--ease-out)] active:scale-[0.97] cursor-pointer shrink-0"
         aria-label="صفحه اصلی فست‌فودی"
       >
         <div
@@ -171,7 +171,7 @@ onUnmounted(() => {
       >
         <div
           v-if="lampReady"
-          class="pointer-events-none absolute z-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+          class="pointer-events-none absolute z-0 rounded-full transition-[left,top,width,height,opacity] duration-250 ease-[var(--ease-out)]"
           :style="{
             left: `${lampStyle.left}px`,
             top: `${lampStyle.top}px`,
@@ -194,7 +194,7 @@ onUnmounted(() => {
           :href="link.href"
           :aria-current="activeHref === link.href ? 'page' : undefined"
           @click.prevent="handleNavClick(link.href)"
-          class="relative z-10 flex items-center gap-1.5 px-3 py-1.5 text-xs lg:text-sm font-semibold transition-colors duration-200 rounded-full cursor-pointer select-none whitespace-nowrap group"
+          class="touch-target relative z-10 flex items-center gap-1.5 px-3 py-1.5 text-xs lg:text-sm font-semibold transition-[color,background-color,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97] rounded-full cursor-pointer select-none whitespace-nowrap group"
           :class="
             activeHref === link.href
               ? 'text-[var(--color-brand-forest)]'
@@ -208,7 +208,7 @@ onUnmounted(() => {
             width="18"
             height="18"
             aria-hidden="true"
-            class="w-[18px] h-[18px] shrink-0 transition-all duration-200 object-contain"
+            class="w-[18px] h-[18px] shrink-0 transition-[transform,opacity] duration-200 ease-[var(--ease-out)] object-contain"
             :class="activeHref === link.href ? 'scale-105 opacity-100' : 'opacity-70 group-hover:opacity-100'"
           />
           <component
@@ -217,7 +217,7 @@ onUnmounted(() => {
             :size="15"
             :stroke-width="2"
             aria-hidden="true"
-            class="shrink-0 transition-transform duration-200"
+            class="shrink-0 transition-transform duration-200 ease-[var(--ease-out)]"
             :class="activeHref === link.href ? 'scale-105 text-[var(--color-brand-forest)]' : 'opacity-70'"
           />
           <span>{{ link.label }}</span>
@@ -228,7 +228,7 @@ onUnmounted(() => {
         <button
           type="button"
           @click="uiStore.toggleSearch"
-          class="touch-target flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-95"
+          class="touch-target flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] transition-[border-color,background-color,transform] duration-150 ease-[var(--ease-out)] hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-[0.97]"
           aria-label="جستجوی غذاها"
         >
           <Search :size="18" :stroke-width="1.75" aria-hidden="true" />
@@ -237,7 +237,7 @@ onUnmounted(() => {
         <NuxtLink
           v-if="authStore.isAuthenticated"
           to="/account"
-          class="touch-target flex h-10 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-3 text-xs font-bold text-[var(--color-brand-forest)] hover:border-[var(--color-brand-forest)] whitespace-nowrap"
+          class="touch-target flex h-10 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-3 text-xs font-bold text-[var(--color-brand-forest)] transition-[border-color,transform] duration-150 ease-[var(--ease-out)] hover:border-[var(--color-brand-forest)] active:scale-[0.97] whitespace-nowrap"
           aria-label="حساب کاربری و آدرس‌ها"
         >
           <User :size="15" aria-hidden="true" />
@@ -248,7 +248,7 @@ onUnmounted(() => {
           v-else
           type="button"
           @click="authStore.openAuthModal()"
-          class="touch-target flex h-10 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-white px-3 text-xs font-bold text-[var(--color-text-primary)] hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] whitespace-nowrap"
+          class="touch-target flex h-10 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-white px-3 text-xs font-bold text-[var(--color-text-primary)] transition-[border-color,background-color,transform] duration-150 ease-[var(--ease-out)] hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-[0.97] whitespace-nowrap"
         >
           <User :size="15" aria-hidden="true" />
           <span>ورود</span>
@@ -257,7 +257,7 @@ onUnmounted(() => {
         <button
           type="button"
           @click="cartStore.toggleCart"
-          class="touch-target group relative flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 text-xs font-medium text-[var(--color-text-primary)] shadow-sm transition-colors hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-95 select-none whitespace-nowrap"
+          class="touch-target group relative flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-subtle)] bg-white px-3.5 text-xs font-medium text-[var(--color-text-primary)] shadow-sm transition-[border-color,background-color,transform] duration-150 ease-[var(--ease-out)] hover:border-[var(--color-brand-forest)] hover:bg-[var(--color-surface-cream)] active:scale-[0.97] select-none whitespace-nowrap"
           aria-label="مشاهده سبد خرید"
         >
           <div class="relative flex items-center justify-center">
@@ -272,7 +272,7 @@ onUnmounted(() => {
             <span
               v-if="cartStore.totalCount > 0"
               :key="cartStore.totalCount"
-              class="nav-cart-badge absolute -top-2.5 -right-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-brand-forest)] px-1 text-[11px] font-bold text-white shadow-xs"
+              class="nav-cart-badge absolute -top-2.5 -end-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-brand-forest)] px-1 text-[11px] font-bold text-white shadow-xs"
               aria-live="polite"
             >
               {{ toPersianDigits(cartStore.totalCount) }}

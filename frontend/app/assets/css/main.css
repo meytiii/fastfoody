@@ -84,13 +84,7 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   --white: #ffffff;
-  --black: #000000;
   --transparent: transparent;
-  --blue-500: #3b82f6;
-  --blue-400: #60a5fa;
-  --blue-300: #93c5fd;
-  --indigo-300: #a5b4fc;
-  --violet-200: #ddd6fe;
 
   --aurora-brand-1: #183A2D;
   --aurora-brand-2: #D6A84B;
@@ -312,7 +306,7 @@ dialog[open]:not([data-closing])::backdrop {
 }
 
 .gooey-button:active {
-  transform: translateY(0) scale(0.96);
+  transform: translateY(0) scale(0.97);
   transition-duration: 100ms;
 }
 
@@ -331,7 +325,7 @@ dialog[open]:not([data-closing])::backdrop {
 .gooey-button__sheen {
   position: absolute;
   top: -50%;
-  left: -50%;
+  inset-inline-start: -50%;
   width: 200%;
   height: 200%;
   pointer-events: none;
@@ -449,6 +443,21 @@ dialog[open]:not([data-closing])::backdrop {
   animation: navBadgePop 260ms var(--ease-out) both;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .fine-hover-lift:hover {
+    transform: translateY(-3px);
+  }
+  .group:hover .fine-hover-scale {
+    transform: scale(1.04);
+  }
+  .group:hover .fine-hover-shift-end {
+    transform: translateX(-0.375rem);
+  }
+  .fine-hover-rotate:hover {
+    transform: rotate(6deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gooey-button {
     transition: none !important;
@@ -459,9 +468,19 @@ dialog[open]:not([data-closing])::backdrop {
   }
   .hero-btn-enter-1,
   .hero-btn-enter-2,
-  .nav-cart-badge {
+  .nav-cart-badge,
+  .animate-aurora,
+  .after\:animate-aurora::after {
     animation: none !important;
     opacity: 1 !important;
+    transform: none !important;
+  }
+  .transition-spring,
+  .fine-hover-lift,
+  .fine-hover-scale,
+  .fine-hover-shift-end,
+  .fine-hover-rotate {
+    transition-duration: 150ms !important;
     transform: none !important;
   }
 }

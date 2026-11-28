@@ -58,7 +58,7 @@ const showAnnouncement = computed(() => {
           <NuxtLink
             v-if="cmsStore.announcement.link"
             :to="cmsStore.announcement.link"
-            class="inline-flex items-center gap-1 font-bold text-[var(--color-accent-gold)] hover:underline shrink-0"
+            class="touch-target inline-flex items-center gap-1 px-2 font-bold text-[var(--color-accent-gold)] hover:underline shrink-0"
           >
             <span>مشاهده</span>
             <ArrowLeft :size="13" aria-hidden="true" class="icon-directional" />
@@ -68,7 +68,7 @@ const showAnnouncement = computed(() => {
         <button
           type="button"
           @click="uiStore.dismissAnnouncement"
-          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/75 hover:bg-white/10 hover:text-white"
+          class="touch-target flex shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white active:scale-[0.97] transition-[background-color,transform] duration-150 ease-[var(--ease-out)]"
           aria-label="بستن اعلان"
         >
           <X :size="14" aria-hidden="true" />

@@ -466,7 +466,7 @@ useHead({
                 </svg>
               </div>
 
-              <div class="relative rounded-full border-[6px] border-[#183A2D] bg-[#183A2D] p-1 shadow-xl sm:border-8">
+              <div class="relative rounded-full border-[6px] border-[#183A2D] bg-[#183A2D] p-1 shadow-[var(--shadow-lg)] sm:border-8">
                 <svg
                   viewBox="0 0 440 440"
                   class="h-[272px] w-[272px] sm:h-[420px] sm:w-[420px] lg:h-[440px] lg:w-[440px]"

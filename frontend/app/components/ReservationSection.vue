@@ -140,54 +140,57 @@ const handleReservation = async () => {
               </div>
 
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                
                 <div class="space-y-1.5">
-                  <label class="block text-xs font-bold text-[var(--color-text-primary)]">
+                  <label for="res-full-name" class="block text-xs font-bold text-[var(--color-text-primary)]">
                     نام و نام خانوادگی *
                   </label>
                   <div class="relative">
-                    <User :size="16" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+                    <User :size="16" aria-hidden="true" class="absolute start-3.5 top-4 text-[var(--color-text-muted)]" />
                     <input
+                      id="res-full-name"
                       v-model="form.fullName"
                       type="text"
                       required
+                      autocomplete="name"
                       placeholder="مثال: سارا محمدی"
-                      class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 py-2.5 ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                     />
                   </div>
                 </div>
 
-                
                 <div class="space-y-1.5">
-                  <label class="block text-xs font-bold text-[var(--color-text-primary)]">
+                  <label for="res-phone" class="block text-xs font-bold text-[var(--color-text-primary)]">
                     شماره همراه *
                   </label>
                   <div class="relative">
-                    <Phone :size="16" class="absolute inset-inline-start-3.5 top-3.5 text-[var(--color-text-muted)]" />
+                    <Phone :size="16" aria-hidden="true" class="absolute start-3.5 top-4 text-[var(--color-text-muted)]" />
                     <input
+                      id="res-phone"
                       v-model="form.phone"
                       type="tel"
                       required
+                      inputmode="tel"
+                      autocomplete="tel"
                       placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                       dir="ltr"
-                      class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 py-2.5 ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] text-end focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                      class="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 ps-10 pe-3.5 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] text-end focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                     />
                   </div>
                 </div>
               </div>
 
-              
               <div class="space-y-2">
-                <label class="block text-xs font-bold text-[var(--color-text-primary)]">
+                <span id="res-guests-label" class="block text-xs font-bold text-[var(--color-text-primary)]">
                   تعداد نفرات
-                </label>
-                <div class="flex flex-wrap gap-2">
+                </span>
+                <div class="flex flex-wrap gap-2" role="group" aria-labelledby="res-guests-label">
                   <button
                     v-for="count in guestOptions"
                     :key="count"
                     type="button"
+                    :aria-pressed="form.guestsCount === count"
                     @click="form.guestsCount = count"
-                    class="touch-target flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs font-bold transition-all"
+                    class="touch-target flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 text-xs font-bold transition-[border-color,background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97]"
                     :class="
                       form.guestsCount === count
                         ? 'border-[var(--color-brand-forest)] bg-[var(--color-brand-forest)] text-white shadow-xs'
@@ -199,18 +202,18 @@ const handleReservation = async () => {
                 </div>
               </div>
 
-              
               <div class="space-y-2">
-                <label class="block text-xs font-bold text-[var(--color-text-primary)]">
+                <span id="res-time-label" class="block text-xs font-bold text-[var(--color-text-primary)]">
                   ساعت حضور
-                </label>
-                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                </span>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" role="group" aria-labelledby="res-time-label">
                   <button
                     v-for="slot in timeSlots"
                     :key="slot"
                     type="button"
+                    :aria-pressed="form.time === slot"
                     @click="form.time = slot"
-                    class="touch-target flex h-9 items-center justify-center rounded-xl border text-xs font-semibold transition-all"
+                    class="touch-target flex h-11 items-center justify-center rounded-xl border text-xs font-semibold transition-[border-color,background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.97]"
                     :class="
                       form.time === slot
                         ? 'border-[var(--color-brand-forest)] bg-[var(--color-brand-forest)] text-white'
@@ -222,16 +225,16 @@ const handleReservation = async () => {
                 </div>
               </div>
 
-              
               <div class="space-y-1.5">
-                <label class="block text-xs font-bold text-[var(--color-text-primary)]">
+                <label for="res-notes" class="block text-xs font-bold text-[var(--color-text-primary)]">
                   توضیحات تکمیلی (مناسبت خاص، صندلی کودک و...)
                 </label>
                 <textarea
+                  id="res-notes"
                   v-model="form.notes"
                   rows="2"
                   placeholder="در صورت داشتن درخواست خاص یا برگزاری جشن تولد اینجا یادداشت بفرمایید..."
-                  class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 p-3 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-forest)]/10"
+                  class="w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/50 p-3 text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none focus:ring-3 focus:ring-[rgba(24,58,45,0.12)]"
                 />
               </div>
 

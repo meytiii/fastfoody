@@ -59,16 +59,16 @@ const handleLogout = async () => {
   </Transition>
 
   <Transition
-    enter-active-class="transition-transform duration-300 ease-out"
+    enter-active-class="transition-transform duration-280 ease-[var(--ease-drawer)]"
     enter-from-class="translate-x-full"
     enter-to-class="translate-x-0"
-    leave-active-class="transition-transform duration-200 ease-in"
+    leave-active-class="transition-transform duration-200 ease-[var(--ease-out)]"
     leave-from-class="translate-x-0"
     leave-to-class="translate-x-full"
   >
     <div
       v-if="uiStore.isMobileMenuOpen"
-      class="fixed top-0 bottom-0 inset-inline-end-0 z-50 flex w-[300px] flex-col bg-white shadow-[var(--shadow-lg)] md:hidden overscroll-contain"
+      class="fixed top-0 bottom-0 end-0 z-50 flex w-[300px] flex-col bg-white shadow-[var(--shadow-lg)] md:hidden overscroll-contain"
       role="dialog"
       aria-label="منوی دسترسی موبایل"
     >
@@ -96,7 +96,7 @@ const handleLogout = async () => {
         <button
           type="button"
           @click="uiStore.closeMobileMenu"
-          class="touch-target flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-cream)] active:scale-95"
+          class="touch-target flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-cream)] active:scale-[0.97] transition-[background-color,transform] duration-150 ease-[var(--ease-out)]"
           aria-label="بستن منو"
         >
           <X :size="20" aria-hidden="true" />

@@ -228,14 +228,14 @@ useHead({
               جستجوی کد
             </label>
             <div class="relative">
-              <Search class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-[#5A5D56]" />
+              <Search class="pointer-events-none absolute top-1/2 start-3 h-4 w-4 -translate-y-1/2 text-[#5A5D56]" />
               <input
                 id="promo-search"
                 v-model="searchQuery"
                 type="search"
                 dir="ltr"
                 placeholder="WELCOME20"
-                class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] py-2.5 pr-9 pl-3 text-sm uppercase"
+                class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] py-2.5 ps-9 pe-3 text-sm uppercase"
               />
             </div>
           </div>
@@ -377,7 +377,7 @@ useHead({
       ref="promoDialogRef"
       closedby="any"
       aria-labelledby="promo-dialog-title"
-      class="modal-top-layer m-auto w-full max-w-xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-xl rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8">
         <h2 id="promo-dialog-title" class="mb-5 text-xl font-extrabold">
@@ -542,7 +542,7 @@ useHead({
       ref="deleteDialogRef"
       closedby="any"
       aria-labelledby="delete-promo-title"
-      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-xl"
+      class="modal-top-layer m-auto w-full max-w-md rounded-3xl border border-[#E8E5DC] bg-white p-0 text-[#292B27] shadow-[var(--shadow-lg)]"
     >
       <div class="p-6 sm:p-7">
         <h2 id="delete-promo-title" class="text-lg font-extrabold">

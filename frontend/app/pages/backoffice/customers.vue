@@ -301,7 +301,7 @@ useHead({
                   <div>
                     <p class="font-bold text-[#292B27]">
                       {{ addr.title || 'نشانی' }}
-                      <span v-if="addr.is_out_of_zone" class="mr-1 rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[#9A4300]">
+                      <span v-if="addr.is_out_of_zone" class="me-1 rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[#9A4300]">
                         خارج از محدوده
                       </span>
                     </p>
