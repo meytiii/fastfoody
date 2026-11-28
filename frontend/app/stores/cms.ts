@@ -25,6 +25,14 @@ export const useCmsStore = defineStore('cms', {
       return state.restaurantStatus?.out_zone_delivery_fee ?? 100000
     },
 
+    minDeliveryAmount: (state): number => {
+      return state.restaurantStatus?.min_delivery_order_amount ?? 0
+    },
+
+    packagingFee: (state): number => {
+      return state.restaurantStatus?.packaging_fee ?? 0
+    },
+
     prepBufferMinutes: (state): number => {
       return state.restaurantStatus?.prep_time_buffer_minutes ?? 5
     },

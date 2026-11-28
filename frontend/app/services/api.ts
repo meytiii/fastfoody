@@ -2,6 +2,7 @@ import type {
   AddOnAdmin,
   AddOnWritePayload,
   AddonLinkInput,
+  AnalyticsPeriod,
   CategoryAdmin,
   CategoryPublic,
   CategoryWritePayload,
@@ -10,8 +11,11 @@ import type {
   CustomerAddressPayload,
   CustomerListRow,
   CustomerNote,
+  CustomerNoteSnapshot,
   CustomerProfile,
   CustomerUpdatePayload,
+  DailyTrendStat,
+  LeastSellingProductStat,
   LiveOrderBackoffice,
   LuckyWheelProduct,
   LuckyWheelResponse,
@@ -31,21 +35,31 @@ import type {
   OrderItemSnapshot,
   OrderListBackoffice,
   OrderRead,
+  OrderStreamEvent,
   PaginatedResponse,
   PaymentBackoffice,
   PaymentPublic,
   PaymentStartResponse,
+  PeakHourStat,
   ProductAdmin,
   ProductDetailAdmin,
   ProductDetailPublic,
+  ProductListResponse,
   ProductSearchParams,
   ProductSuggestionPublic,
   ProductSuggestionsResponse,
   ProductSummaryPublic,
   ProductWritePayload,
+  PromoCodeAdmin,
+  PromoCodeWritePayload,
   RecordRefundPayload,
+  ReorderAddOn,
+  ReorderItem,
+  ReorderResponse,
   RestaurantSettings,
   RestaurantStatus,
+  SalesAnalyticsParams,
+  SalesAnalyticsResponse,
   SiteSectionKey,
   SiteSectionsMap,
   StaffLoginPayload,
@@ -53,6 +67,11 @@ import type {
   StaffProfile,
   StorefrontMenuResponse,
   TokenRefreshResponse,
+  TopProductStat,
+  UpsellProductPublic,
+  UpsellResponse,
+  ValidatePromoPayload,
+  ValidatePromoResponse,
 } from '~/types'
 import {
   MockApiError,
@@ -64,14 +83,75 @@ import {
   writeMockAuthSession,
   writeMockDb,
 } from './mockDatabase'
-import { resolveProductAddons, type MockOrderRecord } from './mockSeed'
+import {
+  resolveProductAddons,
+  type MockDatabaseState,
+  type MockOrderRecord,
+} from './mockSeed'
 import {
   computeRelevanceScore,
+  findDidYouMeanName,
   iterIndexTokens,
+  matchesAutocompleteTerm,
   matchesSearchTerm,
   normalizeSearchQuery,
   suggestCorrectedTerm,
 } from './searchEngine'
+
+const ORDER_STREAM_CHANNEL = 'fastfoody_order_events'
+const orderStreamListeners = new Set<(event: OrderStreamEvent) => void>()
+
+function publishMockOrderEvent(order: MockOrderRecord, eventType: string): void {
+  const payload: OrderStreamEvent = {
+    event_type: eventType,
+    order_id: order.id,
+    daily_number: order.daily_number,
+    status: order.status,
+    payment_status: order.payment_status,
+    expected_ready_at: order.expected_ready_at,
+    cancellation_requested: order.cancellation_requested,
+    timestamp: new Date().toISOString(),
+  }
+  for (const listener of orderStreamListeners) {
+    listener(payload)
+  }
+  if (import.meta.client && typeof BroadcastChannel !== 'undefined') {
+    try {
+      const channel = new BroadcastChannel(ORDER_STREAM_CHANNEL)
+      channel.postMessage(payload)
+      channel.close()
+    } catch {
+      return
+    }
+  }
+}
+
+export function subscribeOrderStream(
+  listener: (event: OrderStreamEvent) => void
+): () => void {
+  orderStreamListeners.add(listener)
+  let bc: BroadcastChannel | null = null
+  const onMessage = (msg: MessageEvent<OrderStreamEvent>) => {
+    if (msg.data) {
+      listener(msg.data)
+    }
+  }
+  if (import.meta.client && typeof BroadcastChannel !== 'undefined') {
+    try {
+      bc = new BroadcastChannel(ORDER_STREAM_CHANNEL)
+      bc.addEventListener('message', onMessage)
+    } catch {
+      bc = null
+    }
+  }
+  return () => {
+    orderStreamListeners.delete(listener)
+    if (bc) {
+      bc.removeEventListener('message', onMessage)
+      bc.close()
+    }
+  }
+}
 
 function toCategoryPublic(cat: CategoryAdmin): CategoryPublic {
   return {
@@ -79,7 +159,6 @@ function toCategoryPublic(cat: CategoryAdmin): CategoryPublic {
     name: cat.name,
     slug: cat.slug,
     description: cat.description,
-    parent_id: cat.parent_id,
     image_url: cat.webp_image_url || cat.image_url,
   }
 }
@@ -120,6 +199,9 @@ function toOrderRead(order: MockOrderRecord): OrderRead {
     delivery_recipient_phone: order.delivery_recipient_phone,
     subtotal: order.subtotal,
     delivery_fee: order.delivery_fee,
+    packaging_fee: order.packaging_fee ?? 0,
+    promo_code_snapshot: order.promo_code_snapshot ?? '',
+    discount_amount: order.discount_amount ?? 0,
     total_amount: order.total_amount,
     prep_time_minutes: order.prep_time_minutes,
     expected_ready_at: order.expected_ready_at,
@@ -128,12 +210,46 @@ function toOrderRead(order: MockOrderRecord): OrderRead {
     expires_at: order.expires_at,
     canceled_at: order.canceled_at,
     cancellation_reason: order.cancellation_reason,
+    cancellation_requested: order.cancellation_requested ?? false,
+    cancellation_request_reason: order.cancellation_request_reason ?? '',
+    cancellation_requested_at: order.cancellation_requested_at ?? null,
     refund_card_number: order.refund_card_number,
     refund_tracking_code: order.refund_tracking_code,
     refunded_at: order.refunded_at,
     created_at: order.created_at,
     items: order.items,
   }
+}
+
+function buildCustomerNotesSnapshot(
+  db: MockDatabaseState,
+  customerId: number
+): CustomerNoteSnapshot[] {
+  const staffByPhone = new Map(
+    db.customers.map(c => [c.phone, c.full_name || null])
+  )
+  return db.customerNotes
+    .filter(n => n.customer_id === customerId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map(n => ({
+      text: n.text,
+      author_phone: n.author_phone,
+      author_name: n.author_phone ? (staffByPhone.get(n.author_phone) ?? null) : null,
+      created_at: n.created_at,
+    }))
+}
+
+function releasePromoUsage(db: MockDatabaseState, orderId: number): void {
+  const nowIso = new Date().toISOString()
+  for (const usage of db.promoUsages) {
+    if (usage.order_id === orderId && usage.deleted_at === null) {
+      usage.deleted_at = nowIso
+    }
+  }
+}
+
+function normalizePromoCode(raw: string): string {
+  return (raw || '').trim().toUpperCase()
 }
 
 function expireStalePendingOrders(): void {
@@ -149,6 +265,8 @@ function expireStalePendingOrders(): void {
       order.status = 'CANCELED'
       order.canceled_at = new Date().toISOString()
       order.cancellation_reason = 'auto: payment timeout'
+      releasePromoUsage(db, order.id)
+      publishMockOrderEvent(order, 'order.status_changed')
       changed = true
     }
   }
@@ -189,28 +307,6 @@ function requireStaffSession() {
   return { db, staff, auth }
 }
 
-function collectActiveSubtreeIds(categories: CategoryAdmin[], rootId: number): Set<number> {
-  const activeByParent = new Map<number | null, number[]>()
-  for (const cat of categories) {
-    if (!cat.is_active) continue
-    const list = activeByParent.get(cat.parent_id) ?? []
-    list.push(cat.id)
-    activeByParent.set(cat.parent_id, list)
-  }
-  const result = new Set<number>([rootId])
-  const queue = [rootId]
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    for (const childId of activeByParent.get(current) ?? []) {
-      if (!result.has(childId)) {
-        result.add(childId)
-        queue.push(childId)
-      }
-    }
-  }
-  return result
-}
-
 function buildPublicProductList(params: ProductSearchParams = {}): ProductAdmin[] {
   const db = readMockDb()
   const activeCategoryIds = new Set(db.categories.filter(c => c.is_active).map(c => c.id))
@@ -229,11 +325,7 @@ function buildPublicProductList(params: ProductSearchParams = {}): ProductAdmin[
     if (!targetCat) {
       throw new MockApiError(404, 'CATEGORY_NOT_FOUND', 'دسته‌بندی مورد نظر یافت نشد.')
     }
-    const includeSub = params.include_subcategories ?? true
-    const allowedIds = includeSub
-      ? collectActiveSubtreeIds(db.categories, targetCat.id)
-      : new Set([targetCat.id])
-    items = items.filter(p => allowedIds.has(p.category.id))
+    items = items.filter(p => p.category.id === targetCat.id)
   }
 
   if (params.min_price !== undefined && params.max_price !== undefined && params.min_price > params.max_price) {
@@ -358,6 +450,90 @@ function syncProductDerivedFields(product: ProductAdmin): ProductAdmin {
     ? Math.round(((product.compare_at_price! - product.price) * 100) / product.compare_at_price!)
     : 0
   return product
+}
+
+function evaluatePromoCode(
+  db: MockDatabaseState,
+  customerId: number,
+  rawCode: string,
+  subtotal: number
+): { promo: PromoCodeAdmin; discountAmount: number } {
+  const normalized = normalizePromoCode(rawCode)
+  const promo = db.promoCodes.find(p => normalizePromoCode(p.code) === normalized)
+  if (!promo) {
+    throw new MockApiError(422, 'PROMO_CODE_NOT_FOUND', 'کد تخفیف یافت نشد.', {
+      code: normalized,
+    })
+  }
+  if (!promo.is_active) {
+    throw new MockApiError(422, 'PROMO_CODE_INACTIVE', 'این کد تخفیف فعال نیست.', {
+      code: promo.code,
+    })
+  }
+  const nowMs = Date.now()
+  if (promo.valid_from && nowMs < new Date(promo.valid_from).getTime()) {
+    throw new MockApiError(
+      422,
+      'PROMO_CODE_NOT_STARTED',
+      'زمان استفاده از این کد تخفیف هنوز شروع نشده است.',
+      { code: promo.code }
+    )
+  }
+  if (promo.valid_until && nowMs > new Date(promo.valid_until).getTime()) {
+    throw new MockApiError(422, 'PROMO_CODE_EXPIRED', 'این کد تخفیف منقضی شده است.', {
+      code: promo.code,
+    })
+  }
+  if (subtotal < promo.min_order_amount) {
+    throw new MockApiError(
+      422,
+      'PROMO_CODE_MIN_ORDER',
+      `حداقل مبلغ سفارش برای استفاده از این کد تخفیف ${promo.min_order_amount.toLocaleString('en-US')} تومان است.`,
+      { min_order_amount: promo.min_order_amount, subtotal }
+    )
+  }
+  const aliveUsages = db.promoUsages.filter(
+    u => u.promo_code_id === promo.id && u.deleted_at === null
+  )
+  if (promo.max_total_uses !== null && aliveUsages.length >= promo.max_total_uses) {
+    throw new MockApiError(
+      422,
+      'PROMO_CODE_TOTAL_LIMIT',
+      'ظرفیت استفاده از این کد تخفیف تکمیل شده است.',
+      { code: promo.code }
+    )
+  }
+  const customerUses = aliveUsages.filter(u => u.customer_id === customerId).length
+  if (customerUses >= promo.max_uses_per_customer) {
+    throw new MockApiError(
+      422,
+      'PROMO_CODE_CUSTOMER_LIMIT',
+      'شما به سقف استفاده از این کد تخفیف رسیده‌اید.',
+      { code: promo.code }
+    )
+  }
+  if (promo.first_order_only) {
+    const hasPaidOrder = db.orders.some(
+      o => o.customer_id === customerId && o.paid_at !== null
+    )
+    if (hasPaidOrder) {
+      throw new MockApiError(
+        422,
+        'PROMO_CODE_FIRST_ORDER_ONLY',
+        'این کد تخفیف فقط برای اولین سفارش قابل استفاده است.',
+        { code: promo.code }
+      )
+    }
+  }
+  let discount =
+    promo.discount_type === 'PERCENTAGE'
+      ? Math.floor((subtotal * promo.discount_value) / 100)
+      : promo.discount_value
+  if (promo.discount_type === 'PERCENTAGE' && promo.max_discount_amount !== null) {
+    discount = Math.min(discount, promo.max_discount_amount)
+  }
+  const discountAmount = Math.max(0, Math.min(discount, subtotal))
+  return { promo, discountAmount }
 }
 
 export const storefrontApi = {
@@ -503,13 +679,45 @@ export const storefrontApi = {
         })
       }
       const nowIso = new Date().toISOString()
-      const makeDefault = Boolean(payload.is_default) || !db.addresses.some(a => a.customer_id === customer.id)
-      if (makeDefault) {
+
+      if (payload.replace_address_id !== undefined) {
+        const target = db.addresses.find(
+          a => a.id === payload.replace_address_id && a.customer_id === customer.id
+        )
+        if (!target) {
+          throw new MockApiError(404, 'ADDRESS_NOT_FOUND', 'آدرس یافت نشد.')
+        }
         for (const row of db.addresses) {
-          if (row.customer_id === customer.id && row.is_default) {
+          if (row.customer_id === customer.id && row.id !== target.id && row.is_default) {
             row.is_default = false
             row.updated_at = nowIso
           }
+        }
+        target.title = (payload.title || '').trim()
+        target.address_text = cleaned
+        target.recipient_name = (payload.recipient_name || customer.full_name || '').trim()
+        target.recipient_phone = (payload.recipient_phone || customer.phone || '').trim()
+        target.is_out_of_zone = Boolean(payload.is_out_of_zone)
+        target.is_default = true
+        target.updated_at = nowIso
+        writeMockDb(db)
+        const { customer_id: _cid, ...address } = target
+        return address
+      }
+
+      const existingCount = db.addresses.filter(a => a.customer_id === customer.id).length
+      if (existingCount >= 4) {
+        const limitMessage =
+          'شما حداکثر می‌توانید ۴ آدرس ثبت کنید. برای افزودن آدرس جدید، ابتدا یکی از آدرس‌های قبلی را ویرایش یا حذف کنید.'
+        throw new MockApiError(422, 'ADDRESS_LIMIT_REACHED', limitMessage, {
+          addresses: limitMessage,
+        })
+      }
+
+      for (const row of db.addresses) {
+        if (row.customer_id === customer.id && row.is_default) {
+          row.is_default = false
+          row.updated_at = nowIso
         }
       }
       const created: CustomerAddress & { customer_id: number } = {
@@ -520,13 +728,36 @@ export const storefrontApi = {
         recipient_name: (payload.recipient_name || customer.full_name || '').trim(),
         recipient_phone: (payload.recipient_phone || customer.phone || '').trim(),
         is_out_of_zone: Boolean(payload.is_out_of_zone),
-        is_default: makeDefault,
+        is_default: true,
         created_at: nowIso,
         updated_at: nowIso,
       }
       db.addresses.push(created)
       writeMockDb(db)
       const { customer_id: _cid, ...address } = created
+      return address
+    },
+
+    async setDefaultAddress(id: number): Promise<CustomerAddress> {
+      await delayMock(70)
+      const { db, customer } = requireAuthenticatedCustomer()
+      const row = db.addresses.find(a => a.id === id && a.customer_id === customer.id)
+      if (!row) {
+        throw new MockApiError(404, 'ADDRESS_NOT_FOUND', 'آدرس یافت نشد.')
+      }
+      const nowIso = new Date().toISOString()
+      for (const other of db.addresses) {
+        if (other.customer_id === customer.id && other.id !== row.id && other.is_default) {
+          other.is_default = false
+          other.updated_at = nowIso
+        }
+      }
+      if (!row.is_default) {
+        row.is_default = true
+        row.updated_at = nowIso
+      }
+      writeMockDb(db)
+      const { customer_id: _cid, ...address } = row
       return address
     },
 
@@ -601,11 +832,25 @@ export const storefrontApi = {
       return { categories }
     },
 
-    async getProducts(params: ProductSearchParams = {}): Promise<PaginatedResponse<ProductSummaryPublic>> {
+    async getProducts(params: ProductSearchParams = {}): Promise<ProductListResponse> {
       await delayMock(80)
       const items = buildPublicProductList(params).map(toProductSummaryPublic)
       const limit = Math.min(params.limit ?? 20, 100)
-      return paginateSlice(items, limit, params.offset ?? 0)
+      const page = paginateSlice(items, limit, params.offset ?? 0)
+      const normalizedQ = normalizeSearchQuery(params.q)
+      if (normalizedQ && page.count === 0) {
+        const db = readMockDb()
+        const activeCatIds = new Set(db.categories.filter(c => c.is_active).map(c => c.id))
+        const productNames = db.products
+          .filter(p => p.status !== 'HIDDEN' && activeCatIds.has(p.category.id))
+          .map(p => p.name)
+        const categoryNames = db.categories.filter(c => c.is_active).map(c => c.name)
+        const didYouMean = findDidYouMeanName(normalizedQ, productNames, categoryNames)
+        if (didYouMean) {
+          return { ...page, did_you_mean: didYouMean }
+        }
+      }
+      return page
     },
 
     async getSuggestions(q = '', limit = 5): Promise<ProductSuggestionsResponse> {
@@ -621,24 +866,53 @@ export const storefrontApi = {
         p => p.status !== 'HIDDEN' && activeCatIds.has(p.category.id)
       )
 
-      let matches = buildPublicProductList({ q: normalized, sort: 'relevance' })
-      let didYouMean: string | null = null
-
-      if (matches.length === 0) {
-        const vocab = Array.from(
-          new Set(
-            publicProducts
-              .flatMap(p => iterIndexTokens(p.name))
-              .filter(word => word.length >= 3 && !/^\d+$/.test(word))
-          )
-        )
-        const corrected = suggestCorrectedTerm(normalized, vocab)
-        if (corrected) {
-          const correctedMatches = buildPublicProductList({ q: corrected, sort: 'relevance' })
-          if (correctedMatches.length > 0) {
-            matches = correctedMatches
-            didYouMean = corrected
+      const salesByName = new Map<string, number>()
+      for (const order of db.orders) {
+        if (
+          order.payment_status === 'PAID' &&
+          (order.status === 'PROCESSING' || order.status === 'READY' || order.status === 'COMPLETED')
+        ) {
+          for (const line of order.items) {
+            salesByName.set(
+              line.product_name_snapshot,
+              (salesByName.get(line.product_name_snapshot) ?? 0) + line.quantity
+            )
           }
+        }
+      }
+
+      const matches = publicProducts
+        .filter(p => matchesAutocompleteTerm({ name: p.name }, normalized))
+        .sort((a, b) => {
+          const scoreA = computeRelevanceScore(
+            { name: a.name, slug: a.slug, description: a.description, categoryName: a.category.name },
+            normalized
+          )
+          const scoreB = computeRelevanceScore(
+            { name: b.name, slug: b.slug, description: b.description, categoryName: b.category.name },
+            normalized
+          )
+          if (scoreB !== scoreA) return scoreB - scoreA
+          const salesDiff = (salesByName.get(b.name) ?? 0) - (salesByName.get(a.name) ?? 0)
+          if (salesDiff !== 0) return salesDiff
+          if (a.display_order !== b.display_order) return a.display_order - b.display_order
+          return a.name.localeCompare(b.name, 'fa') || a.id - b.id
+        })
+
+      let didYouMean: string | null = null
+      if (matches.length === 0) {
+        const productNames = publicProducts.map(p => p.name)
+        const categoryNames = db.categories.filter(c => c.is_active).map(c => c.name)
+        didYouMean = findDidYouMeanName(normalized, productNames, categoryNames)
+        if (!didYouMean) {
+          const vocab = Array.from(
+            new Set(
+              publicProducts
+                .flatMap(p => iterIndexTokens(p.name))
+                .filter(word => word.length >= 3 && !/^\d+$/.test(word))
+            )
+          )
+          didYouMean = suggestCorrectedTerm(normalized, vocab)
         }
       }
 
@@ -654,6 +928,54 @@ export const storefrontApi = {
       }))
 
       return { results, did_you_mean: didYouMean }
+    },
+
+    async getUpsell(): Promise<UpsellResponse> {
+      await delayMock(60)
+      const db = readMockDb()
+      const activeCatIds = new Set(db.categories.filter(c => c.is_active).map(c => c.id))
+      const salesByProductName = new Map<string, number>()
+      for (const order of db.orders) {
+        if (
+          order.payment_status === 'PAID' &&
+          (order.status === 'PROCESSING' || order.status === 'READY' || order.status === 'COMPLETED')
+        ) {
+          for (const line of order.items) {
+            salesByProductName.set(
+              line.product_name_snapshot,
+              (salesByProductName.get(line.product_name_snapshot) ?? 0) + line.quantity
+            )
+          }
+        }
+      }
+
+      const products: UpsellProductPublic[] = db.products
+        .filter(
+          p =>
+            p.status === 'AVAILABLE' &&
+            !p.is_main_dish &&
+            activeCatIds.has(p.category.id)
+        )
+        .sort((a, b) => {
+          const salesDiff = (salesByProductName.get(b.name) ?? 0) - (salesByProductName.get(a.name) ?? 0)
+          if (salesDiff !== 0) return salesDiff
+          if (a.display_order !== b.display_order) return a.display_order - b.display_order
+          return a.name.localeCompare(b.name, 'fa') || a.id - b.id
+        })
+        .slice(0, 8)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          price: p.price,
+          compare_at_price: p.compare_at_price,
+          discount_percent: p.discount_percent,
+          status: p.status,
+          image_url: p.webp_image_url || p.image_url,
+          category_id: p.category.id,
+        }))
+
+      return { products }
     },
 
     async getProductBySlug(slug: string): Promise<ProductDetailPublic> {
@@ -721,6 +1043,8 @@ export const storefrontApi = {
         close_time: s.close_time,
         in_zone_delivery_fee: s.in_zone_delivery_fee,
         out_zone_delivery_fee: s.out_zone_delivery_fee,
+        min_delivery_order_amount: s.min_delivery_order_amount ?? 0,
+        packaging_fee: s.packaging_fee ?? 0,
         prep_time_buffer_minutes: s.prep_time_buffer_minutes,
       }
     },
@@ -779,6 +1103,144 @@ export const storefrontApi = {
       return toOrderRead(order)
     },
 
+    async validatePromo(payload: ValidatePromoPayload): Promise<ValidatePromoResponse> {
+      await delayMock(70)
+      const { db, customer } = requireAuthenticatedCustomer()
+      const { promo, discountAmount } = evaluatePromoCode(
+        db,
+        customer.id,
+        payload.code,
+        Math.max(0, Math.round(payload.subtotal))
+      )
+      const subtotal = Math.max(0, Math.round(payload.subtotal))
+      return {
+        code: promo.code,
+        discount_type: promo.discount_type,
+        discount_value: promo.discount_value,
+        discount_amount: discountAmount,
+        subtotal,
+        discounted_subtotal: subtotal - discountAmount,
+      }
+    },
+
+    async requestCancellation(orderId: number, reason = ''): Promise<OrderRead> {
+      expireStalePendingOrders()
+      await delayMock(90)
+      const { db, customer } = requireAuthenticatedCustomer()
+      const order = db.orders.find(o => o.id === orderId && o.customer_id === customer.id)
+      if (!order) {
+        throw new MockApiError(404, 'ORDER_NOT_FOUND', 'سفارش مورد نظر یافت نشد.')
+      }
+      if (order.payment_status !== 'PAID') {
+        throw new MockApiError(
+          409,
+          'INVALID_ORDER_STATE',
+          'فقط سفارش‌های پرداخت‌شده قابل درخواست لغو هستند.'
+        )
+      }
+      if (order.status !== 'PROCESSING' && order.status !== 'READY') {
+        throw new MockApiError(
+          409,
+          'INVALID_ORDER_STATE',
+          'در وضعیت فعلی سفارش امکان درخواست لغو وجود ندارد.'
+        )
+      }
+      if (order.cancellation_requested) {
+        throw new MockApiError(
+          409,
+          'INVALID_ORDER_STATE',
+          'درخواست لغو این سفارش قبلاً ثبت شده است.'
+        )
+      }
+      order.cancellation_requested = true
+      order.cancellation_request_reason = reason.trim()
+      order.cancellation_requested_at = new Date().toISOString()
+      writeMockDb(db)
+      publishMockOrderEvent(order, 'order.cancellation_requested')
+      return toOrderRead(order)
+    },
+
+    async reorder(orderId: number): Promise<ReorderResponse> {
+      await delayMock(90)
+      const { db, customer } = requireAuthenticatedCustomer()
+      const order = db.orders.find(o => o.id === orderId && o.customer_id === customer.id)
+      if (!order) {
+        throw new MockApiError(404, 'ORDER_NOT_FOUND', 'سفارش مورد نظر یافت نشد.')
+      }
+
+      const items: ReorderItem[] = []
+      const warnings: string[] = []
+      const pushWarning = (msg: string) => {
+        if (!warnings.includes(msg)) warnings.push(msg)
+      }
+
+      for (const orderItem of order.items) {
+        const product = db.products.find(p => p.name === orderItem.product_name_snapshot)
+        if (!product || product.status !== 'AVAILABLE') {
+          pushWarning(
+            `محصول «${orderItem.product_name_snapshot}» در حال حاضر موجود نیست و از سبد حذف شد.`
+          )
+          continue
+        }
+        if (!product.category.is_active) {
+          pushWarning(
+            `دسته‌بندی محصول «${orderItem.product_name_snapshot}» غیرفعال است و محصول از سبد حذف شد.`
+          )
+          continue
+        }
+        if (product.price !== orderItem.unit_price_snapshot) {
+          pushWarning(`قیمت محصول «${product.name}» تغییر کرده است.`)
+        }
+
+        const links = resolveProductAddons(product.id, db.productAddons, db.addons, true)
+        const linkByAddonId = new Map(links.map(l => [l.addon_id, l]))
+        const addonLines: ReorderAddOn[] = []
+        let addonsTotal = 0
+
+        for (const orderAddon of orderItem.addons) {
+          const link = linkByAddonId.get(orderAddon.addon_id)
+          if (!link || !link.is_available) {
+            pushWarning(
+              `افزودنی «${orderAddon.addon_name_snapshot}» برای محصول «${product.name}» در دسترس نیست و حذف شد.`
+            )
+            continue
+          }
+          let qty = orderAddon.quantity
+          if (qty > link.max_quantity) {
+            qty = link.max_quantity
+            pushWarning(
+              `تعداد افزودنی «${link.name}» به حداکثر مجاز (${link.max_quantity}) کاهش یافت.`
+            )
+          }
+          if (qty <= 0) continue
+          if (link.price !== orderAddon.unit_price_snapshot) {
+            pushWarning(`قیمت افزودنی «${link.name}» تغییر کرده است.`)
+          }
+          const lineTotal = qty * link.price
+          addonsTotal += lineTotal
+          addonLines.push({
+            addon_id: link.addon_id,
+            name: link.name,
+            quantity: qty,
+            unit_price: link.price,
+            line_total: lineTotal,
+          })
+        }
+
+        const lineTotal = product.price * orderItem.quantity + addonsTotal
+        items.push({
+          product_id: product.id,
+          name: product.name,
+          quantity: orderItem.quantity,
+          unit_price: product.price,
+          addons: addonLines,
+          line_total: lineTotal,
+        })
+      }
+
+      return { items, warnings }
+    },
+
     async createOrder(payload: OrderCreatePayload): Promise<OrderRead> {
       expireStalePendingOrders()
       await delayMock(140)
@@ -825,6 +1287,18 @@ export const storefrontApi = {
             ? settings.out_zone_delivery_fee
             : settings.in_zone_delivery_fee
           : 0
+
+      if (payload.delivery_type === 'DELIVERY' && resolvedAddress) {
+        const nowAddrIso = new Date().toISOString()
+        for (const addr of db.addresses) {
+          if (addr.customer_id === customer.id) {
+            addr.is_default = addr.id === resolvedAddress.id
+            addr.updated_at = nowAddrIso
+          }
+        }
+      }
+
+      const packagingFee = settings.packaging_fee ?? 0
 
       let maxPrep = 0
       let subtotal = 0
@@ -913,12 +1387,44 @@ export const storefrontApi = {
         })
       }
 
+      const minDeliveryAmount = settings.min_delivery_order_amount ?? 0
+      if (payload.delivery_type === 'DELIVERY' && subtotal < minDeliveryAmount) {
+        throw new MockApiError(
+          422,
+          'MIN_DELIVERY_ORDER_AMOUNT',
+          `حداقل مبلغ سفارش برای ارسال ${minDeliveryAmount} تومان است.`,
+          { min_delivery_order_amount: minDeliveryAmount, subtotal }
+        )
+      }
+
+      let promoSnapshot = ''
+      let discountAmount = 0
+      let appliedPromoId: number | null = null
+      if (payload.promo_code && payload.promo_code.trim()) {
+        const promoResult = evaluatePromoCode(db, customer.id, payload.promo_code, subtotal)
+        promoSnapshot = promoResult.promo.code
+        discountAmount = promoResult.discountAmount
+        appliedPromoId = promoResult.promo.id
+      }
+
       const now = new Date()
       const expiresAt = new Date(now.getTime() + 15 * 60_000).toISOString()
       const prepTimeMinutes = maxPrep + settings.prep_time_buffer_minutes
+      const orderId = db.nextIds.order++
+
+      if (appliedPromoId !== null) {
+        db.promoUsages.push({
+          id: db.nextIds.promoUsage++,
+          promo_code_id: appliedPromoId,
+          customer_id: customer.id,
+          order_id: orderId,
+          discount_amount: discountAmount,
+          deleted_at: null,
+        })
+      }
 
       const createdOrder: MockOrderRecord = {
-        id: db.nextIds.order++,
+        id: orderId,
         customer_id: customer.id,
         daily_number: null,
         daily_number_date: null,
@@ -939,7 +1445,10 @@ export const storefrontApi = {
         },
         subtotal,
         delivery_fee: deliveryFee,
-        total_amount: subtotal + deliveryFee,
+        packaging_fee: packagingFee,
+        promo_code_snapshot: promoSnapshot,
+        discount_amount: discountAmount,
+        total_amount: Math.max(0, subtotal - discountAmount) + deliveryFee + packagingFee,
         prep_time_minutes: prepTimeMinutes,
         expected_ready_at: null,
         paid_at: null,
@@ -950,11 +1459,15 @@ export const storefrontApi = {
         canceled_at: null,
         canceled_by_id: null,
         cancellation_reason: '',
+        cancellation_requested: false,
+        cancellation_request_reason: '',
+        cancellation_requested_at: null,
         refund_card_number: '',
         refund_tracking_code: '',
         refunded_at: null,
         created_at: now.toISOString(),
         items: builtItems,
+        customer_notes: buildCustomerNotesSnapshot(db, customer.id),
       }
 
       db.orders.unshift(createdOrder)
@@ -1067,6 +1580,7 @@ export const storefrontApi = {
       assignDailyNumber(db, order)
 
       writeMockDb(db)
+      publishMockOrderEvent(order, 'order.payment_verified')
       return { status: 'success', authority: payment.authority, orderId: payment.order_id }
     },
 
@@ -1189,8 +1703,12 @@ export const backofficeApi = {
           is_printed: o.is_printed,
           printed_at: o.printed_at,
           notes_to_kitchen: o.notes_to_kitchen,
+          cancellation_requested: o.cancellation_requested ?? false,
+          cancellation_request_reason: o.cancellation_request_reason ?? '',
+          cancellation_requested_at: o.cancellation_requested_at ?? null,
           created_at: o.created_at,
           items: o.items,
+          customer_notes: buildCustomerNotesSnapshot(db, o.customer_id),
         }))
     },
 
@@ -1253,7 +1771,10 @@ export const backofficeApi = {
       if (!order) {
         throw new MockApiError(404, 'ORDER_NOT_FOUND', 'سفارش یافت نشد.')
       }
-      return structuredClone(order)
+      return {
+        ...structuredClone(order),
+        customer_notes: buildCustomerNotesSnapshot(db, order.customer_id),
+      }
     },
 
     async markPrinted(orderId: number): Promise<OrderDetailBackoffice> {
@@ -1279,7 +1800,8 @@ export const backofficeApi = {
       }
       order.status = 'READY'
       writeMockDb(db)
-      return structuredClone(order)
+      publishMockOrderEvent(order, 'order.status_changed')
+      return backofficeApi.orders.getOrder(order.id)
     },
 
     async markCompleted(orderId: number): Promise<OrderDetailBackoffice> {
@@ -1292,7 +1814,8 @@ export const backofficeApi = {
       }
       order.status = 'COMPLETED'
       writeMockDb(db)
-      return structuredClone(order)
+      publishMockOrderEvent(order, 'order.status_changed')
+      return backofficeApi.orders.getOrder(order.id)
     },
 
     async updatePrepTime(orderId: number, prepTimeMinutes: number): Promise<OrderDetailBackoffice> {
@@ -1310,7 +1833,8 @@ export const backofficeApi = {
       const anchor = order.paid_at ? new Date(order.paid_at) : new Date(order.created_at)
       order.expected_ready_at = new Date(anchor.getTime() + prepTimeMinutes * 60_000).toISOString()
       writeMockDb(db)
-      return structuredClone(order)
+      publishMockOrderEvent(order, 'order.prep_time_updated')
+      return backofficeApi.orders.getOrder(order.id)
     },
 
     async cancelOrder(orderId: number, reason = ''): Promise<OrderDetailBackoffice> {
@@ -1325,11 +1849,14 @@ export const backofficeApi = {
       order.canceled_at = new Date().toISOString()
       order.canceled_by_id = staff.id
       order.cancellation_reason = reason.trim()
-      if (order.payment_status === 'PAID') {
+      if (order.payment_status === 'UNPAID') {
+        releasePromoUsage(db, order.id)
+      } else if (order.payment_status === 'PAID') {
         order.payment_status = 'AWAITING_REFUND'
       }
       writeMockDb(db)
-      return structuredClone(order)
+      publishMockOrderEvent(order, 'order.status_changed')
+      return backofficeApi.orders.getOrder(order.id)
     },
 
     async recordRefund(orderId: number, payload: RecordRefundPayload): Promise<OrderDetailBackoffice> {
@@ -1498,7 +2025,6 @@ export const backofficeApi = {
       const nowIso = new Date().toISOString()
       const created: CategoryAdmin = {
         id: db.nextIds.category++,
-        parent_id: payload.parent_id ?? null,
         name: payload.name.trim(),
         slug: payload.slug.trim(),
         description: (payload.description || '').trim(),
@@ -1519,19 +2045,6 @@ export const backofficeApi = {
       const { db } = requireStaffSession()
       const cat = db.categories.find(c => c.id === id)
       if (!cat) throw new MockApiError(404, 'CATEGORY_NOT_FOUND', 'دسته‌بندی یافت نشد.')
-      if (payload.parent_id !== undefined && payload.parent_id !== null) {
-        if (payload.parent_id === id) {
-          throw new MockApiError(422, 'VALIDATION_ERROR', 'دسته‌بندی نمی‌تواند والد خودش باشد.')
-        }
-        let cursor: number | null = payload.parent_id
-        while (cursor !== null) {
-          if (cursor === id) {
-            throw new MockApiError(422, 'VALIDATION_ERROR', 'ساختار سلسله‌مراتبی حلقوی مجاز نیست.')
-          }
-          const parent = db.categories.find(c => c.id === cursor)
-          cursor = parent ? parent.parent_id : null
-        }
-      }
       if (payload.name !== undefined) cat.name = payload.name.trim()
       if (payload.slug !== undefined) {
         if (db.categories.some(c => c.slug === payload.slug && c.id !== id)) {
@@ -1539,7 +2052,6 @@ export const backofficeApi = {
         }
         cat.slug = payload.slug.trim()
       }
-      if (payload.parent_id !== undefined) cat.parent_id = payload.parent_id
       if (payload.description !== undefined) cat.description = payload.description.trim()
       if (payload.display_order !== undefined) cat.display_order = payload.display_order
       if (payload.is_active !== undefined) cat.is_active = payload.is_active
@@ -1559,9 +2071,6 @@ export const backofficeApi = {
       const { db } = requireStaffSession()
       if (db.products.some(p => p.category.id === id)) {
         throw new MockApiError(409, 'CATEGORY_HAS_PRODUCTS', 'این دسته‌بندی دارای محصول فعال است و قابل حذف نیست.')
-      }
-      if (db.categories.some(c => c.parent_id === id)) {
-        throw new MockApiError(409, 'CATEGORY_HAS_CHILDREN', 'این دسته‌بندی دارای زیردسته است.')
       }
       const idx = db.categories.findIndex(c => c.id === id)
       if (idx === -1) throw new MockApiError(404, 'CATEGORY_NOT_FOUND', 'دسته‌بندی یافت نشد.')
@@ -1881,6 +2390,316 @@ export const backofficeApi = {
       if (idx === -1) throw new MockApiError(404, 'MEDIA_NOT_FOUND', 'فایل رسانه‌ای یافت نشد.')
       db.mediaAssets.splice(idx, 1)
       writeMockDb(db)
+    },
+  },
+
+  promoCodes: {
+    async listPromoCodes(params: {
+      search?: string
+      is_active?: boolean
+      limit?: number
+      offset?: number
+    } = {}): Promise<PaginatedResponse<PromoCodeAdmin>> {
+      await delayMock(60)
+      const { db } = requireStaffSession()
+      let rows = db.promoCodes.map(promo => ({
+        ...promo,
+        usage_count: db.promoUsages.filter(
+          u => u.promo_code_id === promo.id && u.deleted_at === null
+        ).length,
+      }))
+      if (params.search?.trim()) {
+        const q = params.search.trim().toLowerCase()
+        rows = rows.filter(p => p.code.toLowerCase().includes(q))
+      }
+      if (params.is_active !== undefined) {
+        rows = rows.filter(p => p.is_active === params.is_active)
+      }
+      rows.sort((a, b) => b.created_at.localeCompare(a.created_at))
+      return paginateSlice(rows, params.limit ?? 20, params.offset ?? 0)
+    },
+
+    async getPromoCode(id: number): Promise<PromoCodeAdmin> {
+      await delayMock(50)
+      const { db } = requireStaffSession()
+      const promo = db.promoCodes.find(p => p.id === id)
+      if (!promo) throw new MockApiError(404, 'PROMO_CODE_NOT_FOUND', 'کد تخفیف یافت نشد.')
+      return {
+        ...structuredClone(promo),
+        usage_count: db.promoUsages.filter(
+          u => u.promo_code_id === promo.id && u.deleted_at === null
+        ).length,
+      }
+    },
+
+    async createPromoCode(payload: PromoCodeWritePayload): Promise<PromoCodeAdmin> {
+      await delayMock(80)
+      const { db } = requireStaffSession()
+      const code = normalizePromoCode(payload.code)
+      if (!code) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'وارد کردن کد تخفیف الزامی است.', {
+          code: 'این فیلد الزامی است.',
+        })
+      }
+      if (db.promoCodes.some(p => normalizePromoCode(p.code) === code)) {
+        throw new MockApiError(422, 'PROMO_CODE_DUPLICATE', 'کد تخفیف تکراری است.', { code })
+      }
+      if (
+        payload.discount_type === 'PERCENTAGE' &&
+        (payload.discount_value < 1 || payload.discount_value > 100)
+      ) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'درصد تخفیف باید بین ۱ تا ۱۰۰ باشد.')
+      }
+      if (payload.discount_type === 'FIXED' && payload.discount_value <= 0) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'مبلغ تخفیف باید بزرگ‌تر از صفر باشد.')
+      }
+      if (
+        payload.valid_from &&
+        payload.valid_until &&
+        new Date(payload.valid_until) <= new Date(payload.valid_from)
+      ) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'زمان پایان اعتبار باید بعد از زمان شروع باشد.')
+      }
+      const nowIso = new Date().toISOString()
+      const created: PromoCodeAdmin = {
+        id: db.nextIds.promoCode++,
+        code,
+        discount_type: payload.discount_type,
+        discount_value: Math.round(payload.discount_value),
+        max_discount_amount: payload.max_discount_amount ?? null,
+        min_order_amount: Math.max(0, Math.round(payload.min_order_amount ?? 0)),
+        valid_from: payload.valid_from ?? null,
+        valid_until: payload.valid_until ?? null,
+        max_total_uses: payload.max_total_uses ?? null,
+        max_uses_per_customer: Math.max(1, Math.round(payload.max_uses_per_customer ?? 1)),
+        first_order_only: Boolean(payload.first_order_only),
+        is_active: payload.is_active ?? true,
+        usage_count: 0,
+        created_at: nowIso,
+        updated_at: nowIso,
+      }
+      db.promoCodes.unshift(created)
+      writeMockDb(db)
+      return structuredClone(created)
+    },
+
+    async updatePromoCode(
+      id: number,
+      payload: Partial<PromoCodeWritePayload>
+    ): Promise<PromoCodeAdmin> {
+      await delayMock(80)
+      const { db } = requireStaffSession()
+      const promo = db.promoCodes.find(p => p.id === id)
+      if (!promo) throw new MockApiError(404, 'PROMO_CODE_NOT_FOUND', 'کد تخفیف یافت نشد.')
+
+      const nextCode = payload.code !== undefined ? normalizePromoCode(payload.code) : promo.code
+      if (!nextCode) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'وارد کردن کد تخفیف الزامی است.')
+      }
+      if (db.promoCodes.some(p => p.id !== id && normalizePromoCode(p.code) === nextCode)) {
+        throw new MockApiError(422, 'PROMO_CODE_DUPLICATE', 'کد تخفیف تکراری است.', {
+          code: nextCode,
+        })
+      }
+      const nextType = payload.discount_type ?? promo.discount_type
+      const nextValue = payload.discount_value ?? promo.discount_value
+      if (nextType === 'PERCENTAGE' && (nextValue < 1 || nextValue > 100)) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'درصد تخفیف باید بین ۱ تا ۱۰۰ باشد.')
+      }
+      if (nextType === 'FIXED' && nextValue <= 0) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'مبلغ تخفیف باید بزرگ‌تر از صفر باشد.')
+      }
+      const nextFrom = payload.valid_from !== undefined ? payload.valid_from : promo.valid_from
+      const nextUntil = payload.valid_until !== undefined ? payload.valid_until : promo.valid_until
+      if (nextFrom && nextUntil && new Date(nextUntil) <= new Date(nextFrom)) {
+        throw new MockApiError(422, 'VALIDATION_ERROR', 'زمان پایان اعتبار باید بعد از زمان شروع باشد.')
+      }
+
+      promo.code = nextCode
+      promo.discount_type = nextType
+      promo.discount_value = Math.round(nextValue)
+      if (payload.max_discount_amount !== undefined) promo.max_discount_amount = payload.max_discount_amount
+      if (payload.min_order_amount !== undefined) promo.min_order_amount = Math.max(0, Math.round(payload.min_order_amount))
+      promo.valid_from = nextFrom
+      promo.valid_until = nextUntil
+      if (payload.max_total_uses !== undefined) promo.max_total_uses = payload.max_total_uses
+      if (payload.max_uses_per_customer !== undefined) {
+        promo.max_uses_per_customer = Math.max(1, Math.round(payload.max_uses_per_customer))
+      }
+      if (payload.first_order_only !== undefined) promo.first_order_only = payload.first_order_only
+      if (payload.is_active !== undefined) promo.is_active = payload.is_active
+      promo.updated_at = new Date().toISOString()
+
+      writeMockDb(db)
+      return backofficeApi.promoCodes.getPromoCode(id)
+    },
+
+    async deletePromoCode(id: number): Promise<void> {
+      await delayMock(60)
+      const { db } = requireStaffSession()
+      const idx = db.promoCodes.findIndex(p => p.id === id)
+      if (idx === -1) throw new MockApiError(404, 'PROMO_CODE_NOT_FOUND', 'کد تخفیف یافت نشد.')
+      db.promoCodes.splice(idx, 1)
+      writeMockDb(db)
+    },
+  },
+
+  analytics: {
+    async getSales(params: SalesAnalyticsParams = {}): Promise<SalesAnalyticsResponse> {
+      await delayMock(80)
+      const { db } = requireStaffSession()
+      const period: AnalyticsPeriod = params.period ?? '7d'
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const addDays = (isoDate: string, delta: number): string => {
+        const dt = new Date(`${isoDate}T00:00:00Z`)
+        dt.setUTCDate(dt.getUTCDate() + delta)
+        return dt.toISOString().slice(0, 10)
+      }
+
+      let dateFrom = todayStr
+      let dateTo = todayStr
+      if (period === 'custom' || params.date_from || params.date_to) {
+        if (!params.date_from || !params.date_to) {
+          throw new MockApiError(
+            422,
+            'INVALID_DATE_RANGE',
+            'برای بازه دلخواه، تاریخ شروع و پایان الزامی است.'
+          )
+        }
+        if (params.date_from > params.date_to) {
+          throw new MockApiError(
+            422,
+            'INVALID_DATE_RANGE',
+            'تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.'
+          )
+        }
+        dateFrom = params.date_from
+        dateTo = params.date_to
+      } else if (period === '7d') {
+        dateFrom = addDays(todayStr, -6)
+      } else if (period === '30d') {
+        dateFrom = addDays(todayStr, -29)
+      }
+
+      const reportingStatuses = new Set(['PAID', 'AWAITING_REFUND', 'REFUNDED'])
+      const nonRefundedStatuses = new Set(['PAID', 'AWAITING_REFUND'])
+      const paidOrders = db.orders.filter(o => {
+        const day = o.created_at.slice(0, 10)
+        return reportingStatuses.has(o.payment_status) && day >= dateFrom && day <= dateTo
+      })
+      const nonRefundedOrders = paidOrders.filter(o => nonRefundedStatuses.has(o.payment_status))
+
+      let grossSales = 0
+      let refundedCount = 0
+      let refundedAmount = 0
+      let totalDeliveryFees = 0
+      let totalPackagingFees = 0
+      let totalDiscounts = 0
+
+      for (const order of paidOrders) {
+        grossSales += order.total_amount
+        totalDeliveryFees += order.delivery_fee
+        totalPackagingFees += order.packaging_fee ?? 0
+        totalDiscounts += order.discount_amount ?? 0
+        if (order.payment_status === 'REFUNDED') {
+          refundedCount += 1
+          refundedAmount += order.total_amount
+        }
+      }
+
+      const paidOrdersCount = nonRefundedOrders.length
+      const averageOrderValue =
+        paidOrdersCount > 0
+          ? Math.round(nonRefundedOrders.reduce((s, o) => s + o.total_amount, 0) / paidOrdersCount)
+          : 0
+
+      const productByName = new Map(db.products.map(p => [p.name, p]))
+      const productStats = new Map<string, { quantity: number; revenue: number }>()
+      for (const order of nonRefundedOrders) {
+        for (const item of order.items) {
+          const prev = productStats.get(item.product_name_snapshot) ?? { quantity: 0, revenue: 0 }
+          prev.quantity += item.quantity
+          prev.revenue += item.line_total
+          productStats.set(item.product_name_snapshot, prev)
+        }
+      }
+
+      const topProducts: TopProductStat[] = Array.from(productStats.entries())
+        .map(([name, stat]) => ({
+          product_id: productByName.get(name)?.id ?? 0,
+          product_name: name,
+          quantity: stat.quantity,
+          revenue: stat.revenue,
+        }))
+        .sort((a, b) => b.quantity - a.quantity || a.product_name.localeCompare(b.product_name, 'fa'))
+        .slice(0, 10)
+
+      const activeCatIds = new Set(db.categories.filter(c => c.is_active).map(c => c.id))
+      const leastSellingProducts: LeastSellingProductStat[] = db.products
+        .filter(p => p.status === 'AVAILABLE' && activeCatIds.has(p.category.id))
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          quantity_sold: productStats.get(p.name)?.quantity ?? 0,
+        }))
+        .sort((a, b) => a.quantity_sold - b.quantity_sold || a.name.localeCompare(b.name, 'fa'))
+        .slice(0, 5)
+
+      const peakMap = new Map<number, { order_count: number; revenue: number }>()
+      for (const order of paidOrders) {
+        const hour = new Date(order.created_at).getHours()
+        const entry = peakMap.get(hour) ?? { order_count: 0, revenue: 0 }
+        entry.order_count += 1
+        entry.revenue += order.total_amount
+        peakMap.set(hour, entry)
+      }
+      const peakHours: PeakHourStat[] = Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        order_count: peakMap.get(hour)?.order_count ?? 0,
+        revenue: peakMap.get(hour)?.revenue ?? 0,
+      }))
+
+      const dailyMap = new Map<string, { order_count: number; revenue: number }>()
+      for (const order of paidOrders) {
+        const day = order.created_at.slice(0, 10)
+        const entry = dailyMap.get(day) ?? { order_count: 0, revenue: 0 }
+        entry.order_count += 1
+        if (order.payment_status !== 'REFUNDED') {
+          entry.revenue += order.total_amount
+        }
+        dailyMap.set(day, entry)
+      }
+
+      const dailyTrend: DailyTrendStat[] = []
+      let cursor = dateFrom
+      while (cursor <= dateTo) {
+        const row = dailyMap.get(cursor)
+        dailyTrend.push({
+          date: cursor,
+          order_count: row?.order_count ?? 0,
+          revenue: row?.revenue ?? 0,
+        })
+        cursor = addDays(cursor, 1)
+      }
+
+      return {
+        period,
+        date_from: dateFrom,
+        date_to: dateTo,
+        gross_sales: grossSales,
+        refunded_count: refundedCount,
+        refunded_amount: refundedAmount,
+        net_sales: grossSales - refundedAmount,
+        paid_orders_count: paidOrdersCount,
+        average_order_value: averageOrderValue,
+        total_delivery_fees: totalDeliveryFees,
+        total_packaging_fees: totalPackagingFees,
+        total_discounts: totalDiscounts,
+        top_products: topProducts,
+        least_selling_products: leastSellingProducts,
+        peak_hours: peakHours,
+        daily_trend: dailyTrend,
+      }
     },
   },
 }

@@ -53,12 +53,47 @@ function getDefaultAuthSession(): MockAuthSessionState {
 let memoryDb: MockDatabaseState | null = null
 let memoryAuth: MockAuthSessionState | null = null
 
+function normalizeMockDb(db: MockDatabaseState): MockDatabaseState {
+  const defaults = getInitialMockDatabase()
+  if (!db.restaurantSettings) {
+    db.restaurantSettings = defaults.restaurantSettings
+  } else {
+    db.restaurantSettings.min_delivery_order_amount ??= defaults.restaurantSettings.min_delivery_order_amount
+    db.restaurantSettings.packaging_fee ??= defaults.restaurantSettings.packaging_fee
+  }
+  if (!Array.isArray(db.promoCodes)) {
+    db.promoCodes = defaults.promoCodes
+  }
+  if (!Array.isArray(db.promoUsages)) {
+    db.promoUsages = []
+  }
+  if (!db.nextIds) {
+    db.nextIds = defaults.nextIds
+  } else {
+    db.nextIds.promoCode ??= defaults.nextIds.promoCode
+  }
+  if (Array.isArray(db.orders)) {
+    for (const order of db.orders) {
+      order.packaging_fee ??= 0
+      order.promo_code_snapshot ??= ''
+      order.discount_amount ??= 0
+      order.cancellation_requested ??= false
+      order.cancellation_request_reason ??= ''
+      order.cancellation_requested_at ??= null
+      if (!Array.isArray(order.customer_notes)) {
+        order.customer_notes = []
+      }
+    }
+  }
+  return db
+}
+
 export function readMockDb(): MockDatabaseState {
   if (import.meta.client) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
-        memoryDb = JSON.parse(raw) as MockDatabaseState
+        memoryDb = normalizeMockDb(JSON.parse(raw) as MockDatabaseState)
         return memoryDb
       }
     } catch {

@@ -483,9 +483,43 @@ useHead({
             </ul>
             <div class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-[#5A5D56]">
               <span>جمع غذاها: {{ formatToman(detailOrder.subtotal) }}</span>
+              <span>بسته‌بندی: {{ formatToman(detailOrder.packaging_fee) }}</span>
               <span>هزینه ارسال: {{ formatToman(detailOrder.delivery_fee) }}</span>
+              <span v-if="detailOrder.discount_amount > 0" class="font-bold text-[#1E5E22]">
+                تخفیف (<bdi dir="ltr">{{ detailOrder.promo_code_snapshot }}</bdi>): - {{ formatToman(detailOrder.discount_amount) }}
+              </span>
               <span class="text-sm font-extrabold text-[#183A2D]">مبلغ کل: {{ formatToman(detailOrder.total_amount) }}</span>
             </div>
+          </div>
+
+          <div
+            v-if="detailOrder.cancellation_requested && detailOrder.status !== 'CANCELED'"
+            role="alert"
+            class="rounded-2xl border border-[#D6A84B]/50 bg-[#FFF4E5] p-4 text-xs space-y-1 text-[#9A4300]"
+          >
+            <p class="font-bold">درخواست لغو توسط مشتری ثبت شده است</p>
+            <p v-if="detailOrder.cancellation_request_reason">
+              دلیل مشتری: {{ detailOrder.cancellation_request_reason }}
+            </p>
+            <p v-if="detailOrder.cancellation_requested_at">
+              زمان ثبت درخواست: {{ formatDateTime(detailOrder.cancellation_requested_at) }}
+            </p>
+          </div>
+
+          <div v-if="detailOrder.customer_notes && detailOrder.customer_notes.length > 0" class="space-y-2">
+            <h3 class="font-bold text-[#292B27]">یادداشت‌های CRM مشتری</h3>
+            <ul class="space-y-2">
+              <li
+                v-for="(note, idx) in detailOrder.customer_notes"
+                :key="`${note.created_at}-${idx}`"
+                class="rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-4 py-2.5 text-xs space-y-1"
+              >
+                <p class="font-medium text-[#292B27]">{{ note.text }}</p>
+                <p class="text-[11px] text-[#72756E]">
+                  ثبت توسط {{ note.author_name || note.author_phone || 'ادمین' }} در {{ formatDateTime(note.created_at) }}
+                </p>
+              </li>
+            </ul>
           </div>
 
           <div v-if="detailPayments.length > 0" class="space-y-2">

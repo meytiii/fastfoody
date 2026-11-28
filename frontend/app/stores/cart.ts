@@ -7,6 +7,7 @@ import type {
   OrderCreatePayload,
   ProductDetailPublic,
   ProductSummaryPublic,
+  ReorderResponse,
 } from '~/types'
 import { useCmsStore } from './cms'
 
@@ -196,12 +197,14 @@ export const useCartStore = defineStore('cart', {
     buildOrderPayload(
       deliveryType: DeliveryType,
       addressId: number | null,
-      notesToKitchen = ''
+      notesToKitchen = '',
+      promoCode?: string | null
     ): OrderCreatePayload {
       return {
         delivery_type: deliveryType,
         address_id: deliveryType === 'DELIVERY' ? addressId : null,
         notes_to_kitchen: notesToKitchen,
+        promo_code: promoCode?.trim() ? promoCode.trim() : null,
         items: this.items.map(item => ({
           product_id: item.productId,
           quantity: item.quantity,
@@ -211,6 +214,29 @@ export const useCartStore = defineStore('cart', {
           })),
         })),
       }
+    },
+
+    applyReorder(
+      reorder: ReorderResponse,
+      catalogProducts: ProductSummaryPublic[]
+    ): number {
+      const byId = new Map(catalogProducts.map(p => [p.id, p]))
+      let addedCount = 0
+      for (const item of reorder.items) {
+        const product = byId.get(item.product_id)
+        if (!product || product.status !== 'AVAILABLE') continue
+        const addons: CartItemAddOn[] = item.addons.map(a => ({
+          addon_id: a.addon_id,
+          name: a.name,
+          price: a.unit_price,
+          quantity: a.quantity,
+          min_quantity: 0,
+          max_quantity: Math.max(a.quantity, 1),
+        }))
+        this.addItem(product, item.quantity, addons)
+        addedCount += 1
+      }
+      return addedCount
     },
   },
 })

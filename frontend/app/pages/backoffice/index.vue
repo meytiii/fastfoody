@@ -14,7 +14,7 @@ import {
 import { toast } from 'vue-sonner'
 import BackofficeShell from '~/components/backoffice/BackofficeShell.vue'
 import { closeDialogSmoothly, useDialogLightDismiss } from '~/composables/useDialogControl'
-import { backofficeApi } from '~/services/api'
+import { backofficeApi, subscribeOrderStream } from '~/services/api'
 import type { LiveOrderBackoffice } from '~/types'
 
 const { formatDateTime, formatTime, formatToman, toPersianDigits } = usePersian()
@@ -39,6 +39,7 @@ useDialogLightDismiss(cancelDialogRef, () => {
 })
 
 let pollTimer: number | null = null
+let unsubscribeStream: (() => void) | null = null
 let audioCtx: AudioContext | null = null
 
 const unprintedCount = computed(() => liveOrders.value.filter(o => !o.is_printed).length)
@@ -203,6 +204,16 @@ async function confirmCancelOrder() {
 
 onMounted(() => {
   fetchLiveOrders()
+  unsubscribeStream = subscribeOrderStream((evt) => {
+    if (!autoRefresh.value) return
+    void fetchLiveOrders(true)
+    if (
+      evt.event_type === 'order.payment_verified' ||
+      evt.event_type === 'order.cancellation_requested'
+    ) {
+      playNotificationChime()
+    }
+  })
   pollTimer = window.setInterval(() => {
     if (autoRefresh.value) {
       fetchLiveOrders(true)
@@ -211,6 +222,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (unsubscribeStream) {
+    unsubscribeStream()
+  }
   if (pollTimer !== null) {
     window.clearInterval(pollTimer)
   }
@@ -354,6 +368,12 @@ useHead({
                     {{ order.status === 'READY' ? 'آماده تحویل' : 'در حال پخت' }}
                   </span>
                   <span
+                    v-if="order.cancellation_requested"
+                    class="rounded-full bg-[#A61B1B] px-3 py-1 text-xs font-bold text-white"
+                  >
+                    درخواست لغو مشتری
+                  </span>
+                  <span
                     v-if="!order.is_printed"
                     class="rounded-full bg-[#FDE8E8] px-3 py-1 text-xs font-bold text-[#A61B1B]"
                   >
@@ -366,6 +386,15 @@ useHead({
                     تأخیر زمانی
                   </span>
                 </div>
+              </div>
+
+              <div
+                v-if="order.cancellation_requested"
+                role="alert"
+                class="rounded-xl border border-[#A61B1B]/40 bg-[#FDE8E8] px-3.5 py-2.5 text-xs text-[#A61B1B] space-y-0.5"
+              >
+                <p class="font-bold">درخواست لغو توسط مشتری ثبت شده است</p>
+                <p v-if="order.cancellation_request_reason">علت: {{ order.cancellation_request_reason }}</p>
               </div>
 
               <div class="flex flex-wrap items-center gap-4 text-xs text-[#5A5D56]">
@@ -393,6 +422,16 @@ useHead({
                 class="rounded-xl border border-[#D6A84B]/40 bg-[#F8F3E8] px-3.5 py-2.5 text-xs font-semibold text-[#8A651C]"
               >
                 توضیح مشتری برای آشپزخانه: {{ order.notes_to_kitchen }}
+              </div>
+
+              <div
+                v-if="order.customer_notes && order.customer_notes.length > 0"
+                class="rounded-xl border border-[#026AA7]/25 bg-[#E1F5FE]/60 px-3.5 py-2.5 text-xs text-[#026AA7] space-y-1"
+              >
+                <p class="font-bold">یادداشت‌های CRM مشتری:</p>
+                <p v-for="(note, idx) in order.customer_notes" :key="`${note.created_at}-${idx}`">
+                  • {{ note.text }} ({{ note.author_name || note.author_phone || 'ادمین' }})
+                </p>
               </div>
 
               <ul class="space-y-2 rounded-2xl border border-[#E8E5DC] bg-[#FAF7F2] p-3.5">
@@ -524,7 +563,7 @@ useHead({
           لغو سفارش #{{ toPersianDigits(orderToCancel?.daily_number ?? orderToCancel?.id) }}
         </h2>
         <p class="mt-2 text-xs leading-6 text-[#5A5D56]">
-          با لغو سفارش پرداخت‌شده، موجودی کالاها به انبار برمی‌گردد و وضعیت پرداخت به «در انتظار عودت وجه» منتقل می‌شود.
+          با لغو سفارش پرداخت‌شده، وضعیت پرداخت به «در انتظار عودت وجه» منتقل می‌شود.
         </p>
 
         <form class="mt-4 space-y-4" @submit.prevent="confirmCancelOrder">

@@ -27,6 +27,8 @@ const settingsForm = reactive({
   is_temporarily_closed: false,
   in_zone_delivery_fee: 45000,
   out_zone_delivery_fee: 85000,
+  min_delivery_order_amount: 150000,
+  packaging_fee: 15000,
   prep_time_buffer_minutes: 10,
 })
 
@@ -64,6 +66,8 @@ async function loadCmsData() {
     settingsForm.is_temporarily_closed = settings.is_temporarily_closed
     settingsForm.in_zone_delivery_fee = settings.in_zone_delivery_fee
     settingsForm.out_zone_delivery_fee = settings.out_zone_delivery_fee
+    settingsForm.min_delivery_order_amount = settings.min_delivery_order_amount
+    settingsForm.packaging_fee = settings.packaging_fee
     settingsForm.prep_time_buffer_minutes = settings.prep_time_buffer_minutes
     sectionsState.value = sections
     mediaAssets.value = assets
@@ -83,6 +87,8 @@ async function saveSettings() {
       is_temporarily_closed: settingsForm.is_temporarily_closed,
       in_zone_delivery_fee: Number(settingsForm.in_zone_delivery_fee) || 0,
       out_zone_delivery_fee: Number(settingsForm.out_zone_delivery_fee) || 0,
+      min_delivery_order_amount: Number(settingsForm.min_delivery_order_amount) || 0,
+      packaging_fee: Number(settingsForm.packaging_fee) || 0,
       prep_time_buffer_minutes: Number(settingsForm.prep_time_buffer_minutes) || 0,
     })
     await cmsStore.fetchAll(true)
@@ -313,6 +319,30 @@ useHead({
                   class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5"
                 />
                 <p class="mt-1 text-xs text-[#5A5D56]">معادل {{ formatToman(settingsForm.out_zone_delivery_fee) }}</p>
+              </div>
+              <div>
+                <label for="rs-min-delivery" class="mb-1 block font-semibold">حداقل مبلغ سفارش پیک (تومان)</label>
+                <input
+                  id="rs-min-delivery"
+                  v-model.number="settingsForm.min_delivery_order_amount"
+                  type="number"
+                  min="0"
+                  dir="ltr"
+                  class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5"
+                />
+                <p class="mt-1 text-xs text-[#5A5D56]">معادل {{ formatToman(settingsForm.min_delivery_order_amount) }}</p>
+              </div>
+              <div>
+                <label for="rs-packaging-fee" class="mb-1 block font-semibold">هزینه بسته‌بندی هر سفارش (تومان)</label>
+                <input
+                  id="rs-packaging-fee"
+                  v-model.number="settingsForm.packaging_fee"
+                  type="number"
+                  min="0"
+                  dir="ltr"
+                  class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5"
+                />
+                <p class="mt-1 text-xs text-[#5A5D56]">معادل {{ formatToman(settingsForm.packaging_fee) }}</p>
               </div>
               <div>
                 <label for="rs-buffer" class="mb-1 block font-semibold">زمان بافر آشپزخانه (دقیقه)</label>

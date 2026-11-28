@@ -1,18 +1,46 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { ReceiptText, ArrowLeft, User, RefreshCw } from 'lucide-vue-next'
+import { ReceiptText, ArrowLeft, User, RefreshCw, RotateCcw } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { storefrontApi } from '~/services/api'
 import { useAuthStore } from '~/stores/auth'
+import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
 import type { OrderRead, OrderStatus, PaymentStatus } from '~/types'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 const { formatToman, toPersianDigits, formatDateTime } = usePersian()
 
 const orders = ref<OrderRead[]>([])
 const loading = ref(false)
 const error = ref('')
+const reorderingOrderId = ref<number | null>(null)
+
+const handleReorder = async (orderId: number) => {
+  reorderingOrderId.value = orderId
+  try {
+    const [reorderRes, catalogRes] = await Promise.all([
+      storefrontApi.orders.reorder(orderId),
+      storefrontApi.catalog.getProducts({ limit: 100 }),
+    ])
+    const addedCount = cartStore.applyReorder(reorderRes, catalogRes.results)
+    for (const warning of reorderRes.warnings) {
+      toast.warning(warning)
+    }
+    if (addedCount > 0) {
+      toast.success(`${toPersianDigits(addedCount)} قلم به سبد خرید اضافه شد`)
+      cartStore.openCart()
+    } else {
+      toast.error('هیچ‌یک از اقلام این سفارش در حال حاضر موجود نیست')
+    }
+  } catch (err: any) {
+    toast.error(err?.message || 'خطا در ثبت سفارش مجدد')
+  } finally {
+    reorderingOrderId.value = null
+  }
+}
 
 const statusLabels: Record<OrderStatus, { label: string; tone: string }> = {
   PENDING_PAYMENT: { label: 'در انتظار پرداخت', tone: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]' },
@@ -141,14 +169,13 @@ useHead({
       </div>
 
       <div v-else class="space-y-4">
-        <NuxtLink
+        <article
           v-for="order in orders"
           :key="order.id"
-          :to="`/orders/${order.id}`"
-          class="block rounded-2xl border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]"
+          class="rounded-2xl border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[var(--color-brand-forest)] hover:shadow-[var(--shadow-md)]"
         >
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
               <span class="rounded-xl bg-[var(--color-surface-cream)] px-3 py-1.5 text-xs font-extrabold text-[var(--color-brand-forest)]">
                 {{ order.daily_number ? `نوبت #${toPersianDigits(order.daily_number)}` : `سفارش #${toPersianDigits(order.id)}` }}
               </span>
@@ -157,6 +184,12 @@ useHead({
                 :class="statusLabels[order.status].tone"
               >
                 {{ statusLabels[order.status].label }}
+              </span>
+              <span
+                v-if="order.cancellation_requested && order.status !== 'CANCELED'"
+                class="rounded-full bg-[var(--color-warning-bg)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-warning)]"
+              >
+                درخواست لغو ثبت شده
               </span>
               <span class="text-xs font-medium text-[var(--color-text-secondary)]">
                 {{ paymentLabels[order.payment_status] }}
@@ -168,16 +201,34 @@ useHead({
             </span>
           </div>
 
-          <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-text-secondary)]">
-            <span>
-              {{ order.items.map(i => `${i.product_name_snapshot} (${toPersianDigits(i.quantity)})`).join('، ') }}
+          <p class="mt-3 text-xs text-[var(--color-text-secondary)]">
+            {{ order.items.map(i => `${i.product_name_snapshot} (${toPersianDigits(i.quantity)})`).join('، ') }}
+          </p>
+
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-subtle)] pt-3 text-xs">
+            <span class="text-[var(--color-text-secondary)]">
+              {{ formatDateTime(order.created_at) }}
             </span>
-            <span class="inline-flex items-center gap-1 font-bold text-[var(--color-brand-forest)]">
-              <span>{{ formatDateTime(order.created_at) }}</span>
-              <ArrowLeft :size="14" aria-hidden="true" class="icon-directional" />
-            </span>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                :disabled="reorderingOrderId === order.id"
+                class="touch-target inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)] px-3.5 py-1.5 font-bold text-[var(--color-brand-forest)] hover:border-[var(--color-brand-forest)] disabled:opacity-60"
+                @click="handleReorder(order.id)"
+              >
+                <RotateCcw :size="13" aria-hidden="true" />
+                <span>{{ reorderingOrderId === order.id ? 'در حال افزودن...' : 'سفارش مجدد' }}</span>
+              </button>
+              <NuxtLink
+                :to="`/orders/${order.id}`"
+                class="touch-target inline-flex items-center gap-1 rounded-full bg-[var(--color-brand-forest)] px-4 py-1.5 font-bold text-white hover:bg-[var(--color-brand-forest-light)]"
+              >
+                <span>پیگیری و جزئیات</span>
+                <ArrowLeft :size="14" aria-hidden="true" class="icon-directional" />
+              </NuxtLink>
+            </div>
           </div>
-        </NuxtLink>
+        </article>
       </div>
     </div>
   </main>

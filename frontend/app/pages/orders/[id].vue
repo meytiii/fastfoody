@@ -9,16 +9,20 @@ import {
   CreditCard,
   MapPin,
   Store,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { storefrontApi } from '~/services/api'
+import { storefrontApi, subscribeOrderStream } from '~/services/api'
 import { useAuthStore } from '~/stores/auth'
+import { useCartStore } from '~/stores/cart'
 import { usePersian } from '~/composables/usePersian'
 import type { OrderRead } from '~/types'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 const { formatToman, toPersianDigits, formatTime, formatDateTime, formatCountdown } = usePersian()
 
 const orderId = Number(route.params.id)
@@ -26,11 +30,16 @@ const order = ref<OrderRead | null>(null)
 const loading = ref(true)
 const error = ref('')
 const retrying = ref(false)
+const reordering = ref(false)
+const showCancelRequestForm = ref(false)
+const cancelReason = ref('')
+const requestingCancel = ref(false)
 const remainingSeconds = ref(0)
 const lastUpdatedText = ref('')
 
 let pollHandle: ReturnType<typeof setInterval> | null = null
 let countdownHandle: ReturnType<typeof setInterval> | null = null
+let unsubscribeStream: (() => void) | null = null
 
 const isLiveStatus = computed(() => {
   if (!order.value) return false
@@ -40,6 +49,58 @@ const isLiveStatus = computed(() => {
     order.value.status === 'READY'
   )
 })
+
+const canRequestCancellation = computed(() => {
+  if (!order.value) return false
+  return (
+    order.value.payment_status === 'PAID' &&
+    (order.value.status === 'PROCESSING' || order.value.status === 'READY') &&
+    !order.value.cancellation_requested
+  )
+})
+
+const handleReorder = async () => {
+  if (!order.value) return
+  reordering.value = true
+  try {
+    const [reorderRes, catalogRes] = await Promise.all([
+      storefrontApi.orders.reorder(order.value.id),
+      storefrontApi.catalog.getProducts({ limit: 100 }),
+    ])
+    const addedCount = cartStore.applyReorder(reorderRes, catalogRes.results)
+    for (const warning of reorderRes.warnings) {
+      toast.warning(warning)
+    }
+    if (addedCount > 0) {
+      toast.success(`${toPersianDigits(addedCount)} قلم به سبد خرید اضافه شد`)
+      cartStore.openCart()
+    } else {
+      toast.error('هیچ‌یک از اقلام این سفارش در حال حاضر موجود نیست')
+    }
+  } catch (err: any) {
+    toast.error(err?.message || 'خطا در سفارش مجدد')
+  } finally {
+    reordering.value = false
+  }
+}
+
+const handleRequestCancellation = async () => {
+  if (!order.value) return
+  requestingCancel.value = true
+  try {
+    order.value = await storefrontApi.orders.requestCancellation(
+      order.value.id,
+      cancelReason.value.trim()
+    )
+    showCancelRequestForm.value = false
+    cancelReason.value = ''
+    toast.success('درخواست لغو سفارش برای مدیر رستوران ارسال شد')
+  } catch (err: any) {
+    toast.error(err?.message || 'خطا در ثبت درخواست لغو')
+  } finally {
+    requestingCancel.value = false
+  }
+}
 
 const updateExpiryCountdown = () => {
   if (!order.value || order.value.status !== 'PENDING_PAYMENT' || !order.value.expires_at) {
@@ -99,6 +160,11 @@ onMounted(async () => {
     return
   }
   await fetchOrder(false)
+  unsubscribeStream = subscribeOrderStream((evt) => {
+    if (evt.order_id === orderId) {
+      void fetchOrder(true)
+    }
+  })
   pollHandle = setInterval(() => {
     if (isLiveStatus.value) {
       fetchOrder(true)
@@ -110,6 +176,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (unsubscribeStream) unsubscribeStream()
   if (pollHandle) clearInterval(pollHandle)
   if (countdownHandle) clearInterval(countdownHandle)
 })
@@ -183,7 +250,7 @@ useHead(() => ({
               </p>
             </div>
 
-            <div class="text-end space-y-1">
+            <div class="flex flex-col items-end gap-2 text-end">
               <p class="text-lg font-extrabold text-[var(--color-brand-forest)]">
                 {{ formatToman(order.total_amount) }}
               </p>
@@ -193,6 +260,73 @@ useHead(() => ({
                   (تحویل حدود <bdi>{{ formatTime(order.expected_ready_at) }}</bdi>)
                 </span>
               </p>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  :disabled="reordering"
+                  class="touch-target inline-flex items-center gap-1.5 rounded-full border border-[var(--color-brand-forest)]/30 bg-[var(--color-surface-cream)] px-4 py-1.5 text-xs font-bold text-[var(--color-brand-forest)] hover:bg-[var(--color-brand-forest)] hover:text-white transition-colors disabled:opacity-60"
+                  @click="handleReorder"
+                >
+                  <RotateCcw :size="13" aria-hidden="true" />
+                  <span>{{ reordering ? 'در حال افزودن...' : 'سفارش مجدد' }}</span>
+                </button>
+                <button
+                  v-if="canRequestCancellation"
+                  type="button"
+                  class="touch-target inline-flex items-center gap-1.5 rounded-full border border-[#A61B1B]/25 bg-[#FDE8E8] px-4 py-1.5 text-xs font-bold text-[#A61B1B] hover:bg-[#A61B1B] hover:text-white transition-colors"
+                  @click="showCancelRequestForm = !showCancelRequestForm"
+                >
+                  <XCircle :size="13" aria-hidden="true" />
+                  <span>درخواست لغو سفارش</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="showCancelRequestForm && canRequestCancellation"
+            class="rounded-2xl border border-[#A61B1B]/25 bg-[#FDE8E8]/50 p-4 space-y-3 text-xs"
+          >
+            <p class="font-bold text-[#A61B1B]">
+              ثبت درخواست لغو سفارش پرداخت‌شده (پس از تایید مدیر رستوران مبلغ عودت داده می‌شود)
+            </p>
+            <label for="order-cancel-reason" class="visually-hidden">دلیل درخواست لغو</label>
+            <textarea
+              id="order-cancel-reason"
+              v-model="cancelReason"
+              rows="2"
+              maxlength="250"
+              placeholder="دلیل درخواست لغو خود را بنویسید (اختیاری)..."
+              class="w-full rounded-xl border border-[#E8E5DC] bg-white p-3 text-xs text-[#292B27] focus:border-[#A61B1B] focus:outline-none"
+            />
+            <div class="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                class="touch-target rounded-full border border-[#E8E5DC] bg-white px-4 py-1.5 font-semibold text-[#292B27]"
+                @click="showCancelRequestForm = false"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                :disabled="requestingCancel"
+                class="touch-target rounded-full bg-[#A61B1B] px-5 py-1.5 font-bold text-white hover:opacity-90 disabled:opacity-60"
+                @click="handleRequestCancellation"
+              >
+                {{ requestingCancel ? 'در حال ارسال...' : 'ارسال درخواست لغو' }}
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="order.cancellation_requested && order.status !== 'CANCELED'"
+            role="status"
+            class="flex items-start gap-2.5 rounded-2xl border border-[var(--color-warning)]/35 bg-[var(--color-warning-bg)] p-4 text-xs text-[var(--color-warning)]"
+          >
+            <AlertTriangle :size="18" aria-hidden="true" class="mt-0.5 shrink-0" />
+            <div class="space-y-1">
+              <p class="font-bold">درخواست لغو شما ثبت شده و در انتظار بررسی مدیر رستوران است.</p>
+              <p v-if="order.cancellation_request_reason">علت ثبت‌شده: {{ order.cancellation_request_reason }}</p>
             </div>
           </div>
 
@@ -318,8 +452,19 @@ useHead(() => ({
                 <strong>{{ formatToman(order.subtotal) }}</strong>
               </div>
               <div class="flex items-center justify-between text-[var(--color-text-secondary)]">
+                <span>هزینه بسته‌بندی:</span>
+                <strong>{{ order.packaging_fee === 0 ? 'رایگان' : formatToman(order.packaging_fee) }}</strong>
+              </div>
+              <div class="flex items-center justify-between text-[var(--color-text-secondary)]">
                 <span>هزینه ارسال:</span>
                 <strong>{{ order.delivery_fee === 0 ? 'رایگان' : formatToman(order.delivery_fee) }}</strong>
+              </div>
+              <div v-if="order.discount_amount > 0" class="flex items-center justify-between text-[#1E5E22]">
+                <span>
+                  تخفیف
+                  <span v-if="order.promo_code_snapshot">(<bdi dir="ltr">{{ order.promo_code_snapshot }}</bdi>)</span>:
+                </span>
+                <strong>- {{ formatToman(order.discount_amount) }}</strong>
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-[var(--color-border-subtle)] text-sm font-extrabold text-[var(--color-brand-forest)]">
                 <span>مبلغ کل:</span>

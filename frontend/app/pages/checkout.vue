@@ -10,6 +10,8 @@ import {
   Clock,
   AlertTriangle,
   User,
+  Tag,
+  X,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { useCartStore } from '~/stores/cart'
@@ -17,7 +19,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useCmsStore } from '~/stores/cms'
 import { usePersian } from '~/composables/usePersian'
 import { storefrontApi } from '~/services/api'
-import type { DeliveryType } from '~/types'
+import type { DeliveryType, ValidatePromoResponse } from '~/types'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
@@ -35,6 +37,11 @@ const notesToKitchen = ref('')
 const isSubmitting = ref(false)
 const showNewAddressForm = ref(false)
 
+const promoCodeInput = ref('')
+const appliedPromo = ref<ValidatePromoResponse | null>(null)
+const validatingPromo = ref(false)
+const promoError = ref('')
+
 const newAddress = ref({
   title: '',
   recipient_name: '',
@@ -42,6 +49,7 @@ const newAddress = ref({
   address_text: '',
   is_out_of_zone: false,
   is_default: true,
+  replace_address_id: null as number | null,
 })
 const savingAddress = ref(false)
 
@@ -50,6 +58,10 @@ watch(
   (list) => {
     if (list.length > 0 && !list.some(a => a.id === selectedAddressId.value)) {
       selectedAddressId.value = authStore.defaultAddress?.id ?? list[0]!.id
+    }
+    if (list.length >= 4 && !newAddress.value.replace_address_id) {
+      const fallback = list.find(a => !a.is_default) ?? list[0]
+      newAddress.value.replace_address_id = fallback ? fallback.id : null
     }
   },
   { immediate: true }
@@ -74,13 +86,72 @@ const deliveryFee = computed(() => {
   return selectedAddress.value.is_out_of_zone ? cmsStore.outZoneFee : cmsStore.inZoneFee
 })
 
-const grandTotal = computed(() => {
-  return cartStore.subtotal + deliveryFee.value
+const packagingFee = computed(() => {
+  if (cartStore.isEmpty) return 0
+  return cmsStore.packagingFee
 })
+
+const belowMinDeliveryAmount = computed(() => {
+  return (
+    deliveryType.value === 'DELIVERY' &&
+    !cartStore.isEmpty &&
+    cmsStore.minDeliveryAmount > 0 &&
+    cartStore.subtotal < cmsStore.minDeliveryAmount
+  )
+})
+
+const discountAmount = computed(() => appliedPromo.value?.discount_amount ?? 0)
+
+const grandTotal = computed(() => {
+  return Math.max(
+    0,
+    cartStore.subtotal + deliveryFee.value + packagingFee.value - discountAmount.value
+  )
+})
+
+const handleApplyPromo = async () => {
+  const code = promoCodeInput.value.trim()
+  if (!code) {
+    promoError.value = 'لطفاً کد تخفیف را وارد کنید.'
+    return
+  }
+  if (!authStore.isAuthenticated) {
+    authStore.openAuthModal(() => {
+      void handleApplyPromo()
+    })
+    return
+  }
+  validatingPromo.value = true
+  promoError.value = ''
+  try {
+    const res = await storefrontApi.orders.validatePromo({
+      code,
+      subtotal: cartStore.subtotal,
+    })
+    appliedPromo.value = res
+    promoCodeInput.value = res.code
+    toast.success(`کد تخفیف ${res.code} اعمال شد`)
+  } catch (err: any) {
+    appliedPromo.value = null
+    promoError.value = err?.message || 'کد تخفیف معتبر نیست.'
+  } finally {
+    validatingPromo.value = false
+  }
+}
+
+const clearPromo = () => {
+  appliedPromo.value = null
+  promoCodeInput.value = ''
+  promoError.value = ''
+}
 
 const handleCreateAddress = async () => {
   if (!newAddress.value.address_text.trim()) {
     toast.error('لطفاً نشانی کامل پستی را وارد کنید')
+    return
+  }
+  if (authStore.isAddressLimitReached && !newAddress.value.replace_address_id) {
+    toast.error('به سقف ۴ نشانی رسیده‌اید؛ یک نشانی را برای جایگزینی انتخاب کنید')
     return
   }
   savingAddress.value = true
@@ -93,6 +164,9 @@ const handleCreateAddress = async () => {
       address_text: newAddress.value.address_text,
       is_out_of_zone: newAddress.value.is_out_of_zone,
       is_default: newAddress.value.is_default,
+      ...(authStore.isAddressLimitReached && newAddress.value.replace_address_id
+        ? { replace_address_id: newAddress.value.replace_address_id }
+        : {}),
     })
     selectedAddressId.value = created.id
     showNewAddressForm.value = false
@@ -103,6 +177,7 @@ const handleCreateAddress = async () => {
       address_text: '',
       is_out_of_zone: false,
       is_default: false,
+      replace_address_id: null,
     }
     toast.success('آدرس جدید ثبت شد')
   } catch (err: any) {
@@ -119,6 +194,12 @@ const submitOrderAndPay = async () => {
   }
   if (!cmsStore.isOpen) {
     toast.error('رستوران در حال حاضر خارج از ساعت کاری است')
+    return
+  }
+  if (belowMinDeliveryAmount.value) {
+    toast.error(
+      `حداقل مبلغ سفارش برای ارسال با پیک ${formatToman(cmsStore.minDeliveryAmount)} است.`
+    )
     return
   }
   if (!authStore.isAuthenticated) {
@@ -140,7 +221,8 @@ const submitOrderAndPay = async () => {
     const payload = cartStore.buildOrderPayload(
       deliveryType.value,
       selectedAddressId.value,
-      notesToKitchen.value
+      notesToKitchen.value,
+      appliedPromo.value?.code
     )
     const order = await storefrontApi.orders.createOrder(payload)
     const payment = await storefrontApi.payments.requestPayment(order.id)
@@ -202,6 +284,17 @@ const submitOrderAndPay = async () => {
             <AlertTriangle :size="18" aria-hidden="true" class="shrink-0" />
             <span>
               رستوران در حال حاضر بسته است و امکان ثبت سفارش جدید وجود ندارد.
+            </span>
+          </div>
+
+          <div
+            v-if="belowMinDeliveryAmount"
+            role="alert"
+            class="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/30 bg-[var(--color-warning-bg)] p-4 text-xs font-bold text-[var(--color-warning)]"
+          >
+            <AlertTriangle :size="18" aria-hidden="true" class="shrink-0" />
+            <span>
+              حداقل مبلغ سبد برای ارسال با پیک {{ formatToman(cmsStore.minDeliveryAmount) }} است. برای ادامه، اقلام بیشتری اضافه کنید یا تحویل حضوری را انتخاب نمایید.
             </span>
           </div>
 
@@ -458,6 +551,29 @@ const submitOrderAndPay = async () => {
                   />
                 </div>
 
+                <div
+                  v-if="authStore.isAddressLimitReached"
+                  class="space-y-1.5 rounded-xl border border-[#D6A84B]/50 bg-[#F8F3E8] p-3 text-xs"
+                >
+                  <p class="font-bold text-[#8A651C]">
+                    حداکثر ۴ نشانی ذخیره می‌شود؛ یکی از نشانی‌ها را برای جایگزینی انتخاب کنید:
+                  </p>
+                  <label for="checkout-replace-addr" class="visually-hidden">انتخاب نشانی برای جایگزینی</label>
+                  <select
+                    id="checkout-replace-addr"
+                    v-model.number="newAddress.replace_address_id"
+                    class="h-10 w-full rounded-xl border border-[#E8E5DC] bg-white px-3 text-xs text-[#292B27]"
+                  >
+                    <option
+                      v-for="addr in authStore.addresses"
+                      :key="addr.id"
+                      :value="addr.id"
+                    >
+                      {{ addr.title || 'نشانی' }}: {{ addr.address_text }}
+                    </option>
+                  </select>
+                </div>
+
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <label class="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-text-primary)]">
                     <input
@@ -469,7 +585,15 @@ const submitOrderAndPay = async () => {
                   </label>
 
                   <GooeyButton type="submit" variant="primary" size="sm" :disabled="savingAddress">
-                    <span>{{ savingAddress ? 'در حال ذخیره...' : 'ذخیره آدرس' }}</span>
+                    <span>
+                      {{
+                        savingAddress
+                          ? 'در حال ذخیره...'
+                          : authStore.isAddressLimitReached
+                            ? 'جایگزینی و ذخیره آدرس'
+                            : 'ذخیره آدرس'
+                      }}
+                    </span>
                   </GooeyButton>
                 </div>
               </form>
@@ -516,7 +640,7 @@ const submitOrderAndPay = async () => {
               type="button"
               variant="primary"
               size="lg"
-              :disabled="isSubmitting || !cmsStore.isOpen"
+              :disabled="isSubmitting || !cmsStore.isOpen || belowMinDeliveryAmount"
               class="w-full !py-4"
               @click="submitOrderAndPay"
             >
@@ -576,11 +700,61 @@ const submitOrderAndPay = async () => {
               </div>
             </div>
 
+            <div class="border-t border-[var(--color-border-subtle)] pt-4 space-y-2">
+              <label for="checkout-promo-code" class="flex items-center gap-1.5 text-xs font-bold text-[var(--color-text-primary)]">
+                <Tag :size="14" aria-hidden="true" class="text-[var(--color-brand-forest)]" />
+                <span>کد تخفیف</span>
+              </label>
+
+              <div v-if="appliedPromo" class="flex items-center justify-between rounded-xl border border-[#1E5E22]/30 bg-[#EDF7ED] px-3 py-2 text-xs">
+                <span class="font-bold text-[#1E5E22]">
+                  کد <bdi dir="ltr">{{ appliedPromo.code }}</bdi> اعمال شد
+                </span>
+                <button
+                  type="button"
+                  class="touch-target inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-[#A61B1B] hover:bg-white/70"
+                  @click="clearPromo"
+                >
+                  <X :size="13" aria-hidden="true" />
+                  <span>حذف</span>
+                </button>
+              </div>
+
+              <div v-else class="flex gap-2">
+                <input
+                  id="checkout-promo-code"
+                  v-model="promoCodeInput"
+                  type="text"
+                  dir="ltr"
+                  placeholder="WELCOME20"
+                  class="h-10 flex-1 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-cream)]/60 px-3 text-xs uppercase text-[var(--color-text-primary)] focus:border-[var(--color-brand-forest)] focus:bg-white focus:outline-none"
+                  @keydown.enter.prevent="handleApplyPromo"
+                />
+                <button
+                  type="button"
+                  :disabled="validatingPromo"
+                  class="touch-target rounded-xl bg-[var(--color-brand-forest)] px-4 text-xs font-bold text-white transition-colors hover:bg-[var(--color-brand-forest-light)] disabled:opacity-60"
+                  @click="handleApplyPromo"
+                >
+                  {{ validatingPromo ? '...' : 'اعمال' }}
+                </button>
+              </div>
+              <p v-if="promoError" role="alert" class="text-[11px] font-medium text-[#A61B1B]">
+                {{ promoError }}
+              </p>
+            </div>
+
             <div class="border-t border-[var(--color-border-subtle)] pt-4 space-y-2.5 text-xs text-[var(--color-text-secondary)]">
               <div class="flex items-center justify-between">
                 <span>جمع اقلام</span>
                 <span class="font-bold text-[var(--color-text-primary)]">
                   {{ formatToman(cartStore.subtotal) }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>هزینه بسته‌بندی</span>
+                <span class="font-bold text-[var(--color-text-primary)]">
+                  {{ packagingFee === 0 ? 'رایگان' : formatToman(packagingFee) }}
                 </span>
               </div>
               <div class="flex items-center justify-between">
@@ -594,6 +768,10 @@ const submitOrderAndPay = async () => {
                 <span v-else class="font-bold text-[var(--color-text-primary)]">
                   {{ formatToman(deliveryFee) }}
                 </span>
+              </div>
+              <div v-if="discountAmount > 0 && appliedPromo" class="flex items-center justify-between text-[#1E5E22]">
+                <span>تخفیف (<bdi dir="ltr">{{ appliedPromo.code }}</bdi>)</span>
+                <span class="font-bold">- {{ formatToman(discountAmount) }}</span>
               </div>
             </div>
 

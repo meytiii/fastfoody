@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import {
+  BarChart3,
   ChefHat,
   ExternalLink,
   LogOut,
   RotateCcw,
   Settings,
   ShoppingBag,
+  Tag,
   Users,
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
@@ -39,6 +41,8 @@ const navItems: Array<{ to: string; label: string; icon?: any; svg?: string }> =
   { to: '/backoffice', label: 'POS زنده آشپزخانه', icon: ChefHat },
   { to: '/backoffice/orders', label: 'سفارش‌ها و عودت', icon: ShoppingBag },
   { to: '/backoffice/catalog', label: 'کاتالوگ و موجودی', svg: '/svg/knife_fork.svg' },
+  { to: '/backoffice/promo-codes', label: 'کدهای تخفیف', icon: Tag },
+  { to: '/backoffice/analytics', label: 'تحلیل فروش', icon: BarChart3 },
   { to: '/backoffice/customers', label: 'مشتریان (CRM)', icon: Users },
   { to: '/backoffice/cms', label: 'تنظیمات و CMS', icon: Settings },
 ]

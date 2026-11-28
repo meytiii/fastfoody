@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import {
   X,
   Plus,
@@ -14,7 +14,7 @@ import { useCartStore } from '~/stores/cart'
 import { useMenuStore } from '~/stores/menu'
 import { useCmsStore } from '~/stores/cms'
 import { usePersian } from '~/composables/usePersian'
-import type { MenuProductPublic } from '~/types'
+import type { UpsellProductPublic } from '~/types'
 import GooeyButton from '~/components/ui/GooeyButton.vue'
 
 const cartStore = useCartStore()
@@ -22,25 +22,36 @@ const menuStore = useMenuStore()
 const cmsStore = useCmsStore()
 const { toPersianDigits, formatToman } = usePersian()
 
+watch(
+  () => cartStore.isOpen,
+  open => {
+    if (open) {
+      void menuStore.fetchUpsell()
+    }
+  },
+  { immediate: true }
+)
+
 const upsellSuggestions = computed(() => {
   const inCartIds = new Set(cartStore.items.map(i => i.productId))
-  return menuStore.upsellProducts.filter(p => !inCartIds.has(p.id)).slice(0, 4)
+  return menuStore.upsellItems.filter(p => !inCartIds.has(p.id)).slice(0, 4)
 })
 
-const addUpsellItem = (item: MenuProductPublic) => {
-  const category = menuStore.menuCategories.find(c => c.products.some(p => p.id === item.id))
-  if (!category) return
+const addUpsellItem = (item: UpsellProductPublic) => {
+  const matchedProduct = menuStore.menuCategories
+    .flatMap(c => c.products)
+    .find(p => p.id === item.id)
   cartStore.addItem(
     {
-      ...item,
-      category: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        description: category.description,
-        parent_id: category.parent_id,
-        image_url: category.image_url,
-      },
+      id: item.id,
+      slug: item.slug,
+      name: item.name,
+      price: item.price,
+      compare_at_price: item.compare_at_price,
+      prep_time_minutes: matchedProduct?.prep_time_minutes ?? 10,
+      image_url: item.image_url,
+      status: matchedProduct?.status ?? 'AVAILABLE',
+      category_id: item.category_id,
     },
     1,
     []

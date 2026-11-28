@@ -70,6 +70,7 @@ export interface CustomerAddressPayload {
   recipient_phone?: string
   is_out_of_zone?: boolean
   is_default?: boolean
+  replace_address_id?: number
 }
 
 export interface StaffProfile {
@@ -148,6 +149,8 @@ export interface RestaurantStatus {
   close_time: string
   in_zone_delivery_fee: number
   out_zone_delivery_fee: number
+  min_delivery_order_amount: number
+  packaging_fee: number
   prep_time_buffer_minutes: number
 }
 
@@ -157,6 +160,8 @@ export interface RestaurantSettings {
   is_temporarily_closed: boolean
   in_zone_delivery_fee: number
   out_zone_delivery_fee: number
+  min_delivery_order_amount: number
+  packaging_fee: number
   prep_time_buffer_minutes: number
   updated_at: string
 }
@@ -251,7 +256,6 @@ export interface CategoryPublic {
   name: string
   slug: string
   description: string
-  parent_id: number | null
   image_url: string | null
 }
 
@@ -275,7 +279,6 @@ export interface MenuCategoryPublic {
   name: string
   slug: string
   description: string
-  parent_id: number | null
   image_url: string | null
   products: MenuProductPublic[]
 }
@@ -341,6 +344,22 @@ export interface LuckyWheelResponse {
   products: LuckyWheelProduct[]
 }
 
+export interface UpsellProductPublic {
+  id: number
+  name: string
+  slug: string
+  price: number
+  compare_at_price: number | null
+  discount_percent: number
+  status: ProductStatus
+  image_url: string | null
+  category_id: number
+}
+
+export interface UpsellResponse {
+  products: UpsellProductPublic[]
+}
+
 export type ProductSortChoice =
   | 'relevance'
   | 'popularity'
@@ -354,7 +373,6 @@ export interface ProductSearchParams {
   q?: string
   category?: string
   category_id?: number
-  include_subcategories?: boolean
   min_price?: number
   max_price?: number
   available?: boolean
@@ -365,9 +383,12 @@ export interface ProductSearchParams {
   offset?: number
 }
 
+export interface ProductListResponse extends PaginatedResponse<ProductSummaryPublic> {
+  did_you_mean?: string | null
+}
+
 export interface CategoryAdmin {
   id: number
-  parent_id: number | null
   name: string
   slug: string
   description: string
@@ -382,7 +403,6 @@ export interface CategoryAdmin {
 export interface CategoryWritePayload {
   name: string
   slug: string
-  parent_id?: number | null
   description?: string
   display_order?: number
   is_active?: boolean
@@ -499,6 +519,9 @@ export interface OrderRead {
   delivery_recipient_phone: string
   subtotal: number
   delivery_fee: number
+  packaging_fee: number
+  promo_code_snapshot: string
+  discount_amount: number
   total_amount: number
   prep_time_minutes: number
   expected_ready_at: string | null
@@ -507,6 +530,9 @@ export interface OrderRead {
   expires_at: string | null
   canceled_at: string | null
   cancellation_reason: string
+  cancellation_requested: boolean
+  cancellation_request_reason: string
+  cancellation_requested_at: string | null
   refund_card_number?: string
   refund_tracking_code?: string
   refunded_at?: string | null
@@ -529,7 +555,85 @@ export interface OrderCreatePayload {
   delivery_type: DeliveryType
   address_id?: number | null
   notes_to_kitchen?: string
+  promo_code?: string | null
   items: OrderCreateItemPayload[]
+}
+
+export type PromoDiscountType = 'PERCENTAGE' | 'FIXED'
+
+export interface ValidatePromoPayload {
+  code: string
+  subtotal: number
+}
+
+export interface ValidatePromoResponse {
+  code: string
+  discount_type: PromoDiscountType
+  discount_value: number
+  discount_amount: number
+  subtotal: number
+  discounted_subtotal: number
+}
+
+export interface PromoCodeAdmin {
+  id: number
+  code: string
+  discount_type: PromoDiscountType
+  discount_value: number
+  max_discount_amount: number | null
+  min_order_amount: number
+  valid_from: string | null
+  valid_until: string | null
+  max_total_uses: number | null
+  max_uses_per_customer: number
+  first_order_only: boolean
+  is_active: boolean
+  usage_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PromoCodeWritePayload {
+  code: string
+  discount_type: PromoDiscountType
+  discount_value: number
+  max_discount_amount?: number | null
+  min_order_amount?: number
+  valid_from?: string | null
+  valid_until?: string | null
+  max_total_uses?: number | null
+  max_uses_per_customer?: number
+  first_order_only?: boolean
+  is_active?: boolean
+}
+
+export interface ReorderAddOn {
+  addon_id: number
+  name: string
+  quantity: number
+  unit_price: number
+  line_total: number
+}
+
+export interface ReorderItem {
+  product_id: number
+  name: string
+  quantity: number
+  unit_price: number
+  addons: ReorderAddOn[]
+  line_total: number
+}
+
+export interface ReorderResponse {
+  items: ReorderItem[]
+  warnings: string[]
+}
+
+export interface CustomerNoteSnapshot {
+  text: string
+  author_phone: string | null
+  author_name: string | null
+  created_at: string
 }
 
 export interface OrderCustomerSnapshot {
@@ -567,6 +671,9 @@ export interface OrderDetailBackoffice {
   customer: OrderCustomerSnapshot
   subtotal: number
   delivery_fee: number
+  packaging_fee: number
+  promo_code_snapshot: string
+  discount_amount: number
   total_amount: number
   prep_time_minutes: number
   expected_ready_at: string | null
@@ -578,11 +685,15 @@ export interface OrderDetailBackoffice {
   canceled_at: string | null
   canceled_by_id: number | null
   cancellation_reason: string
+  cancellation_requested: boolean
+  cancellation_request_reason: string
+  cancellation_requested_at: string | null
   refund_card_number: string
   refund_tracking_code: string
   refunded_at: string | null
   created_at: string
   items: OrderItemSnapshot[]
+  customer_notes: CustomerNoteSnapshot[]
 }
 
 export interface LiveOrderBackoffice {
@@ -599,8 +710,75 @@ export interface LiveOrderBackoffice {
   is_printed: boolean
   printed_at: string | null
   notes_to_kitchen: string
+  cancellation_requested: boolean
+  cancellation_request_reason: string
+  cancellation_requested_at: string | null
   created_at: string
   items: OrderItemSnapshot[]
+  customer_notes: CustomerNoteSnapshot[]
+}
+
+export type AnalyticsPeriod = 'today' | '7d' | '30d' | 'custom'
+
+export interface SalesAnalyticsParams {
+  period?: AnalyticsPeriod
+  date_from?: string
+  date_to?: string
+}
+
+export interface TopProductStat {
+  product_id: number
+  product_name: string
+  quantity: number
+  revenue: number
+}
+
+export interface LeastSellingProductStat {
+  id: number
+  name: string
+  quantity_sold: number
+}
+
+export interface PeakHourStat {
+  hour: number
+  order_count: number
+  revenue: number
+}
+
+export interface DailyTrendStat {
+  date: string
+  order_count: number
+  revenue: number
+}
+
+export interface SalesAnalyticsResponse {
+  period: AnalyticsPeriod
+  date_from: string
+  date_to: string
+  gross_sales: number
+  refunded_count: number
+  refunded_amount: number
+  net_sales: number
+  paid_orders_count: number
+  average_order_value: number
+  total_delivery_fees: number
+  total_packaging_fees: number
+  total_discounts: number
+  top_products: TopProductStat[]
+  least_selling_products: LeastSellingProductStat[]
+  peak_hours: PeakHourStat[]
+  daily_trend: DailyTrendStat[]
+}
+
+export interface OrderStreamEvent {
+  event_type: string
+  order_id: number
+  daily_number: number | null
+  status: OrderStatus
+  payment_status: PaymentStatus
+  expected_ready_at: string | null
+  cancellation_requested: boolean
+  timestamp: string
 }
 
 export interface OrderBackofficeListParams {

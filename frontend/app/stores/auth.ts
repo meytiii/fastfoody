@@ -25,6 +25,7 @@ export const useAuthStore = defineStore('auth', {
     defaultAddress: (state): CustomerAddress | null => {
       return state.addresses.find(a => a.is_default) ?? state.addresses[0] ?? null
     },
+    isAddressLimitReached: (state): boolean => state.addresses.length >= 4,
   },
 
   actions: {
@@ -117,6 +118,12 @@ export const useAuthStore = defineStore('auth', {
     async removeAddress(id: number): Promise<void> {
       await storefrontApi.auth.deleteAddress(id)
       await this.fetchAddresses()
+    },
+
+    async setDefaultAddress(id: number): Promise<CustomerAddress> {
+      const updated = await storefrontApi.auth.setDefaultAddress(id)
+      await this.fetchAddresses()
+      return updated
     },
   },
 })

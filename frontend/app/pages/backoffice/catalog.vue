@@ -65,7 +65,6 @@ const savingCategory = ref(false)
 const categoryForm = reactive({
   name: '',
   slug: '',
-  parent_id: '' as number | '',
   description: '',
   display_order: 1,
   is_active: true,
@@ -86,10 +85,6 @@ const statusLabels: Record<ProductStatus, string> = {
 }
 
 const categoryMap = computed(() => new Map(categories.value.map(c => [c.id, c])))
-
-const availableParentCategories = computed(() =>
-  categories.value.filter(c => c.id !== editingCategoryId.value)
-)
 
 async function loadAllCatalogData() {
   loading.value = true
@@ -293,7 +288,6 @@ function openCreateCategory() {
   editingCategoryId.value = null
   categoryForm.name = ''
   categoryForm.slug = ''
-  categoryForm.parent_id = ''
   categoryForm.description = ''
   categoryForm.display_order = categories.value.length + 1
   categoryForm.is_active = true
@@ -304,7 +298,6 @@ function openEditCategory(cat: CategoryAdmin) {
   editingCategoryId.value = cat.id
   categoryForm.name = cat.name
   categoryForm.slug = cat.slug
-  categoryForm.parent_id = cat.parent_id ?? ''
   categoryForm.description = cat.description
   categoryForm.display_order = cat.display_order
   categoryForm.is_active = cat.is_active
@@ -324,7 +317,6 @@ async function saveCategory() {
   const payload = {
     name: categoryForm.name.trim(),
     slug: slugVal,
-    parent_id: categoryForm.parent_id === '' ? null : Number(categoryForm.parent_id),
     description: categoryForm.description.trim(),
     display_order: Number(categoryForm.display_order) || 0,
     is_active: categoryForm.is_active,
@@ -657,7 +649,6 @@ useHead({
                   <tr class="border-b border-[#E8E5DC] text-start text-xs font-bold text-[#5A5D56]">
                     <th scope="col" class="px-3 py-3 text-start">ترتیب</th>
                     <th scope="col" class="px-3 py-3 text-start">عنوان</th>
-                    <th scope="col" class="px-3 py-3 text-start">دسته والد</th>
                     <th scope="col" class="px-3 py-3 text-start">وضعیت</th>
                     <th scope="col" class="px-3 py-3 text-start">عملیات</th>
                   </tr>
@@ -668,9 +659,6 @@ useHead({
                     <td data-label="عنوان" class="px-3 py-3">
                       <p class="font-bold text-[#292B27]">{{ cat.name }}</p>
                       <p dir="ltr" class="text-xs text-[#72756E]">{{ cat.slug }}</p>
-                    </td>
-                    <td data-label="دسته والد" class="px-3 py-3 text-xs text-[#5A5D56]">
-                      {{ cat.parent_id ? categoryMap.get(cat.parent_id)?.name || 'والد' : 'دسته اصلی' }}
                     </td>
                     <td data-label="وضعیت" class="px-3 py-3">
                       <button
@@ -931,13 +919,6 @@ useHead({
           <div>
             <label for="cf-slug" class="mb-1 block font-semibold">نامک (Slug)</label>
             <input id="cf-slug" v-model="categoryForm.slug" type="text" dir="ltr" class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5" />
-          </div>
-          <div>
-            <label for="cf-parent" class="mb-1 block font-semibold">دسته والد (اختیاری)</label>
-            <select id="cf-parent" v-model="categoryForm.parent_id" class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] px-3.5 py-2.5">
-              <option value="">بدون والد (دسته اصلی)</option>
-              <option v-for="c in availableParentCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
           </div>
           <div>
             <label for="cf-order" class="mb-1 block font-semibold">ترتیب نمایش</label>

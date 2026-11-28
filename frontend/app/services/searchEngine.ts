@@ -31,8 +31,6 @@ const EDGE_PUNCTUATION = /^[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~،؛؟»«…ـ]+
 
 export const MAX_SEARCH_LENGTH = 100
 export const MAX_SEARCH_TOKENS = 8
-export const TOKEN_MIN_PREFIX_LENGTH = 2
-export const TOKEN_MAX_PREFIX_LENGTH = 24
 export const TOKEN_MAX_LENGTH = 48
 
 export const SYNONYM_GROUPS: readonly (readonly string[])[] = [
@@ -73,16 +71,6 @@ export function iterIndexTokens(text: string): string[] {
     .map(cleanWord)
     .filter(Boolean)
     .map(word => word.slice(0, TOKEN_MAX_LENGTH))
-}
-
-function withPrefixes(word: string): string[] {
-  const truncated = word.slice(0, TOKEN_MAX_LENGTH)
-  const candidates = new Set<string>([truncated])
-  const upper = Math.min(truncated.length, TOKEN_MAX_PREFIX_LENGTH)
-  for (let len = TOKEN_MIN_PREFIX_LENGTH; len < upper; len++) {
-    candidates.add(truncated.slice(0, len))
-  }
-  return Array.from(candidates)
 }
 
 export function searchVariants(term: string): string[] {
@@ -147,16 +135,9 @@ export interface SearchableProductRecord {
 function buildProductTokenSet(record: SearchableProductRecord): Set<string> {
   const tokens = new Set<string>()
   for (const word of iterIndexTokens(record.name)) {
-    for (const candidate of withPrefixes(word)) {
-      tokens.add(candidate)
-    }
+    tokens.add(word)
   }
   for (const word of iterIndexTokens(record.categoryName)) {
-    for (const candidate of withPrefixes(word)) {
-      tokens.add(candidate)
-    }
-  }
-  for (const word of iterIndexTokens(record.slug.replace(/[-_]/g, ' '))) {
     tokens.add(word)
   }
   for (const word of iterIndexTokens(record.description)) {
@@ -166,13 +147,64 @@ function buildProductTokenSet(record: SearchableProductRecord): Set<string> {
 }
 
 export function matchesSearchTerm(record: SearchableProductRecord, term: string): boolean {
+  const normalized = normalizeSearchQuery(term).toLowerCase()
   const tokens = tokenizeSearchQuery(term)
   if (tokens.length === 0) return true
+
+  const nameNormalized = normalizeSearchQuery(record.name).toLowerCase()
+  if (nameNormalized.includes(normalized)) return true
+
+  if (normalized.length >= 2 && similarityRatio(normalized, nameNormalized) >= 0.2) {
+    return true
+  }
 
   const productTokens = buildProductTokenSet(record)
   return tokens.every(token =>
     expandToken(token).some(candidate => productTokens.has(candidate.toLowerCase()))
   )
+}
+
+export function matchesAutocompleteTerm(
+  record: { name: string },
+  term: string
+): boolean {
+  const normalized = normalizeSearchQuery(term).toLowerCase()
+  if (!normalized) return false
+  const nameNormalized = normalizeSearchQuery(record.name).toLowerCase()
+  for (const candidate of expandToken(normalized)) {
+    if (nameNormalized.startsWith(candidate.toLowerCase())) {
+      return true
+    }
+  }
+  if (normalized.length >= 2 && similarityRatio(normalized, nameNormalized) >= 0.2) {
+    return true
+  }
+  return false
+}
+
+export function findDidYouMeanName(
+  term: string,
+  productNames: string[],
+  categoryNames: string[],
+  cutoff = 0.25
+): string | null {
+  const normalized = normalizeSearchQuery(term).toLowerCase()
+  if (normalized.length < 2) return null
+
+  let bestName: string | null = null
+  let bestScore = cutoff
+
+  for (const raw of [...productNames, ...categoryNames]) {
+    const candidate = normalizeSearchQuery(raw).toLowerCase()
+    if (!candidate || candidate === normalized) continue
+    const score = similarityRatio(normalized, candidate)
+    if (score >= bestScore) {
+      bestScore = score
+      bestName = raw
+    }
+  }
+
+  return bestName
 }
 
 export function computeRelevanceScore(record: SearchableProductRecord, term: string): number {

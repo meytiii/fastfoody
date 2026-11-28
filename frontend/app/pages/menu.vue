@@ -328,6 +328,19 @@ useHead({
           <p class="mt-1 text-xs text-[var(--color-text-secondary)] max-w-sm">
             می‌توانید عبارت جستجو را تغییر دهید یا تمام فیلترها را بازنشانی کنید.
           </p>
+          <div
+            v-if="menuStore.listDidYouMean"
+            class="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-[var(--color-text-primary)]"
+          >
+            <span>آیا منظور شما این بود:</span>
+            <button
+              type="button"
+              @click="menuStore.searchQuery = menuStore.listDidYouMean || ''"
+              class="touch-target rounded-full border border-[var(--color-brand-forest)]/30 bg-white px-3 py-1.5 font-bold text-[var(--color-brand-forest)] hover:bg-[var(--color-brand-forest)] hover:text-white transition-colors"
+            >
+              {{ menuStore.listDidYouMean }}
+            </button>
+          </div>
           <GooeyButton
             variant="primary"
             size="sm"

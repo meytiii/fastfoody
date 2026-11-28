@@ -9,9 +9,9 @@ import type {
   PaymentBackoffice,
   ProductAddOnAdmin,
   ProductAdmin,
+  PromoCodeAdmin,
   RestaurantSettings,
   SiteSectionsMap,
-  StaffProfile,
 } from '~/types'
 
 export interface MockProductAddOnRow {
@@ -20,6 +20,15 @@ export interface MockProductAddOnRow {
   addon_id: number
   min_quantity: number
   max_quantity: number
+}
+
+export interface MockPromoUsageRow {
+  id: number
+  promo_code_id: number
+  customer_id: number
+  order_id: number
+  discount_amount: number
+  deleted_at: string | null
 }
 
 export interface MockOrderRecord extends OrderDetailBackoffice {
@@ -46,6 +55,8 @@ export interface MockDatabaseState {
   customerNotes: Array<CustomerNote & { customer_id: number }>
   orders: MockOrderRecord[]
   payments: PaymentBackoffice[]
+  promoCodes: PromoCodeAdmin[]
+  promoUsages: MockPromoUsageRow[]
   dailyCounter: Record<string, number>
   nextIds: {
     category: number
@@ -59,6 +70,8 @@ export interface MockDatabaseState {
     orderItem: number
     payment: number
     media: number
+    promoCode: number
+    promoUsage: number
   }
 }
 
@@ -73,7 +86,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
   const categories: CategoryAdmin[] = [
     {
       id: 1,
-      parent_id: null,
       name: 'برگرهای دست‌ساز',
       slug: 'burgers',
       description: 'گوشت تازه گوساله با نان بریوش روزانه',
@@ -86,7 +98,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 2,
-      parent_id: null,
       name: 'پیتزا ناپلی',
       slug: 'pizzas',
       description: 'خمیر تخمیر طولانی ۴۸ ساعته در تنور سنگی',
@@ -99,7 +110,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 3,
-      parent_id: 2,
       name: 'پیتزاهای تند و ویژه',
       slug: 'spicy-pizzas',
       description: 'ترکیب عسل تند، چیلی تازه و گوشت تنوری',
@@ -112,7 +122,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 4,
-      parent_id: null,
       name: 'پاستا تازه',
       slug: 'pasta',
       description: 'رشته‌های دست‌ساز روزانه با سس‌های اصیل ایتالیایی',
@@ -125,7 +134,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 5,
-      parent_id: null,
       name: 'سالادهای ارگانیک',
       slug: 'salads',
       description: 'سبزیجات مزرعه با سس‌های دست‌ساز بدون نگه‌دارنده',
@@ -138,7 +146,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 6,
-      parent_id: null,
       name: 'نوشیدنی‌های طبیعی',
       slug: 'drinks',
       description: 'نوشیدنی‌های خنک و تخمیری طبیعی',
@@ -151,7 +158,6 @@ export function getInitialMockDatabase(): MockDatabaseState {
     },
     {
       id: 7,
-      parent_id: null,
       name: 'دسرهای فصلی',
       slug: 'desserts',
       description: 'شیرینی‌های گرم اسکاندیناوی پخت صبح',
@@ -573,7 +579,10 @@ export function getInitialMockDatabase(): MockDatabaseState {
       customer: { id: 2, phone: '09120000000', full_name: 'سارا محمدی' },
       subtotal: 485000,
       delivery_fee: 50000,
-      total_amount: 535000,
+      packaging_fee: 15000,
+      promo_code_snapshot: '',
+      discount_amount: 0,
+      total_amount: 550000,
       prep_time_minutes: 25,
       expected_ready_at: isoOffsetMinutes(17),
       paid_at: isoOffsetMinutes(-8),
@@ -584,10 +593,21 @@ export function getInitialMockDatabase(): MockDatabaseState {
       canceled_at: null,
       canceled_by_id: null,
       cancellation_reason: '',
+      cancellation_requested: false,
+      cancellation_request_reason: '',
+      cancellation_requested_at: null,
       refund_card_number: '',
       refund_tracking_code: '',
       refunded_at: null,
       created_at: isoOffsetMinutes(-9),
+      customer_notes: [
+        {
+          text: 'ترجیح می‌دهد سس هات‌هانی در ظرف جداگانه ارسال شود.',
+          author_phone: '09123456789',
+          author_name: 'مدیر رستوران فست‌فودی',
+          created_at: isoOffsetMinutes(-1200),
+        },
+      ],
       items: [
         {
           id: 1,
@@ -631,7 +651,10 @@ export function getInitialMockDatabase(): MockDatabaseState {
       customer: { id: 3, phone: '09121112233', full_name: 'امیرحسین رضایی' },
       subtotal: 383000,
       delivery_fee: 0,
-      total_amount: 383000,
+      packaging_fee: 15000,
+      promo_code_snapshot: '',
+      discount_amount: 0,
+      total_amount: 398000,
       prep_time_minutes: 21,
       expected_ready_at: isoOffsetMinutes(2),
       paid_at: isoOffsetMinutes(-19),
@@ -642,10 +665,14 @@ export function getInitialMockDatabase(): MockDatabaseState {
       canceled_at: null,
       canceled_by_id: null,
       cancellation_reason: '',
+      cancellation_requested: false,
+      cancellation_request_reason: '',
+      cancellation_requested_at: null,
       refund_card_number: '',
       refund_tracking_code: '',
       refunded_at: null,
       created_at: isoOffsetMinutes(-20),
+      customer_notes: [],
       items: [
         {
           id: 3,
@@ -681,7 +708,10 @@ export function getInitialMockDatabase(): MockDatabaseState {
       customer: { id: 2, phone: '09120000000', full_name: 'سارا محمدی' },
       subtotal: 655000,
       delivery_fee: 50000,
-      total_amount: 705000,
+      packaging_fee: 15000,
+      promo_code_snapshot: '',
+      discount_amount: 0,
+      total_amount: 720000,
       prep_time_minutes: 20,
       expected_ready_at: isoOffsetMinutes(-90),
       paid_at: isoOffsetMinutes(-110),
@@ -692,10 +722,21 @@ export function getInitialMockDatabase(): MockDatabaseState {
       canceled_at: null,
       canceled_by_id: null,
       cancellation_reason: '',
+      cancellation_requested: false,
+      cancellation_request_reason: '',
+      cancellation_requested_at: null,
       refund_card_number: '',
       refund_tracking_code: '',
       refunded_at: null,
       created_at: isoOffsetMinutes(-112),
+      customer_notes: [
+        {
+          text: 'ترجیح می‌دهد سس هات‌هانی در ظرف جداگانه ارسال شود.',
+          author_phone: '09123456789',
+          author_name: 'مدیر رستوران فست‌فودی',
+          created_at: isoOffsetMinutes(-1200),
+        },
+      ],
       items: [
         {
           id: 4,
@@ -731,7 +772,10 @@ export function getInitialMockDatabase(): MockDatabaseState {
       customer: { id: 3, phone: '09121112233', full_name: 'امیرحسین رضایی' },
       subtotal: 295000,
       delivery_fee: 50000,
-      total_amount: 345000,
+      packaging_fee: 15000,
+      promo_code_snapshot: '',
+      discount_amount: 0,
+      total_amount: 360000,
       prep_time_minutes: 23,
       expected_ready_at: isoOffsetMinutes(-30),
       paid_at: isoOffsetMinutes(-55),
@@ -742,10 +786,14 @@ export function getInitialMockDatabase(): MockDatabaseState {
       canceled_at: isoOffsetMinutes(-48),
       canceled_by_id: 1,
       cancellation_reason: 'درخواست لغو توسط مشتری پیش از آماده‌سازی',
+      cancellation_requested: true,
+      cancellation_request_reason: 'درخواست لغو توسط مشتری پیش از آماده‌سازی',
+      cancellation_requested_at: isoOffsetMinutes(-50),
       refund_card_number: '',
       refund_tracking_code: '',
       refunded_at: null,
       created_at: isoOffsetMinutes(-56),
+      customer_notes: [],
       items: [
         {
           id: 6,
@@ -765,7 +813,7 @@ export function getInitialMockDatabase(): MockDatabaseState {
       id: 1,
       order_id: 101,
       customer_phone: '09120000000',
-      amount: 535000,
+      amount: 550000,
       status: 'SUCCEEDED',
       authority: 'MOCK-AUTH-000101',
       ref_id: '784129501',
@@ -778,7 +826,7 @@ export function getInitialMockDatabase(): MockDatabaseState {
       id: 2,
       order_id: 102,
       customer_phone: '09121112233',
-      amount: 383000,
+      amount: 398000,
       status: 'SUCCEEDED',
       authority: 'MOCK-AUTH-000102',
       ref_id: '784129502',
@@ -791,7 +839,7 @@ export function getInitialMockDatabase(): MockDatabaseState {
       id: 3,
       order_id: 103,
       customer_phone: '09120000000',
-      amount: 705000,
+      amount: 720000,
       status: 'SUCCEEDED',
       authority: 'MOCK-AUTH-000103',
       ref_id: '784129503',
@@ -804,7 +852,7 @@ export function getInitialMockDatabase(): MockDatabaseState {
       id: 4,
       order_id: 104,
       customer_phone: '09121112233',
-      amount: 345000,
+      amount: 360000,
       status: 'SUCCEEDED',
       authority: 'MOCK-AUTH-000104',
       ref_id: '784129504',
@@ -814,6 +862,45 @@ export function getInitialMockDatabase(): MockDatabaseState {
       created_at: isoOffsetMinutes(-56),
     },
   ]
+
+  const promoCodes: PromoCodeAdmin[] = [
+    {
+      id: 1,
+      code: 'WELCOME20',
+      discount_type: 'PERCENTAGE',
+      discount_value: 20,
+      max_discount_amount: 60000,
+      min_order_amount: 0,
+      valid_from: null,
+      valid_until: null,
+      max_total_uses: null,
+      max_uses_per_customer: 1,
+      first_order_only: true,
+      is_active: true,
+      usage_count: 0,
+      created_at: isoOffsetMinutes(-4000),
+      updated_at: nowIso,
+    },
+    {
+      id: 2,
+      code: 'FAST30',
+      discount_type: 'FIXED',
+      discount_value: 30000,
+      max_discount_amount: null,
+      min_order_amount: 100000,
+      valid_from: null,
+      valid_until: null,
+      max_total_uses: 100,
+      max_uses_per_customer: 1,
+      first_order_only: false,
+      is_active: true,
+      usage_count: 0,
+      created_at: isoOffsetMinutes(-3000),
+      updated_at: nowIso,
+    },
+  ]
+
+  const promoUsages: MockPromoUsageRow[] = []
 
   const siteSections: SiteSectionsMap = {
     hero: {
@@ -896,6 +983,8 @@ export function getInitialMockDatabase(): MockDatabaseState {
       is_temporarily_closed: false,
       in_zone_delivery_fee: 50000,
       out_zone_delivery_fee: 100000,
+      min_delivery_order_amount: 150000,
+      packaging_fee: 15000,
       prep_time_buffer_minutes: 5,
       updated_at: nowIso,
     },
@@ -910,6 +999,8 @@ export function getInitialMockDatabase(): MockDatabaseState {
     customerNotes,
     orders,
     payments,
+    promoCodes,
+    promoUsages,
     dailyCounter: { [todayDate]: 4 },
     nextIds: {
       category: 8,
@@ -923,6 +1014,8 @@ export function getInitialMockDatabase(): MockDatabaseState {
       orderItem: 7,
       payment: 5,
       media: 4,
+      promoCode: 3,
+      promoUsage: 1,
     },
   }
 }

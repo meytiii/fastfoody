@@ -8,6 +8,7 @@ import type {
   ProductSortChoice,
   ProductSuggestionPublic,
   ProductSummaryPublic,
+  UpsellProductPublic,
 } from '~/types'
 
 export const useMenuStore = defineStore('menu', {
@@ -19,11 +20,15 @@ export const useMenuStore = defineStore('menu', {
 
     products: [] as ProductSummaryPublic[],
     totalCount: 0,
+    listDidYouMean: null as string | null,
     productsLoading: false,
     productsError: null as string | null,
 
+    upsellItems: [] as UpsellProductPublic[],
+    upsellLoaded: false,
+    upsellLoading: false,
+
     selectedCategory: 'all',
-    includeSubcategories: true,
     searchQuery: '',
     onlyInStock: false,
     onlyDiscounted: false,
@@ -45,15 +50,7 @@ export const useMenuStore = defineStore('menu', {
 
   getters: {
     topCategories: (state): MenuCategoryPublic[] => {
-      return state.menuCategories.filter(c => c.parent_id === null)
-    },
-
-    subcategoriesForSelected: (state): MenuCategoryPublic[] => {
-      if (state.selectedCategory === 'all') return []
-      const selected = state.menuCategories.find(c => c.slug === state.selectedCategory)
-      if (!selected) return []
-      const parentId = selected.parent_id ?? selected.id
-      return state.menuCategories.filter(c => c.parent_id === parentId)
+      return state.menuCategories
     },
 
     specialOffers: (state): ProductSummaryPublic[] => {
@@ -69,7 +66,6 @@ export const useMenuStore = defineStore('menu', {
                 name: cat.name,
                 slug: cat.slug,
                 description: cat.description,
-                parent_id: cat.parent_id,
                 image_url: cat.image_url,
               },
             })
@@ -87,7 +83,6 @@ export const useMenuStore = defineStore('menu', {
                 name: cat.name,
                 slug: cat.slug,
                 description: cat.description,
-                parent_id: cat.parent_id,
                 image_url: cat.image_url,
               },
             })
@@ -134,6 +129,18 @@ export const useMenuStore = defineStore('menu', {
       }
     },
 
+    async fetchUpsell(force = false) {
+      if (this.upsellLoaded && !force) return
+      this.upsellLoading = true
+      try {
+        const res = await storefrontApi.catalog.getUpsell()
+        this.upsellItems = res.products
+        this.upsellLoaded = true
+      } finally {
+        this.upsellLoading = false
+      }
+    },
+
     async searchProducts(overrideParams?: Partial<ProductSearchParams>) {
       this.productsLoading = true
       this.productsError = null
@@ -141,7 +148,6 @@ export const useMenuStore = defineStore('menu', {
         const params: ProductSearchParams = {
           q: this.searchQuery.trim() || undefined,
           category: this.selectedCategory === 'all' ? undefined : this.selectedCategory,
-          include_subcategories: this.includeSubcategories,
           available: this.onlyInStock ? true : undefined,
           discount: this.onlyDiscounted ? true : undefined,
           is_main_dish: this.onlyMainDish ? true : undefined,
@@ -155,6 +161,7 @@ export const useMenuStore = defineStore('menu', {
         const res = await storefrontApi.catalog.getProducts(params)
         this.products = res.results
         this.totalCount = res.count
+        this.listDidYouMean = res.did_you_mean ?? null
       } catch (err: any) {
         this.productsError = err?.message || 'خطا در جستجوی محصولات'
       } finally {
@@ -192,7 +199,6 @@ export const useMenuStore = defineStore('menu', {
 
     async resetFilters() {
       this.selectedCategory = 'all'
-      this.includeSubcategories = true
       this.searchQuery = ''
       this.onlyInStock = false
       this.onlyDiscounted = false

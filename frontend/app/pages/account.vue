@@ -31,6 +31,7 @@ const form = reactive<CustomerAddressPayload>({
   address_text: '',
   is_out_of_zone: false,
   is_default: false,
+  replace_address_id: null,
 })
 
 function resetAddressDialog() {
@@ -41,6 +42,7 @@ function resetAddressDialog() {
   form.address_text = ''
   form.is_out_of_zone = false
   form.is_default = false
+  form.replace_address_id = null
   formError.value = ''
   touched.address_text = false
   touched.recipient_phone = false
@@ -53,6 +55,10 @@ function openCreateDialog() {
     form.recipient_phone = authStore.user.phone || ''
   }
   form.is_default = authStore.addresses.length === 0
+  if (authStore.isAddressLimitReached) {
+    const fallback = authStore.addresses.find(a => !a.is_default) ?? authStore.addresses[0]
+    form.replace_address_id = fallback ? fallback.id : null
+  }
   addressDialogRef.value?.showModal()
 }
 
@@ -88,6 +94,15 @@ async function handleSaveAddress() {
     return
   }
 
+  if (
+    editingAddressId.value === null &&
+    authStore.isAddressLimitReached &&
+    !form.replace_address_id
+  ) {
+    formError.value = 'به سقف ۴ نشانی رسیده‌اید؛ لطفاً یکی از نشانی‌ها را برای جایگزینی انتخاب کنید.'
+    return
+  }
+
   savingAddress.value = true
   try {
     const payload: CustomerAddressPayload = {
@@ -97,6 +112,9 @@ async function handleSaveAddress() {
       address_text: form.address_text.trim(),
       is_out_of_zone: Boolean(form.is_out_of_zone),
       is_default: Boolean(form.is_default),
+      ...(editingAddressId.value === null && form.replace_address_id
+        ? { replace_address_id: form.replace_address_id }
+        : {}),
     }
 
     if (editingAddressId.value !== null) {
@@ -116,7 +134,7 @@ async function handleSaveAddress() {
 
 async function handleSetDefault(addr: CustomerAddress) {
   try {
-    await authStore.updateAddress(addr.id, { is_default: true })
+    await authStore.setDefaultAddress(addr.id)
     toast.success('نشانی پیش‌فرض به‌روزرسانی شد')
   } catch (err) {
     toast.error(err instanceof Error ? err.message : 'خطا در تغییر نشانی پیش‌فرض')
@@ -229,7 +247,12 @@ useHead({
         <section class="rounded-3xl border border-[#E8E5DC] bg-white p-6 shadow-sm sm:p-8">
           <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 class="text-xl font-bold text-[#292B27]">نشانی‌های ثبت‌شده</h2>
+              <h2 class="text-xl font-bold text-[#292B27]">
+                نشانی‌های ثبت‌شده
+                <span class="mr-2 rounded-full bg-[#F4EFE3] px-2.5 py-0.5 text-xs font-bold text-[#183A2D]">
+                  {{ toPersianDigits(authStore.addresses.length) }} از ۴
+                </span>
+              </h2>
               <p class="mt-1 text-xs text-[#5A5D56]">
                 هزینه ارسال داخل محدوده {{ formatToman(cmsStore.inZoneFee) }} و خارج از محدوده {{ formatToman(cmsStore.outZoneFee) }} است.
               </p>
@@ -240,7 +263,7 @@ useHead({
               @click="openCreateDialog"
             >
               <Plus class="h-4 w-4" />
-              <span>افزودن نشانی جدید</span>
+              <span>{{ authStore.isAddressLimitReached ? 'افزودن و جایگزینی نشانی' : 'افزودن نشانی جدید' }}</span>
             </button>
           </div>
 
@@ -445,6 +468,32 @@ useHead({
             <span>تنظیم به عنوان نشانی پیش‌فرض</span>
           </label>
 
+          <div
+            v-if="editingAddressId === null && authStore.isAddressLimitReached"
+            class="space-y-2 rounded-xl border border-[#D6A84B]/50 bg-[#F8F3E8] p-3.5"
+          >
+            <p class="text-xs font-bold text-[#8A651C]">
+              شما به سقف مجاز ۴ نشانی رسیده‌اید. برای ثبت نشانی جدید، یکی از نشانی‌های فعلی را جایگزین کنید:
+            </p>
+            <label for="addr-replace" class="block text-xs font-semibold text-[#292B27]">
+              جایگزینی با نشانی *
+            </label>
+            <select
+              id="addr-replace"
+              v-model.number="form.replace_address_id"
+              required
+              class="w-full rounded-xl border border-[#E8E5DC] bg-white px-3 py-2.5 text-xs text-[#292B27] focus:border-[#183A2D] focus:outline-none"
+            >
+              <option
+                v-for="addr in authStore.addresses"
+                :key="addr.id"
+                :value="addr.id"
+              >
+                {{ addr.title || 'نشانی' }}: {{ addr.address_text }}
+              </option>
+            </select>
+          </div>
+
           <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
             <button
               type="button"
@@ -458,7 +507,13 @@ useHead({
               :disabled="savingAddress"
               class="touch-target rounded-full bg-[#183A2D] px-7 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#12251D] disabled:opacity-60"
             >
-              {{ savingAddress ? 'در حال ذخیره...' : 'ذخیره نشانی' }}
+              {{
+                savingAddress
+                  ? 'در حال ذخیره...'
+                  : editingAddressId === null && authStore.isAddressLimitReached
+                    ? 'جایگزینی و ذخیره نشانی'
+                    : 'ذخیره نشانی'
+              }}
             </button>
           </div>
         </form>
