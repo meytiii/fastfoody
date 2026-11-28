@@ -140,13 +140,12 @@ useHead({
           <label for="staff-password" class="mb-1.5 block text-sm font-semibold text-[#292B27]">
             رمز عبور
           </label>
-          <div class="relative">
+          <div class="relative" dir="ltr">
             <input
               id="staff-password"
               v-model="password"
               name="password"
               :type="showPassword ? 'text' : 'password'"
-              dir="ltr"
               autocomplete="current-password"
               required
               class="w-full rounded-xl border border-[#E8E5DC] bg-[#FAF7F2] py-3 ps-4 pe-12 text-sm text-[#292B27] focus:border-[#183A2D] focus:bg-white focus:outline-none"
@@ -160,8 +159,8 @@ useHead({
               :aria-pressed="showPassword"
               @click="showPassword = !showPassword"
             >
-              <EyeOff v-if="showPassword" class="h-4 w-4" />
-              <Eye v-else class="h-4 w-4" />
+              <EyeOff v-if="showPassword" class="h-4 w-4" aria-hidden="true" />
+              <Eye v-else class="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <p v-if="passwordError" class="mt-1 text-xs font-medium text-[#A61B1B]">
