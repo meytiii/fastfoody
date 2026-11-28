@@ -150,14 +150,5 @@ const handleQuickAdd = async (e: MouseEvent) => {
         <span>{{ isAvailable ? 'افزودن' : 'ناموجود' }}</span>
       </GooeyButton>
     </div>
-
-    <div class="mt-1 flex items-center justify-end">
-      <NuxtLink
-        :to="`/products/${product.slug}`"
-        class="touch-target inline-flex items-center px-2 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-brand-forest)] hover:underline"
-      >
-        صفحه محصول
-      </NuxtLink>
-    </div>
   </article>
 </template>
