@@ -33,7 +33,7 @@ const allProductCount = computed(() => {
           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-200"
           :class="menuStore.selectedCategory === 'all' ? 'bg-white' : 'bg-white/85'"
         >
-          <img src="/svg/food.svg" alt="" width="24" height="24" aria-hidden="true" class="h-6 w-6 object-contain" />
+          <img src="/svg/food.svg" alt="" width="32" height="32" aria-hidden="true" class="h-8 w-8 object-contain" />
         </div>
         <div class="flex min-w-0 flex-col text-start">
           <span class="text-xs font-bold leading-snug">همه دسته‌ها</span>
@@ -66,10 +66,10 @@ const allProductCount = computed(() => {
           <img
             :src="cat.image_url || '/svg/food.svg'"
             alt=""
-            width="24"
-            height="24"
+            width="32"
+            height="32"
             aria-hidden="true"
-            class="h-6 w-6 object-contain"
+            class="h-8 w-8 object-contain"
           />
         </div>
 
